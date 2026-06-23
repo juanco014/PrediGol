@@ -7,6 +7,7 @@ import HomePage from "./pages/HomePage";
 import RankingPage from "./pages/RankingPage";
 import LigasPage from "./pages/LigasPage";
 import ProfilePage from "./pages/ProfilePage";
+import LigaDetailPage from "./pages/LigaDetailPage";
 import "./App.css";
 
 function ProtectedRoute({ session, children }) {
@@ -98,6 +99,15 @@ function App() {
         element={
           <ProtectedRoute session={session}>
             <LigasPage session={session} />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/ligas/:ligaId"
+        element={
+          <ProtectedRoute session={session}>
+            <LigaDetailPage session={session} />
           </ProtectedRoute>
         }
       />

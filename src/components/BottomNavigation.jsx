@@ -7,7 +7,9 @@ function BottomNavigation({ activePage }) {
   return (
     <nav className="bottom-nav">
       <button
+        type="button"
         className={`nav-item ${activePage === "partidos" ? "active" : ""}`}
+        aria-current={activePage === "partidos" ? "page" : undefined}
         onClick={() => navigate("/inicio")}
       >
         <Trophy size={20} />
@@ -15,7 +17,9 @@ function BottomNavigation({ activePage }) {
       </button>
 
       <button
+        type="button"
         className={`nav-item ${activePage === "ranking" ? "active" : ""}`}
+        aria-current={activePage === "ranking" ? "page" : undefined}
         onClick={() => navigate("/ranking")}
       >
         <Medal size={20} />
@@ -23,7 +27,9 @@ function BottomNavigation({ activePage }) {
       </button>
 
       <button
+        type="button"
         className={`nav-item ${activePage === "ligas" ? "active" : ""}`}
+        aria-current={activePage === "ligas" ? "page" : undefined}
         onClick={() => navigate("/ligas")}
       >
         <Users size={20} />
@@ -31,7 +37,9 @@ function BottomNavigation({ activePage }) {
       </button>
 
       <button
+        type="button"
         className={`nav-item ${activePage === "perfil" ? "active" : ""}`}
+        aria-current={activePage === "perfil" ? "page" : undefined}
         onClick={() => navigate("/perfil")}
       >
         <UserRound size={20} />

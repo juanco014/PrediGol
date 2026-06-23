@@ -164,6 +164,12 @@ input {
   cursor: pointer;
 }
 
+.matches-count {
+  color: #98a79c;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
 .matches-list {
   display: grid;
   width: min(100%, 760px);
@@ -555,7 +561,7 @@ input {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(122px, 1fr));
   gap: 12px;
   margin-top: 17px;
 }
@@ -880,6 +886,7 @@ input {
 }
 
 .saved-prediction-score,
+.saved-prediction-failed,
 .saved-prediction-pending {
   flex-shrink: 0;
   padding: 9px 11px;
@@ -895,6 +902,11 @@ input {
 .saved-prediction-pending {
   background: rgba(255, 203, 107, 0.12);
   color: #ffcb6b;
+}
+
+.saved-prediction-failed {
+  background: rgba(255, 126, 126, 0.12);
+  color: #ffb0b0;
 }
 .achievement-unlocked {
   border-color: rgba(183, 255, 68, 0.48);
@@ -1562,4 +1574,243 @@ input {
   color: #dfffc7;
   font-size: 0.9rem;
   line-height: 1.4;
+}
+.league-card-button {
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.league-card-button:hover {
+  border-color: rgba(166, 255, 60, 0.7);
+  transform: translateY(-1px);
+}
+
+.league-detail-page {
+  min-height: 100vh;
+  padding: 18px 20px 120px;
+}
+
+.league-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: #c9d2c8;
+  font: inherit;
+  cursor: pointer;
+  padding: 6px 0;
+}
+
+.league-detail-header {
+  margin: 18px 0 28px;
+}
+
+.league-detail-header h1 {
+  margin: 14px 0 10px;
+  font-size: clamp(2rem, 7vw, 3.2rem);
+}
+
+.league-detail-header > p:last-child {
+  margin: 0;
+  color: #c5cdc3;
+  line-height: 1.5;
+}
+
+.league-code-card,
+.league-private-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid rgba(159, 255, 61, 0.3);
+  border-radius: 20px;
+  background: rgba(23, 42, 28, 0.7);
+}
+
+.league-code-card {
+  padding: 17px 18px;
+  margin-bottom: 16px;
+}
+
+.league-code-card span,
+.league-private-summary span {
+  display: block;
+  color: #bdc9bb;
+  font-size: 0.88rem;
+}
+
+.league-code-card strong {
+  display: block;
+  margin-top: 4px;
+  color: #adff3d;
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+}
+
+.league-code-card button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(159, 255, 61, 0.45);
+  border-radius: 12px;
+  background: transparent;
+  color: #dfffc2;
+  font: inherit;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+
+.league-private-summary {
+  padding: 20px;
+  margin-bottom: 38px;
+  text-align: center;
+}
+
+.league-private-summary > div {
+  flex: 1;
+}
+
+.league-private-summary strong {
+  display: block;
+  margin-top: 7px;
+  font-size: 2rem;
+}
+
+.league-private-divider {
+  width: 1px;
+  min-height: 58px;
+  background: rgba(210, 230, 210, 0.18);
+}
+
+.league-detail-section-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.league-detail-section-header h2 {
+  margin: 7px 0 0;
+}
+
+.league-detail-section-header > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #b8c8b6;
+  white-space: nowrap;
+}
+
+.league-ranking-list {
+  display: grid;
+  gap: 12px;
+}
+
+.league-ranking-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(188, 214, 188, 0.16);
+  border-radius: 18px;
+  background: rgba(23, 42, 28, 0.7);
+  padding: 14px;
+}
+
+.league-ranking-card-current {
+  border-color: rgba(166, 255, 60, 0.62);
+  background: rgba(84, 133, 30, 0.15);
+}
+
+.league-ranking-position {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 13px;
+  background: rgba(210, 226, 210, 0.12);
+  color: #d7e4d4;
+  font-weight: 800;
+}
+
+.league-ranking-position-first {
+  background: rgba(255, 200, 69, 0.2);
+  color: #ffd466;
+}
+
+.league-ranking-avatar {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(127, 255, 47, 0.12);
+  color: #b7ff50;
+  font-weight: 800;
+}
+
+.league-ranking-player {
+  min-width: 0;
+  flex: 1;
+}
+
+.league-ranking-player h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.league-ranking-player p {
+  overflow: hidden;
+  margin: 0;
+  color: #b9c7b7;
+  font-size: 0.85rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.league-ranking-points {
+  text-align: right;
+}
+
+.league-ranking-points strong {
+  display: block;
+  color: #aaff36;
+  font-size: 1.45rem;
+}
+
+.league-ranking-points span {
+  color: #b9c7b7;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.league-detail-tip {
+  display: flex;
+  gap: 13px;
+  align-items: flex-start;
+  margin-top: 20px;
+  border: 1px dashed rgba(159, 255, 61, 0.35);
+  border-radius: 18px;
+  padding: 16px;
+  color: #afff43;
+}
+
+.league-detail-tip h3 {
+  margin: 5px 0;
+  color: #edfae9;
+}
+
+.league-detail-tip span {
+  color: #b8c8b6;
+  font-size: 0.9rem;
+  line-height: 1.45;
 }

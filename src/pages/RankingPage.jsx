@@ -1,34 +1,64 @@
+import { useEffect, useState } from "react";
 import { Crown, Medal, Target, Trophy } from "lucide-react";
 import BottomNavigation from "../components/BottomNavigation";
-import { obtenerEstadisticas } from "../utils/estadisticas";
+import {
+  estadisticasVacias,
+  obtenerEstadisticasSupabase,
+} from "../utils/estadisticasSupabase";
 import {
   crearUsuarioRanking,
   obtenerRankingGlobal,
 } from "../utils/ranking";
 import { useProfile } from "../hooks/useProfile";
 
-
-  const estadisticas = obtenerEstadisticas();
 function RankingPage({ session }) {
-  const { profile } = useProfile(session?.user?.id);
+  const [estadisticas, setEstadisticas] = useState(estadisticasVacias);
 
-const nombreCompleto =
-  profile?.nombre ||
-  session?.user?.user_metadata?.nombre ||
-  "Hincha PrediGol";
+  const usuarioId = session?.user?.id;
+  const { profile } = useProfile(usuarioId);
 
-const username = profile?.username
-  ? `@${profile.username}`
-  : "@hincha_predigol";
+  useEffect(() => {
+    let respuestaCancelada = false;
 
-const inicialUsuario = nombreCompleto.trim().charAt(0).toUpperCase();
-const usuarioActual = crearUsuarioRanking({
-  puntosTotales: estadisticas.puntosTotales,
-  aciertos: estadisticas.aciertos,
-  nombre: nombreCompleto,
-  usuario: username,
-  avatar: inicialUsuario,
-});
+    if (!usuarioId) {
+      return () => {
+        respuestaCancelada = true;
+      };
+    }
+
+    obtenerEstadisticasSupabase(usuarioId)
+      .then((estadisticasCargadas) => {
+        if (!respuestaCancelada) {
+          setEstadisticas(estadisticasCargadas);
+        }
+      })
+      .catch((error) => {
+        console.error("Error al cargar estadísticas del ranking:", error);
+      });
+
+    return () => {
+      respuestaCancelada = true;
+    };
+  }, [usuarioId]);
+
+  const nombreCompleto =
+    profile?.nombre ||
+    session?.user?.user_metadata?.nombre ||
+    "Hincha PrediGol";
+
+  const username = profile?.username
+    ? `@${profile.username}`
+    : "@hincha_predigol";
+
+  const inicialUsuario = nombreCompleto.trim().charAt(0).toUpperCase();
+
+  const usuarioActual = crearUsuarioRanking({
+    puntosTotales: estadisticas.puntosTotales,
+    aciertos: estadisticas.aciertos,
+    nombre: nombreCompleto,
+    usuario: username,
+    avatar: inicialUsuario,
+  });
 
   const { ranking, posicionUsuario, mensajePosicion } =
     obtenerRankingGlobal(usuarioActual);
@@ -128,8 +158,8 @@ const usuarioActual = crearUsuarioRanking({
           <p className="section-label">¿CÓMO SUBIR?</p>
           <h3>Acumula más aciertos</h3>
           <span>
-            Acierta marcadores exactos para obtener 5 puntos y subir más rápido
-            en la tabla.
+            Suma 3 puntos por acertar ganador o empate, 1 extra por diferencia
+            de goles y 5 puntos por marcador exacto.
           </span>
         </div>
 

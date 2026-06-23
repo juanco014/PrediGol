@@ -1,14 +1,24 @@
 import { useEffect, useState } from "react";
 import { Plus, Users, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
 import { supabase } from "../lib/supabase";
 
 function generarCodigoLiga() {
   const caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let codigo = "PREDI";
+  const valoresAleatorios = new Uint32Array(5);
 
-  for (let index = 0; index < 5; index += 1) {
-    const posicion = Math.floor(Math.random() * caracteres.length);
+  if (window.crypto?.getRandomValues) {
+    window.crypto.getRandomValues(valoresAleatorios);
+  } else {
+    for (let index = 0; index < valoresAleatorios.length; index += 1) {
+      valoresAleatorios[index] = Math.floor(Math.random() * 100000);
+    }
+  }
+
+  for (const valor of valoresAleatorios) {
+    const posicion = valor % caracteres.length;
     codigo += caracteres[posicion];
   }
 
@@ -35,15 +45,14 @@ function LigasPage({ session }) {
   const [cargando, setCargando] = useState(true);
   const [procesando, setProcesando] = useState(false);
 
+  const navigate = useNavigate();
   const usuarioId = session?.user?.id;
 
   useEffect(() => {
     let respuestaCancelada = false;
 
     if (!usuarioId) {
-      return () => {
-        respuestaCancelada = true;
-      };
+      return undefined;
     }
 
     consultarMisLigas()
@@ -84,6 +93,7 @@ function LigasPage({ session }) {
       setLigas(ligasCargadas);
     } catch (error) {
       console.error("Error al cargar las ligas:", error);
+
       setNotificacion(
         "No fue posible actualizar tus ligas. Intenta nuevamente."
       );
@@ -161,6 +171,23 @@ function LigasPage({ session }) {
         );
       }
 
+      const { error: errorMiembroCreador } = await supabase
+        .from("liga_miembros")
+        .upsert(
+          {
+            liga_id: ligaCreada.id,
+            usuario_id: usuarioId,
+          },
+          {
+            onConflict: "liga_id,usuario_id",
+            ignoreDuplicates: true,
+          }
+        );
+
+      if (errorMiembroCreador) {
+        throw errorMiembroCreador;
+      }
+
       cerrarModal(true);
       await cargarLigas();
 
@@ -169,6 +196,7 @@ function LigasPage({ session }) {
       );
     } catch (error) {
       console.error("Error al crear la liga:", error);
+
       setMensaje(
         error.message || "No fue posible crear la liga. Intenta nuevamente."
       );
@@ -233,11 +261,23 @@ function LigasPage({ session }) {
       setNotificacion(`¡Te uniste a "${liga.nombre}" correctamente!`);
     } catch (error) {
       console.error("Error al unirse a la liga:", error);
+
       setMensaje(
         error.message || "No fue posible unirse a la liga. Intenta nuevamente."
       );
     } finally {
       setProcesando(false);
+    }
+  };
+
+  const abrirLiga = (ligaId) => {
+    navigate(`/ligas/${ligaId}`);
+  };
+
+  const manejarTecladoLiga = (event, ligaId) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      abrirLiga(ligaId);
     }
   };
 
@@ -303,7 +343,15 @@ function LigasPage({ session }) {
       ) : (
         <section className="leagues-list">
           {ligas.map((liga) => (
-            <article className="league-card" key={liga.id}>
+            <article
+              className="league-card league-card-button"
+              key={liga.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Abrir liga ${liga.nombre}`}
+              onClick={() => abrirLiga(liga.id)}
+              onKeyDown={(event) => manejarTecladoLiga(event, liga.id)}
+            >
               <div className="league-icon">
                 <Users size={22} />
               </div>

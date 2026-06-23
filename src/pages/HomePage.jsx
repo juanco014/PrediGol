@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import BottomNavigation from "../components/BottomNavigation";
 import { useProfile } from "../hooks/useProfile";
 import { supabase } from "../lib/supabase";
-import { calcularPuntos } from "../utils/estadisticas";
+import {
+  calcularDetallePuntaje,
+  partidoAceptaPronosticos,
+} from "../utils/estadisticas";
 import {
   crearUsuarioRanking,
   obtenerRankingGlobal,
@@ -85,6 +88,7 @@ function HomePage({ session }) {
   const [mensaje, setMensaje] = useState("");
   const [cargando, setCargando] = useState(true);
   const [guardandoPartidoId, setGuardandoPartidoId] = useState(null);
+  const [momentoActual, setMomentoActual] = useState(() => new Date());
 
   const usuarioId = session?.user?.id;
   const { profile } = useProfile(usuarioId);
@@ -149,6 +153,16 @@ function HomePage({ session }) {
     };
   }, [usuarioId]);
 
+  useEffect(() => {
+    const intervalo = window.setInterval(() => {
+      setMomentoActual(new Date());
+    }, 30000);
+
+    return () => {
+      window.clearInterval(intervalo);
+    };
+  }, []);
+
   const estadisticas = useMemo(() => {
     const resumen = partidos
       .map((partido) => {
@@ -158,15 +172,24 @@ function HomePage({ session }) {
           return null;
         }
 
-        const puntos =
+        const detallePuntaje =
           partido.estado === "finalizado"
-            ? calcularPuntos(pronostico, partido.resultadoFinal)
-            : 0;
+            ? calcularDetallePuntaje(pronostico, partido.resultadoFinal)
+            : {
+                puntos: 0,
+                estado: "pendiente",
+                aciertaResultado: false,
+                aciertaDiferencia: false,
+                marcadorExacto: false,
+              };
 
         return {
           id: partido.id,
           estado: partido.estado,
-          puntos,
+          puntos: detallePuntaje.puntos,
+          estadoPronostico: detallePuntaje.estado,
+          marcadorExacto: detallePuntaje.marcadorExacto,
+          aciertaDiferencia: detallePuntaje.aciertaDiferencia,
         };
       })
       .filter(Boolean);
@@ -222,9 +245,9 @@ function HomePage({ session }) {
       (partidoActual) => partidoActual.id === partidoId
     );
 
-    if (!partido || partido.estado !== "proximo") {
+    if (!partido || !partidoAceptaPronosticos(partido, momentoActual)) {
       setMensaje(
-        "Este partido ya está en juego o finalizó y no admite pronósticos."
+        "Este partido ya inició o finalizó y no admite pronósticos."
       );
       return;
     }
@@ -337,24 +360,39 @@ function HomePage({ session }) {
           <h3>Haz tus pronósticos</h3>
         </div>
 
-        <button className="text-button" type="button">
-          Ver todos
-        </button>
+        <span className="matches-count">
+          {partidos.length} {partidos.length === 1 ? "partido" : "partidos"}
+        </span>
       </section>
 
       {cargando ? (
         <p className="prediction-message">Cargando partidos...</p>
+      ) : partidos.length === 0 ? (
+        <section className="empty-league-card">
+          <p>No hay partidos disponibles.</p>
+          <span>
+            Cuando se publiquen nuevos encuentros, aparecerán aquí para que
+            puedas pronosticar.
+          </span>
+        </section>
       ) : (
         <section className="matches-list">
           {partidos.map((partido) => {
             const partidoFinalizado = partido.estado === "finalizado";
             const partidoEnVivo = partido.estado === "en_vivo";
-            const partidoBloqueado = partidoFinalizado || partidoEnVivo;
+            const partidoBloqueado =
+              partidoFinalizado ||
+              partidoEnVivo ||
+              !partidoAceptaPronosticos(partido, momentoActual);
 
             const detallePronostico = resumenPorPartido[partido.id];
 
             const etiquetaEstado = partidoEnVivo
               ? "En vivo"
+              : partidoBloqueado
+                ? partidoFinalizado
+                  ? "Finalizado"
+                  : "Cerrado"
               : partido.fecha;
 
             return (
@@ -440,10 +478,14 @@ function HomePage({ session }) {
                   >
                     {partidoFinalizado
                       ? detallePronostico
-                        ? `+${detallePronostico.puntos} puntos`
+                        ? detallePronostico.estadoPronostico === "acertado"
+                          ? `+${detallePronostico.puntos} puntos`
+                          : "Pronóstico fallado"
                         : "Pronóstico cerrado"
                       : partidoEnVivo
                         ? "Partido en vivo"
+                        : partidoBloqueado
+                          ? "Pronóstico cerrado"
                         : guardandoPartidoId === partido.id
                           ? "Guardando..."
                           : pronosticosGuardados[partido.id]

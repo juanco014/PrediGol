@@ -1,7 +1,10 @@
-import { useState } from "react";
-import { Award, Flame, LogOut, Target, Trophy } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Award, Flame, LogOut, Percent, Target, Trophy } from "lucide-react";
 import BottomNavigation from "../components/BottomNavigation";
-import { obtenerEstadisticas } from "../utils/estadisticas";
+import {
+  estadisticasVacias,
+  obtenerEstadisticasSupabase,
+} from "../utils/estadisticasSupabase";
 import {
   crearUsuarioRanking,
   obtenerRankingGlobal,
@@ -9,12 +12,43 @@ import {
 import { supabase } from "../lib/supabase";
 import { useProfile } from "../hooks/useProfile";
 
-
 function ProfilePage({ session }) {
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const [cargandoEstadisticas, setCargandoEstadisticas] = useState(true);
+  const [estadisticasPrediGol, setEstadisticasPrediGol] =
+    useState(estadisticasVacias);
 
-  const estadisticasPrediGol = obtenerEstadisticas();
-  const { profile } = useProfile(session?.user?.id);
+  const usuarioId = session?.user?.id;
+  const { profile } = useProfile(usuarioId);
+
+  useEffect(() => {
+    let respuestaCancelada = false;
+
+    if (!usuarioId) {
+      return () => {
+        respuestaCancelada = true;
+      };
+    }
+
+    obtenerEstadisticasSupabase(usuarioId)
+      .then((estadisticas) => {
+        if (!respuestaCancelada) {
+          setEstadisticasPrediGol(estadisticas);
+        }
+      })
+      .catch((error) => {
+        console.error("Error al cargar estadísticas del perfil:", error);
+      })
+      .finally(() => {
+        if (!respuestaCancelada) {
+          setCargandoEstadisticas(false);
+        }
+      });
+
+    return () => {
+      respuestaCancelada = true;
+    };
+  }, [usuarioId]);
 
   const nombreCompleto =
     profile?.nombre ||
@@ -26,15 +60,17 @@ function ProfilePage({ session }) {
     : "@hincha_predigol";
 
   const inicialUsuario = nombreCompleto.trim().charAt(0).toUpperCase();
-  const usuarioActual = crearUsuarioRanking({
-  puntosTotales: estadisticasPrediGol.puntosTotales,
-  aciertos: estadisticasPrediGol.aciertos,
-  nombre: nombreCompleto,
-  usuario: username,
-  avatar: inicialUsuario,
-});
 
-const { posicionUsuario } = obtenerRankingGlobal(usuarioActual);
+  const usuarioActual = crearUsuarioRanking({
+    puntosTotales: estadisticasPrediGol.puntosTotales,
+    aciertos: estadisticasPrediGol.aciertos,
+    nombre: nombreCompleto,
+    usuario: username,
+    avatar: inicialUsuario,
+  });
+
+  const { posicionUsuario } = obtenerRankingGlobal(usuarioActual);
+
   const cerrarSesion = async () => {
     try {
       setCerrandoSesion(true);
@@ -63,6 +99,11 @@ const { posicionUsuario } = obtenerRankingGlobal(usuarioActual);
       label: "Aciertos",
       value: estadisticasPrediGol.aciertos,
       icon: Trophy,
+    },
+    {
+      label: "Efectividad",
+      value: `${estadisticasPrediGol.porcentajeAciertos}%`,
+      icon: Percent,
     },
     {
       label: "Racha actual",
@@ -118,9 +159,9 @@ const { posicionUsuario } = obtenerRankingGlobal(usuarioActual);
 
       <section className="profile-rank-card">
         <div>
-  <p>Tu posición general</p>
-  <strong>#{posicionUsuario}</strong>
-</div>
+          <p>Tu posición general</p>
+          <strong>#{posicionUsuario}</strong>
+        </div>
 
         <div className="profile-rank-divider" />
 
@@ -153,44 +194,62 @@ const { posicionUsuario } = obtenerRankingGlobal(usuarioActual);
         <p className="section-label">MIS PRONÓSTICOS</p>
         <h2>Marcadores guardados</h2>
 
-        {estadisticasPrediGol.resumen.length === 0 ? (
+        {cargandoEstadisticas ? (
+          <article className="no-predictions-card">
+            Cargando tus pronósticos...
+          </article>
+        ) : estadisticasPrediGol.resumen.length === 0 ? (
           <article className="no-predictions-card">
             Aún no has guardado pronósticos. Ve a Partidos y demuestra que
             sabes de fútbol.
           </article>
         ) : (
           <div className="saved-predictions-list">
-            {estadisticasPrediGol.resumen.map((pronostico) => (
-              <article className="saved-prediction-card" key={pronostico.id}>
-                <div>
-                  <p className="saved-prediction-tournament">
-                    {pronostico.torneo}
-                  </p>
+            {estadisticasPrediGol.resumen.map((pronostico) => {
+              const pronosticoFinalizado =
+                pronostico.estado === "finalizado";
 
-                  <h3>
-                    {pronostico.local} vs {pronostico.visitante}
-                  </h3>
+              const pronosticoAcertado =
+                pronostico.estadoPronostico === "acertado";
 
-                  <p className="saved-prediction-detail">
-                    Tu pronóstico: {pronostico.marcador}
-                    {pronostico.resultadoFinal &&
-                      ` · Resultado final: ${pronostico.resultadoFinal.local} - ${pronostico.resultadoFinal.visitante}`}
-                  </p>
-                </div>
+              const etiquetaEstado = pronosticoFinalizado
+                ? pronosticoAcertado
+                  ? `Acertado · +${pronostico.puntos} pts`
+                  : "Fallado · +0 pts"
+                : "Pendiente";
 
-                <strong
-                  className={
-                    pronostico.estado === "finalizado"
-                      ? "saved-prediction-score"
-                      : "saved-prediction-pending"
-                  }
-                >
-                  {pronostico.estado === "finalizado"
-                    ? `+${pronostico.puntos} pts`
-                    : "Pendiente"}
-                </strong>
-              </article>
-            ))}
+              return (
+                <article className="saved-prediction-card" key={pronostico.id}>
+                  <div>
+                    <p className="saved-prediction-tournament">
+                      {pronostico.torneo}
+                    </p>
+
+                    <h3>
+                      {pronostico.local} vs {pronostico.visitante}
+                    </h3>
+
+                    <p className="saved-prediction-detail">
+                      Tu pronóstico: {pronostico.marcador}
+                      {pronostico.resultadoFinal &&
+                        ` · Resultado final: ${pronostico.resultadoFinal.local} - ${pronostico.resultadoFinal.visitante}`}
+                    </p>
+                  </div>
+
+                  <strong
+                    className={
+                      pronosticoFinalizado
+                        ? pronosticoAcertado
+                          ? "saved-prediction-score"
+                          : "saved-prediction-failed"
+                        : "saved-prediction-pending"
+                    }
+                  >
+                    {etiquetaEstado}
+                  </strong>
+                </article>
+              );
+            })}
           </div>
         )}
       </section>
