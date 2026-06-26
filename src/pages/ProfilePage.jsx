@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Award, Flame, LogOut, Percent, Target, Trophy } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
 import {
   estadisticasVacias,
@@ -9,14 +10,18 @@ import {
   crearUsuarioRanking,
   obtenerRankingGlobal,
 } from "../utils/ranking";
+import { obtenerRankingGlobalSupabase } from "../utils/rankingSupabase";
 import { supabase } from "../lib/supabase";
 import { useProfile } from "../hooks/useProfile";
 
 function ProfilePage({ session }) {
+  const navigate = useNavigate();
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const [activandoAdmin, setActivandoAdmin] = useState(false);
   const [cargandoEstadisticas, setCargandoEstadisticas] = useState(true);
   const [estadisticasPrediGol, setEstadisticasPrediGol] =
     useState(estadisticasVacias);
+  const [rankingSupabase, setRankingSupabase] = useState([]);
 
   const usuarioId = session?.user?.id;
   const { profile } = useProfile(usuarioId);
@@ -50,6 +55,30 @@ function ProfilePage({ session }) {
     };
   }, [usuarioId]);
 
+  useEffect(() => {
+    let respuestaCancelada = false;
+
+    if (!usuarioId) {
+      return () => {
+        respuestaCancelada = true;
+      };
+    }
+
+    obtenerRankingGlobalSupabase(usuarioId)
+      .then((ranking) => {
+        if (!respuestaCancelada) {
+          setRankingSupabase(ranking);
+        }
+      })
+      .catch((error) => {
+        console.error("Error al cargar posicion global:", error);
+      });
+
+    return () => {
+      respuestaCancelada = true;
+    };
+  }, [usuarioId]);
+
   const nombreCompleto =
     profile?.nombre ||
     session?.user?.user_metadata?.nombre ||
@@ -69,7 +98,12 @@ function ProfilePage({ session }) {
     avatar: inicialUsuario,
   });
 
-  const { posicionUsuario } = obtenerRankingGlobal(usuarioActual);
+  const rankingLocal = obtenerRankingGlobal(usuarioActual);
+  const jugadorRankingSupabase = rankingSupabase.find(
+    (jugador) => jugador.esUsuarioActual
+  );
+  const posicionUsuario =
+    jugadorRankingSupabase?.posicion || rankingLocal.posicionUsuario;
 
   const cerrarSesion = async () => {
     try {
@@ -86,6 +120,27 @@ function ProfilePage({ session }) {
       );
     } finally {
       setCerrandoSesion(false);
+    }
+  };
+
+  const reclamarPrimerAdmin = async () => {
+    try {
+      setActivandoAdmin(true);
+
+      const { error } = await supabase.rpc("reclamar_primer_admin");
+
+      if (error) {
+        throw error;
+      }
+
+      window.location.reload();
+    } catch (error) {
+      window.alert(
+        error.message ||
+          "No fue posible activar el administrador. Revisa si ya existe otro admin."
+      );
+    } finally {
+      setActivandoAdmin(false);
     }
   };
 
@@ -193,6 +248,12 @@ function ProfilePage({ session }) {
       <section className="profile-section">
         <p className="section-label">MIS PRONÓSTICOS</p>
         <h2>Marcadores guardados</h2>
+        <div className="profile-section-actions">
+          <p>Vista rapida de tus ultimos 3 pronosticos.</p>
+          <button type="button" onClick={() => navigate("/pronosticos")}>
+            Ver historial completo
+          </button>
+        </div>
 
         {cargandoEstadisticas ? (
           <article className="no-predictions-card">
@@ -205,7 +266,7 @@ function ProfilePage({ session }) {
           </article>
         ) : (
           <div className="saved-predictions-list">
-            {estadisticasPrediGol.resumen.map((pronostico) => {
+            {estadisticasPrediGol.resumen.slice(0, 3).map((pronostico) => {
               const pronosticoFinalizado =
                 pronostico.estado === "finalizado";
 
@@ -269,6 +330,38 @@ function ProfilePage({ session }) {
           <span>{logro.descripcion}</span>
         </div>
       </section>
+
+      {(profile?.rol === "admin" || profile?.es_admin) && (
+        <section className="achievement-card admin-shortcut-card">
+          <div>
+            <p className="section-label">ADMINISTRACION</p>
+            <h3>Panel de partidos</h3>
+            <span>Carga partidos actuales y cierra resultados sin tocar SQL.</span>
+          </div>
+
+          <button type="button" onClick={() => navigate("/admin/partidos")}>
+            Abrir panel
+          </button>
+        </section>
+      )}
+
+      {profile && !(profile.rol === "admin" || profile.es_admin) && (
+        <section className="achievement-card admin-shortcut-card">
+          <div>
+            <p className="section-label">CONFIGURACION INICIAL</p>
+            <h3>Activar primer admin</h3>
+            <span>Solo funciona si aun no existe un administrador.</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={reclamarPrimerAdmin}
+            disabled={activandoAdmin}
+          >
+            {activandoAdmin ? "Activando..." : "Activar"}
+          </button>
+        </section>
+      )}
 
       <BottomNavigation activePage="perfil" />
     </main>

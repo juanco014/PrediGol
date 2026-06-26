@@ -5,9 +5,12 @@ import LandingPage from "./pages/LandingPage";
 import AuthPage from "./pages/AuthPage";
 import HomePage from "./pages/HomePage";
 import RankingPage from "./pages/RankingPage";
+import PronosticosPage from "./pages/PronosticosPage";
 import LigasPage from "./pages/LigasPage";
 import ProfilePage from "./pages/ProfilePage";
 import LigaDetailPage from "./pages/LigaDetailPage";
+import AdminPartidosPage from "./pages/AdminPartidosPage";
+import PartidoDetailPage from "./pages/PartidoDetailPage";
 import "./App.css";
 
 function ProtectedRoute({ session, children }) {
@@ -95,6 +98,15 @@ function App() {
       />
 
       <Route
+        path="/pronosticos"
+        element={
+          <ProtectedRoute session={session}>
+            <PronosticosPage session={session} />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/ligas"
         element={
           <ProtectedRoute session={session}>
@@ -113,10 +125,28 @@ function App() {
       />
 
       <Route
+        path="/partidos/:partidoId"
+        element={
+          <ProtectedRoute session={session}>
+            <PartidoDetailPage session={session} />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/perfil"
         element={
           <ProtectedRoute session={session}>
             <ProfilePage session={session} />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/partidos"
+        element={
+          <ProtectedRoute session={session}>
+            <AdminPartidosPage session={session} />
           </ProtectedRoute>
         }
       />

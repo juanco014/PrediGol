@@ -17,7 +17,7 @@ export function useProfile(userId) {
     const cargarPerfil = async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, nombre, username, avatar_url")
+        .select("id, nombre, username, avatar_url, es_admin, rol")
         .eq("id", userId)
         .maybeSingle();
 

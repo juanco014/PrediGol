@@ -9,10 +9,13 @@ import {
   crearUsuarioRanking,
   obtenerRankingGlobal,
 } from "../utils/ranking";
+import { obtenerRankingGlobalSupabase } from "../utils/rankingSupabase";
 import { useProfile } from "../hooks/useProfile";
 
 function RankingPage({ session }) {
   const [estadisticas, setEstadisticas] = useState(estadisticasVacias);
+  const [rankingSupabase, setRankingSupabase] = useState([]);
+  const [rankingError, setRankingError] = useState("");
 
   const usuarioId = session?.user?.id;
   const { profile } = useProfile(usuarioId);
@@ -26,14 +29,36 @@ function RankingPage({ session }) {
       };
     }
 
-    obtenerEstadisticasSupabase(usuarioId)
-      .then((estadisticasCargadas) => {
-        if (!respuestaCancelada) {
-          setEstadisticas(estadisticasCargadas);
+    Promise.allSettled([
+      obtenerEstadisticasSupabase(usuarioId),
+      obtenerRankingGlobalSupabase(usuarioId),
+    ])
+      .then(([resultadoEstadisticas, resultadoRanking]) => {
+        if (respuestaCancelada) {
+          return;
+        }
+
+        if (resultadoEstadisticas.status === "fulfilled") {
+          setEstadisticas(resultadoEstadisticas.value);
+        } else {
+          console.error(
+            "Error al cargar estadisticas del ranking:",
+            resultadoEstadisticas.reason
+          );
+        }
+
+        if (resultadoRanking.status === "fulfilled") {
+          setRankingSupabase(resultadoRanking.value);
+          setRankingError("");
+        } else {
+          console.error("Error al cargar ranking global:", resultadoRanking.reason);
+          setRankingError(
+            "Ranking global en modo local hasta actualizar las funciones de Supabase."
+          );
         }
       })
       .catch((error) => {
-        console.error("Error al cargar estadísticas del ranking:", error);
+        console.error("Error al cargar ranking:", error);
       });
 
     return () => {
@@ -60,8 +85,26 @@ function RankingPage({ session }) {
     avatar: inicialUsuario,
   });
 
-  const { ranking, posicionUsuario, mensajePosicion } =
-    obtenerRankingGlobal(usuarioActual);
+  const rankingLocal = obtenerRankingGlobal(usuarioActual);
+  const ranking =
+    rankingSupabase.length > 0 ? rankingSupabase : rankingLocal.ranking;
+  const jugadorActualRanking =
+    ranking.find((jugador) => jugador.esUsuarioActual) || usuarioActual;
+  const posicionUsuario =
+    jugadorActualRanking.posicion || rankingLocal.posicionUsuario;
+  const indiceUsuario = ranking.findIndex((jugador) => jugador.esUsuarioActual);
+  const jugadorEncima = indiceUsuario > 0 ? ranking[indiceUsuario - 1] : null;
+  const puntosParaSubir = jugadorEncima
+    ? Math.max(1, jugadorEncima.puntos - jugadorActualRanking.puntos + 1)
+    : 0;
+  const mensajePosicion =
+    rankingSupabase.length > 0
+      ? jugadorEncima
+        ? `Te faltan ${puntosParaSubir} ${
+            puntosParaSubir === 1 ? "punto" : "puntos"
+          } para subir una posicion.`
+        : "Vas liderando el ranking global."
+      : rankingLocal.mensajePosicion;
 
   return (
     <main className="ranking-page">
@@ -69,15 +112,16 @@ function RankingPage({ session }) {
         <p className="brand">PREDIGOL</p>
         <h1>Ranking global</h1>
         <p>
-          Compite con la comunidad, suma puntos y demuestra que sabes de
-          fútbol.
+          Compite con la comunidad, suma puntos y demuestra que sabes de futbol.
         </p>
       </header>
+
+      {rankingError && <p className="prediction-message">{rankingError}</p>}
 
       <section className="ranking-user-card">
         <div className="ranking-user-position">
           <Medal size={22} />
-          <span>Tu posición</span>
+          <span>Tu posicion</span>
           <strong>#{posicionUsuario}</strong>
         </div>
 
@@ -85,7 +129,7 @@ function RankingPage({ session }) {
 
         <div className="ranking-user-points">
           <span>Tus puntos</span>
-          <strong>{usuarioActual.puntos}</strong>
+          <strong>{jugadorActualRanking.puntos}</strong>
         </div>
 
         <p>{mensajePosicion}</p>
@@ -93,7 +137,7 @@ function RankingPage({ session }) {
 
       <section className="ranking-section-header">
         <div>
-          <p className="section-label">CLASIFICACIÓN GENERAL</p>
+          <p className="section-label">CLASIFICACION GENERAL</p>
           <h2>Los mejores de PrediGol</h2>
         </div>
 
@@ -102,7 +146,7 @@ function RankingPage({ session }) {
 
       <section className="ranking-list">
         {ranking.map((jugador, index) => {
-          const posicion = index + 1;
+          const posicion = jugador.posicion || index + 1;
           const esPodio = posicion <= 3;
 
           return (
@@ -130,12 +174,12 @@ function RankingPage({ session }) {
                 <h3>
                   {jugador.nombre}
                   {jugador.esUsuarioActual && (
-                    <span className="you-badge">Tú</span>
+                    <span className="you-badge">Tu</span>
                   )}
                 </h3>
 
                 <p>
-                  {jugador.usuario} · {jugador.aciertos}{" "}
+                  {jugador.usuario} - {jugador.aciertos}{" "}
                   {jugador.aciertos === 1 ? "acierto" : "aciertos"}
                 </p>
               </div>
@@ -155,8 +199,8 @@ function RankingPage({ session }) {
         </div>
 
         <div>
-          <p className="section-label">¿CÓMO SUBIR?</p>
-          <h3>Acumula más aciertos</h3>
+          <p className="section-label">COMO SUBIR</p>
+          <h3>Acumula mas aciertos</h3>
           <span>
             Suma 3 puntos por acertar ganador o empate, 1 extra por diferencia
             de goles y 5 puntos por marcador exacto.

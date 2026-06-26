@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
 import { useProfile } from "../hooks/useProfile";
 import { supabase } from "../lib/supabase";
@@ -10,6 +11,18 @@ import {
   crearUsuarioRanking,
   obtenerRankingGlobal,
 } from "../utils/ranking";
+
+const MAX_PARTIDOS_INICIO = 10;
+
+function formatearPorcentaje(valor) {
+  const numero = Number(valor);
+
+  if (!Number.isFinite(numero)) {
+    return "0%";
+  }
+
+  return `${Math.round(numero * 100)}%`;
+}
 
 async function consultarDatosInicio(usuarioId) {
   const [respuestaPartidos, respuestaPronosticos] = await Promise.all([
@@ -27,10 +40,17 @@ async function consultarDatosInicio(usuarioId) {
           visitante_corto,
           estado,
           goles_local_final,
-          goles_visitante_final
+          goles_visitante_final,
+          api_football_fixture_id,
+          minuto,
+          es_relevante,
+          prioridad_visual
         `
       )
-      .order("fecha_orden", { ascending: true }),
+      .eq("es_relevante", true)
+      .order("prioridad_visual", { ascending: true })
+      .order("fecha_orden", { ascending: true })
+      .limit(MAX_PARTIDOS_INICIO),
 
     supabase
       .from("pronosticos")
@@ -48,6 +68,7 @@ async function consultarDatosInicio(usuarioId) {
 
   const partidosAdaptados = (respuestaPartidos.data || []).map((partido) => ({
     id: partido.id,
+    apiFootballFixtureId: partido.api_football_fixture_id,
     torneo: partido.torneo,
     fecha: partido.fecha_texto,
     fechaOrden: partido.fecha_orden,
@@ -56,6 +77,8 @@ async function consultarDatosInicio(usuarioId) {
     localShort: partido.local_corto,
     visitanteShort: partido.visitante_corto,
     estado: partido.estado,
+    esRelevante: partido.es_relevante,
+    prioridadVisual: partido.prioridad_visual,
     resultadoFinal:
       partido.estado === "finalizado"
         ? {
@@ -63,6 +86,7 @@ async function consultarDatosInicio(usuarioId) {
             visitante: partido.goles_visitante_final,
           }
         : null,
+    minuto: partido.minuto,
   }));
 
   const pronosticosPorPartido = Object.fromEntries(
@@ -75,20 +99,65 @@ async function consultarDatosInicio(usuarioId) {
     ])
   );
 
+  const apiFootballFixtureIds = partidosAdaptados
+    .map((partido) => partido.apiFootballFixtureId)
+    .filter(Boolean);
+
+  let prediccionesModelo = {};
+
+  if (apiFootballFixtureIds.length > 0) {
+    const respuestaPredicciones = await supabase
+      .from("model_predictions")
+      .select(
+        `
+          api_football_fixture_id,
+          home_win_probability,
+          draw_probability,
+          away_win_probability,
+          expected_home_goals,
+          expected_away_goals,
+          predicted_home_goals,
+          predicted_away_goals,
+          confidence,
+          model_version,
+          generated_at
+        `
+      )
+      .in("api_football_fixture_id", apiFootballFixtureIds);
+
+    if (respuestaPredicciones.error) {
+      console.warn(
+        "No fue posible cargar predicciones del modelo:",
+        respuestaPredicciones.error
+      );
+    } else {
+      prediccionesModelo = Object.fromEntries(
+        (respuestaPredicciones.data || []).map((prediccion) => [
+          prediccion.api_football_fixture_id,
+          prediccion,
+        ])
+      );
+    }
+  }
+
   return {
     partidos: partidosAdaptados,
     pronosticos: pronosticosPorPartido,
+    prediccionesModelo,
   };
 }
 
 function HomePage({ session }) {
+  const navigate = useNavigate();
   const [partidos, setPartidos] = useState([]);
   const [pronosticos, setPronosticos] = useState({});
+  const [prediccionesModelo, setPrediccionesModelo] = useState({});
   const [pronosticosGuardados, setPronosticosGuardados] = useState({});
   const [mensaje, setMensaje] = useState("");
   const [cargando, setCargando] = useState(true);
   const [guardandoPartidoId, setGuardandoPartidoId] = useState(null);
   const [momentoActual, setMomentoActual] = useState(() => new Date());
+  const [versionDatosEnVivo, setVersionDatosEnVivo] = useState(0);
 
   const usuarioId = session?.user?.id;
   const { profile } = useProfile(usuarioId);
@@ -131,6 +200,7 @@ function HomePage({ session }) {
 
         setPartidos(datos.partidos);
         setPronosticos(datos.pronosticos);
+        setPrediccionesModelo(datos.prediccionesModelo);
         setPronosticosGuardados(estadoGuardados);
       })
       .catch((error) => {
@@ -151,7 +221,27 @@ function HomePage({ session }) {
     return () => {
       respuestaCancelada = true;
     };
-  }, [usuarioId]);
+  }, [usuarioId, versionDatosEnVivo]);
+
+  useEffect(() => {
+    const canal = supabase
+      .channel("predigol-partidos-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "partidos" },
+        () => setVersionDatosEnVivo((versionActual) => versionActual + 1)
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "model_predictions" },
+        () => setVersionDatosEnVivo((versionActual) => versionActual + 1)
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(canal);
+    };
+  }, []);
 
   useEffect(() => {
     const intervalo = window.setInterval(() => {
@@ -356,7 +446,7 @@ function HomePage({ session }) {
 
       <section className="section-header">
         <div>
-          <p className="section-label">PRÓXIMOS PARTIDOS</p>
+          <p className="section-label">PARTIDOS DESTACADOS</p>
           <h3>Haz tus pronósticos</h3>
         </div>
 
@@ -371,8 +461,8 @@ function HomePage({ session }) {
         <section className="empty-league-card">
           <p>No hay partidos disponibles.</p>
           <span>
-            Cuando se publiquen nuevos encuentros, aparecerán aquí para que
-            puedas pronosticar.
+            Cuando el admin marque partidos relevantes de la temporada,
+            aparecerán aquí para pronosticar.
           </span>
         </section>
       ) : (
@@ -380,20 +470,28 @@ function HomePage({ session }) {
           {partidos.map((partido) => {
             const partidoFinalizado = partido.estado === "finalizado";
             const partidoEnVivo = partido.estado === "en_vivo";
+            const partidoCancelado = partido.estado === "cancelado";
             const partidoBloqueado =
               partidoFinalizado ||
               partidoEnVivo ||
+              partidoCancelado ||
               !partidoAceptaPronosticos(partido, momentoActual);
 
             const detallePronostico = resumenPorPartido[partido.id];
+            const prediccionModelo =
+              prediccionesModelo[partido.apiFootballFixtureId];
 
-            const etiquetaEstado = partidoEnVivo
-              ? "En vivo"
-              : partidoBloqueado
-                ? partidoFinalizado
-                  ? "Finalizado"
-                  : "Cerrado"
-              : partido.fecha;
+            const etiquetaEstado = partidoCancelado
+              ? "Cancelado"
+              : partidoEnVivo
+                ? partido.minuto
+                  ? `En vivo - ${partido.minuto}'`
+                  : "En vivo"
+                : partidoBloqueado
+                  ? partidoFinalizado
+                    ? "Finalizado"
+                    : "Cerrado"
+                  : partido.fecha;
 
             return (
               <article className="match-card" key={partido.id}>
@@ -434,6 +532,46 @@ function HomePage({ session }) {
                     </strong>
                   </div>
                 )}
+
+                {prediccionModelo && (
+                  <div className="model-prediction-card">
+                    <div>
+                      <span>Modelo PrediGol</span>
+                      <strong>
+                        {prediccionModelo.predicted_home_goals} -{" "}
+                        {prediccionModelo.predicted_away_goals}
+                      </strong>
+                    </div>
+
+                    <div className="model-probabilities">
+                      <span>
+                        Local{" "}
+                        {formatearPorcentaje(
+                          prediccionModelo.home_win_probability
+                        )}
+                      </span>
+                      <span>
+                        Empate{" "}
+                        {formatearPorcentaje(prediccionModelo.draw_probability)}
+                      </span>
+                      <span>
+                        Visitante{" "}
+                        {formatearPorcentaje(
+                          prediccionModelo.away_win_probability
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="match-card-actions">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/partidos/${partido.id}`)}
+                  >
+                    Ver detalle
+                  </button>
+                </div>
 
                 <div className="prediction-row">
                   <input
@@ -482,6 +620,8 @@ function HomePage({ session }) {
                           ? `+${detallePronostico.puntos} puntos`
                           : "Pronóstico fallado"
                         : "Pronóstico cerrado"
+                      : partidoCancelado
+                        ? "Partido cancelado"
                       : partidoEnVivo
                         ? "Partido en vivo"
                         : partidoBloqueado

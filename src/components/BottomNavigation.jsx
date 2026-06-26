@@ -1,4 +1,4 @@
-import { Medal, Trophy, UserRound, Users } from "lucide-react";
+import { Medal, Target, Trophy, UserRound, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 function BottomNavigation({ activePage }) {
@@ -14,6 +14,16 @@ function BottomNavigation({ activePage }) {
       >
         <Trophy size={20} />
         <span>Partidos</span>
+      </button>
+
+      <button
+        type="button"
+        className={`nav-item ${activePage === "pronosticos" ? "active" : ""}`}
+        aria-current={activePage === "pronosticos" ? "page" : undefined}
+        onClick={() => navigate("/pronosticos")}
+      >
+        <Target size={20} />
+        <span>Pronosticos</span>
       </button>
 
       <button
