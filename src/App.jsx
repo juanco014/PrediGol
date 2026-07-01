@@ -1,17 +1,29 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import LandingPage from "./pages/LandingPage";
 import AuthPage from "./pages/AuthPage";
-import HomePage from "./pages/HomePage";
-import RankingPage from "./pages/RankingPage";
-import PronosticosPage from "./pages/PronosticosPage";
-import LigasPage from "./pages/LigasPage";
-import ProfilePage from "./pages/ProfilePage";
-import LigaDetailPage from "./pages/LigaDetailPage";
-import AdminPartidosPage from "./pages/AdminPartidosPage";
-import PartidoDetailPage from "./pages/PartidoDetailPage";
 import "./App.css";
+
+const HomePage = lazy(() => import("./pages/HomePage"));
+const RankingPage = lazy(() => import("./pages/RankingPage"));
+const PronosticosPage = lazy(() => import("./pages/PronosticosPage"));
+const LigasPage = lazy(() => import("./pages/LigasPage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const LigaDetailPage = lazy(() => import("./pages/LigaDetailPage"));
+const AdminPartidosPage = lazy(() => import("./pages/AdminPartidosPage"));
+const PartidoDetailPage = lazy(() => import("./pages/PartidoDetailPage"));
+const NotificacionesPage = lazy(() => import("./pages/NotificacionesPage"));
+
+function RouteLoading() {
+  return (
+    <main className="app-loading" aria-live="polite" aria-busy="true">
+      <p>PREDIGOL</p>
+      <span>Abriendo pantalla...</span>
+      <div className="route-loading-bar" aria-hidden="true" />
+    </main>
+  );
+}
 
 function ProtectedRoute({ session, children }) {
   if (!session) {
@@ -64,7 +76,8 @@ function App() {
   }
 
   return (
-    <Routes>
+    <Suspense fallback={<RouteLoading />}>
+      <Routes>
       <Route
         path="/"
         element={
@@ -134,6 +147,15 @@ function App() {
       />
 
       <Route
+        path="/notificaciones"
+        element={
+          <ProtectedRoute session={session}>
+            <NotificacionesPage session={session} />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/perfil"
         element={
           <ProtectedRoute session={session}>
@@ -155,7 +177,8 @@ function App() {
         path="*"
         element={<Navigate to={session ? "/inicio" : "/"} replace />}
       />
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 }
 

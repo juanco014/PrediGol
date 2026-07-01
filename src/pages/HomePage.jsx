@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { Bell, Clock3, Medal, Target, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
+import LoadingState from "../components/LoadingState";
+import StatusMessage from "../components/StatusMessage";
 import { useProfile } from "../hooks/useProfile";
 import { supabase } from "../lib/supabase";
 import {
@@ -11,6 +14,7 @@ import {
   crearUsuarioRanking,
   obtenerRankingGlobal,
 } from "../utils/ranking";
+import { obtenerCuentaRegresiva } from "../utils/fechasPartidos";
 
 const MAX_PARTIDOS_INICIO = 10;
 
@@ -315,6 +319,31 @@ function HomePage({ session }) {
 
   const { posicionUsuario } = obtenerRankingGlobal(usuarioActual);
 
+  const partidosAbiertos = partidos.filter((partido) =>
+    partidoAceptaPronosticos(partido, momentoActual)
+  ).length;
+
+  const pronosticosListos = partidos.filter(
+    (partido) => pronosticosGuardados[partido.id]
+  ).length;
+
+  const partidosConModelo = partidos.filter(
+    (partido) => prediccionesModelo[partido.apiFootballFixtureId]
+  ).length;
+
+  const avisosPendientes = partidos.filter((partido) => {
+    const cuentaRegresiva = obtenerCuentaRegresiva(
+      partido.fechaOrden,
+      momentoActual
+    );
+
+    return (
+      partidoAceptaPronosticos(partido, momentoActual) &&
+      cuentaRegresiva?.dentroDe72Horas &&
+      !pronosticosGuardados[partido.id]
+    );
+  }).length;
+
   const cambiarMarcador = (partidoId, equipo, valor) => {
     setPronosticos((actual) => ({
       ...actual,
@@ -425,10 +454,40 @@ function HomePage({ session }) {
           <p>Demuestra que sabes más que tus amigos.</p>
         </div>
 
-        <div className="profile-avatar">{inicialUsuario}</div>
+        <div className="home-header-actions">
+          <button
+            type="button"
+            className="notification-button"
+            aria-label={
+              avisosPendientes > 0
+                ? `${avisosPendientes} avisos de partidos pendientes`
+                : "Abrir notificaciones"
+            }
+            onClick={() => navigate("/notificaciones")}
+          >
+            <Bell size={21} />
+            {avisosPendientes > 0 && <b>{avisosPendientes}</b>}
+          </button>
+          <button
+            type="button"
+            className="profile-avatar"
+            aria-label="Abrir mi perfil"
+            onClick={() => navigate("/perfil")}
+          >
+            {inicialUsuario}
+          </button>
+        </div>
       </header>
 
-      {mensaje && <p className="prediction-message">{mensaje}</p>}
+      <StatusMessage
+        message={mensaje}
+        variant={
+          mensaje.toLowerCase().includes("guardado correctamente")
+            ? "success"
+            : "error"
+        }
+        onClose={() => setMensaje("")}
+      />
 
       <section className="points-card">
         <div>
@@ -442,6 +501,35 @@ function HomePage({ session }) {
           <p>Posición</p>
           <strong>#{posicionUsuario}</strong>
         </div>
+
+        <div className="points-line" />
+
+        <div>
+          <p>Guardados</p>
+          <strong>{pronosticosListos}</strong>
+        </div>
+
+        <div className="points-line" />
+
+        <div>
+          <p>Abiertos</p>
+          <strong>{partidosAbiertos}</strong>
+        </div>
+      </section>
+
+      <section className="home-quick-actions">
+        <button type="button" onClick={() => navigate("/pronosticos")}>
+          <Target size={17} />
+          <span>Mis pronosticos</span>
+        </button>
+        <button type="button" onClick={() => navigate("/ranking")}>
+          <Medal size={17} />
+          <span>Ver ranking</span>
+        </button>
+        <button type="button" onClick={() => navigate("/ligas")}>
+          <Users size={17} />
+          <span>Ligas privadas</span>
+        </button>
       </section>
 
       <section className="section-header">
@@ -450,13 +538,16 @@ function HomePage({ session }) {
           <h3>Haz tus pronósticos</h3>
         </div>
 
-        <span className="matches-count">
-          {partidos.length} {partidos.length === 1 ? "partido" : "partidos"}
-        </span>
+        <div className="home-section-counters">
+          <span className="matches-count">
+            {partidos.length} {partidos.length === 1 ? "partido" : "partidos"}
+          </span>
+          <span>{partidosConModelo} con modelo</span>
+        </div>
       </section>
 
       {cargando ? (
-        <p className="prediction-message">Cargando partidos...</p>
+        <LoadingState cards={3} label="Cargando partidos destacados" />
       ) : partidos.length === 0 ? (
         <section className="empty-league-card">
           <p>No hay partidos disponibles.</p>
@@ -493,21 +584,48 @@ function HomePage({ session }) {
                     : "Cerrado"
                   : partido.fecha;
 
+            const pronosticoGuardado = pronosticosGuardados[partido.id];
+            const cuentaRegresiva = partidoBloqueado
+              ? null
+              : obtenerCuentaRegresiva(partido.fechaOrden, momentoActual);
+            const claseTarjeta = [
+              "match-card",
+              partidoBloqueado ? "match-card-locked" : "match-card-open",
+              pronosticoGuardado ? "match-card-saved" : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
+
             return (
-              <article className="match-card" key={partido.id}>
+              <article className={claseTarjeta} key={partido.id}>
                 <div className="match-top">
                   <span>{partido.torneo}</span>
 
-                  <span
-                    className={
-                      partidoFinalizado
-                        ? "match-status final-status"
-                        : "match-status"
-                    }
-                  >
-                    {etiquetaEstado}
-                  </span>
+                  <div className="match-status-group">
+                    {pronosticoGuardado && <em>Guardado</em>}
+                    <span
+                      className={
+                        partidoFinalizado
+                          ? "match-status final-status"
+                          : "match-status"
+                      }
+                    >
+                      {etiquetaEstado}
+                    </span>
+                  </div>
                 </div>
+
+                {cuentaRegresiva && (
+                  <div
+                    className={`match-countdown ${
+                      cuentaRegresiva.urgente ? "match-countdown-urgent" : ""
+                    }`}
+                  >
+                    <Clock3 size={15} />
+                    <strong>{cuentaRegresiva.texto}</strong>
+                    <span>para cerrar pronosticos</span>
+                  </div>
+                )}
 
                 <div className="teams-row">
                   <div className="team">
@@ -563,6 +681,16 @@ function HomePage({ session }) {
                     </div>
                   </div>
                 )}
+
+                <p className="match-helper-text">
+                  {partidoBloqueado
+                    ? partidoFinalizado
+                      ? "Partido cerrado: ya puedes revisar tus puntos."
+                      : "Pronosticos cerrados para este partido."
+                    : pronosticoGuardado
+                      ? "Puedes cambiar tu marcador mientras el partido siga abierto."
+                      : "Guarda tu marcador antes de que inicie el partido."}
+                </p>
 
                 <div className="match-card-actions">
                   <button

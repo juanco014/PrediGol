@@ -120,3 +120,13 @@ Para Fase 6, `../docs/despliegue-fase6.md` deja el checklist de despliegue, Verc
 Para Fase 7, la ruta `/partidos/:partidoId` muestra el detalle del partido: estado, equipos, tu pronostico, modelo PrediGol, resultado e historial reciente. Inicio enlaza cada tarjeta con `Ver detalle`.
 
 Para Fase 8, la ruta `/pronosticos` separa el historial completo de marcadores guardados: incluye resumen de puntos, busqueda, filtros por estado/acierto y enlace directo al detalle del partido. Perfil queda como resumen rapido con acceso al historial completo.
+
+Para Fase 9, Inicio muestra un resumen rapido de puntos, posicion, pronosticos guardados y partidos abiertos, junto con accesos directos y estados visuales por partido. El detalle agrega una accion recomendada, seguimiento del flujo y una guia compacta de puntuacion para preparar la experiencia de demo publica.
+
+Para Fase 10, los partidos proximos muestran una cuenta regresiva que se actualiza cada 30 segundos. La campana de Inicio abre `/notificaciones`, donde se agrupan partidos cercanos sin pronostico, marcadores ya guardados, juegos en vivo y resultados con los puntos obtenidos. Estos avisos se calculan con datos existentes de Supabase y no requieren una tabla adicional ni servicios de pago.
+
+Para Fase 11, la interfaz comparte skeletons de carga, mensajes de exito/error descartables, foco visible y soporte para movimiento reducido. Inicio incorpora accesos con iconos y perfil navegable; la navegacion principal usa barra inferior en movil y lateral en escritorio sin cambiar las rutas ni los contratos de Supabase.
+
+Para Fase 12, las pantallas protegidas usan `React.lazy` y `Suspense`, por lo que cada ruta se descarga solo cuando se visita. El bundle inicial de produccion bajo de 539.42 kB a 444.90 kB y la advertencia de chunks mayores a 500 kB desaparecio; Inicio, detalle, ranking, ligas, perfil, notificaciones y admin se generan como archivos independientes.
+
+Para Fase 13, `../supabase/migrations/202607010001_api_football_sync_monitoring.sql` agrega historial y cuotas de API-Football. La Edge Function registra ejecuciones correctas, parciales o fallidas, y el panel admin permite revisar consumo, errores y configurar el cron pago, que permanece desactivado por defecto. Guia operativa: `../docs/api-football-fase13-operacion.md`.

@@ -5,9 +5,13 @@ function BottomNavigation({ activePage }) {
   const navigate = useNavigate();
 
   return (
-    <nav className="bottom-nav">
+    <nav className="bottom-nav" aria-label="Navegacion principal">
+      <div className="nav-brand" aria-hidden="true">
+        PG
+      </div>
       <button
         type="button"
+        title="Partidos"
         className={`nav-item ${activePage === "partidos" ? "active" : ""}`}
         aria-current={activePage === "partidos" ? "page" : undefined}
         onClick={() => navigate("/inicio")}
@@ -18,6 +22,7 @@ function BottomNavigation({ activePage }) {
 
       <button
         type="button"
+        title="Mis pronosticos"
         className={`nav-item ${activePage === "pronosticos" ? "active" : ""}`}
         aria-current={activePage === "pronosticos" ? "page" : undefined}
         onClick={() => navigate("/pronosticos")}
@@ -28,6 +33,7 @@ function BottomNavigation({ activePage }) {
 
       <button
         type="button"
+        title="Ranking global"
         className={`nav-item ${activePage === "ranking" ? "active" : ""}`}
         aria-current={activePage === "ranking" ? "page" : undefined}
         onClick={() => navigate("/ranking")}
@@ -38,6 +44,7 @@ function BottomNavigation({ activePage }) {
 
       <button
         type="button"
+        title="Ligas privadas"
         className={`nav-item ${activePage === "ligas" ? "active" : ""}`}
         aria-current={activePage === "ligas" ? "page" : undefined}
         onClick={() => navigate("/ligas")}
@@ -48,6 +55,7 @@ function BottomNavigation({ activePage }) {
 
       <button
         type="button"
+        title="Mi perfil"
         className={`nav-item ${activePage === "perfil" ? "active" : ""}`}
         aria-current={activePage === "perfil" ? "page" : undefined}
         onClick={() => navigate("/perfil")}

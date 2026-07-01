@@ -33,6 +33,15 @@ const apiFootballInicial = {
   limit: "15",
 };
 
+const apiCronInicial = {
+  enabled: false,
+  season: "",
+  upcoming_limit: 15,
+  sync_upcoming: true,
+  sync_live: true,
+  sync_results: true,
+};
+
 const MINIMO_HISTORICOS_MODELO = 30;
 
 const mesesHistoricos = [
@@ -99,6 +108,13 @@ function etiquetaAccionImportacion(action) {
   return "Error";
 }
 
+function etiquetaEstadoSync(status) {
+  if (status === "success") return "Correcta";
+  if (status === "partial") return "Parcial";
+  if (status === "error") return "Error";
+  return "En proceso";
+}
+
 function obtenerRangoMesHistorico(yearValue, monthValue) {
   const year = Number(yearValue);
   const month = Number(monthValue);
@@ -142,11 +158,17 @@ function AdminPartidosPage({ session }) {
   const [apiFootball, setApiFootball] = useState(apiFootballInicial);
   const [sincronizandoApi, setSincronizandoApi] = useState(false);
   const [resultadoApiFootball, setResultadoApiFootball] = useState(null);
+  const [apiMonitor, setApiMonitor] = useState(null);
+  const [apiCronConfig, setApiCronConfig] = useState(apiCronInicial);
+  const [cargandoApiMonitor, setCargandoApiMonitor] = useState(false);
+  const [guardandoApiCron, setGuardandoApiCron] = useState(false);
   const [resumenDatos, setResumenDatos] = useState(null);
   const [cargandoResumenDatos, setCargandoResumenDatos] = useState(false);
   const [historicoBatch, setHistoricoBatch] = useState({ year: "2024", month: "8" });
 
   const esAdmin = profile?.rol === "admin" || Boolean(profile?.es_admin);
+  const apiSyncRuns = apiMonitor?.runs ?? [];
+  const ultimaApiSync = apiSyncRuns[0] ?? null;
 
   const resumenPartidos = useMemo(
     () => ({
@@ -415,11 +437,40 @@ function AdminPartidosPage({ session }) {
     }
   }, []);
 
+  const cargarApiFootballMonitor = useCallback(async () => {
+    setCargandoApiMonitor(true);
+
+    const { data, error } = await supabase.rpc("obtener_api_football_monitor");
+
+    if (error) {
+      setApiMonitor({
+        error: error.message || "No fue posible cargar el monitor de API-Football.",
+        runs: [],
+        summary: {},
+      });
+      setCargandoApiMonitor(false);
+      return;
+    }
+
+    const config = data?.config ?? {};
+    setApiMonitor(data);
+    setApiCronConfig({
+      enabled: Boolean(config.enabled),
+      season: config.season ?? "",
+      upcoming_limit: config.upcoming_limit ?? 15,
+      sync_upcoming: config.sync_upcoming !== false,
+      sync_live: config.sync_live !== false,
+      sync_results: config.sync_results !== false,
+    });
+    setCargandoApiMonitor(false);
+  }, []);
+
   useEffect(() => {
     if (!loadingProfile && esAdmin) {
       const temporizador = window.setTimeout(() => {
         actualizarDatosAdmin();
         cargarSyncConfig();
+        cargarApiFootballMonitor();
       }, 0);
 
       return () => {
@@ -428,7 +479,13 @@ function AdminPartidosPage({ session }) {
     }
 
     return undefined;
-  }, [loadingProfile, esAdmin, actualizarDatosAdmin, cargarSyncConfig]);
+  }, [
+    loadingProfile,
+    esAdmin,
+    actualizarDatosAdmin,
+    cargarSyncConfig,
+    cargarApiFootballMonitor,
+  ]);
 
   const actualizarCampo = (campo, valor) => {
     setFormulario((actual) => ({
@@ -817,6 +874,53 @@ function AdminPartidosPage({ session }) {
     setMensaje(`CSV cargado: ${archivo.name}. Puedes previsualizarlo antes de importar.`);
   };
 
+  const actualizarApiCron = (campo, valor) => {
+    setApiCronConfig((actual) => ({
+      ...actual,
+      [campo]: valor,
+    }));
+  };
+
+  const guardarApiFootballCron = async (event) => {
+    event.preventDefault();
+
+    if (apiCronConfig.enabled && !apiMonitor?.config?.enabled) {
+      const confirmar = window.confirm(
+        "Activar este cron puede consumir la cuota de API-Football. Hazlo solo cuando tengas un plan con acceso a la temporada actual."
+      );
+
+      if (!confirmar) {
+        return;
+      }
+    }
+
+    setGuardandoApiCron(true);
+    setMensaje("");
+
+    const { error } = await supabase.rpc("guardar_api_football_sync_config", {
+      p_enabled: Boolean(apiCronConfig.enabled),
+      p_season: Number(apiCronConfig.season) || null,
+      p_upcoming_limit: Number(apiCronConfig.upcoming_limit) || 15,
+      p_sync_upcoming: Boolean(apiCronConfig.sync_upcoming),
+      p_sync_live: Boolean(apiCronConfig.sync_live),
+      p_sync_results: Boolean(apiCronConfig.sync_results),
+    });
+
+    if (error) {
+      setMensaje(error.message || "No fue posible guardar la automatizacion de API-Football.");
+      setGuardandoApiCron(false);
+      return;
+    }
+
+    setMensaje(
+      apiCronConfig.enabled
+        ? "Automatizacion API-Football activada."
+        : "Automatizacion API-Football guardada y desactivada."
+    );
+    setGuardandoApiCron(false);
+    await cargarApiFootballMonitor();
+  };
+
   const actualizarHistoricoBatch = (campo, valor) => {
     setHistoricoBatch((actual) => ({
       ...actual,
@@ -885,7 +989,7 @@ function AdminPartidosPage({ session }) {
           data.partidos ?? 0
         } partidos, ${data.teams ?? 0} equipos.`
       );
-      await actualizarDatosAdmin();
+      await Promise.all([actualizarDatosAdmin(), cargarApiFootballMonitor()]);
     } catch (error) {
       setMensaje(error.message || "No fue posible sincronizar API-Football.");
     } finally {
@@ -1230,6 +1334,169 @@ function AdminPartidosPage({ session }) {
           </button>
         </div>
       </form>
+
+      <section className="admin-api-monitor-card">
+        <div className="admin-api-monitor-header">
+          <div>
+            <p className="section-label">FASE 13</p>
+            <h2>Operacion API-Football</h2>
+            <span>
+              Controla la automatizacion, la cuota disponible y el historial de
+              sincronizaciones antes de activar el plan pago.
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={cargarApiFootballMonitor}
+            disabled={cargandoApiMonitor}
+          >
+            <RefreshCw size={17} />
+            {cargandoApiMonitor ? "Actualizando..." : "Actualizar monitor"}
+          </button>
+        </div>
+
+        {apiMonitor?.error ? (
+          <p className="admin-api-monitor-error">{apiMonitor.error}</p>
+        ) : (
+          <>
+            <div className="admin-api-monitor-metrics">
+              <article>
+                <span>Automatizacion</span>
+                <strong>{apiMonitor?.config?.enabled ? "Activa" : "Inactiva"}</strong>
+              </article>
+              <article>
+                <span>Ejecuciones 24 h</span>
+                <strong>{apiMonitor?.summary?.runs_24h ?? 0}</strong>
+              </article>
+              <article>
+                <span>Requests 24 h</span>
+                <strong>{apiMonitor?.summary?.requests_24h ?? 0}</strong>
+              </article>
+              <article>
+                <span>Cuota diaria</span>
+                <strong>
+                  {ultimaApiSync?.daily_remaining ?? "-"} / {ultimaApiSync?.daily_limit ?? "-"}
+                </strong>
+              </article>
+              <article>
+                <span>Cuota por minuto</span>
+                <strong>
+                  {ultimaApiSync?.minute_remaining ?? "-"} / {ultimaApiSync?.minute_limit ?? "-"}
+                </strong>
+              </article>
+              <article>
+                <span>Errores 24 h</span>
+                <strong>{apiMonitor?.summary?.errors_24h ?? 0}</strong>
+              </article>
+            </div>
+
+            <form className="admin-api-cron-form" onSubmit={guardarApiFootballCron}>
+              <label>
+                Temporada global (opcional)
+                <input
+                  type="number"
+                  min="2022"
+                  max="2100"
+                  placeholder="Por liga"
+                  value={apiCronConfig.season}
+                  onChange={(event) => actualizarApiCron("season", event.target.value)}
+                />
+              </label>
+
+              <label>
+                Proximos por liga
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={apiCronConfig.upcoming_limit}
+                  onChange={(event) =>
+                    actualizarApiCron("upcoming_limit", event.target.value)
+                  }
+                />
+              </label>
+
+              <label className="admin-api-cron-check">
+                <input
+                  type="checkbox"
+                  checked={apiCronConfig.sync_live}
+                  onChange={(event) => actualizarApiCron("sync_live", event.target.checked)}
+                />
+                En vivo cada 5 min
+              </label>
+
+              <label className="admin-api-cron-check">
+                <input
+                  type="checkbox"
+                  checked={apiCronConfig.sync_upcoming}
+                  onChange={(event) =>
+                    actualizarApiCron("sync_upcoming", event.target.checked)
+                  }
+                />
+                Proximos cada hora
+              </label>
+
+              <label className="admin-api-cron-check">
+                <input
+                  type="checkbox"
+                  checked={apiCronConfig.sync_results}
+                  onChange={(event) =>
+                    actualizarApiCron("sync_results", event.target.checked)
+                  }
+                />
+                Resultados cada hora
+              </label>
+
+              <label className="admin-api-cron-check admin-api-cron-enable">
+                <input
+                  type="checkbox"
+                  checked={apiCronConfig.enabled}
+                  onChange={(event) => actualizarApiCron("enabled", event.target.checked)}
+                />
+                Activar cron pago
+              </label>
+
+              <button type="submit" disabled={guardandoApiCron}>
+                <Save size={17} />
+                {guardandoApiCron ? "Guardando..." : "Guardar automatizacion"}
+              </button>
+            </form>
+
+            <div className="admin-api-runs">
+              <div className="admin-api-runs-title">
+                <strong>Ultimas ejecuciones</strong>
+                <span>Se conservan resultados, tiempos y errores por llamada.</span>
+              </div>
+
+              {apiSyncRuns.length === 0 ? (
+                <p className="admin-api-runs-empty">
+                  Aun no hay ejecuciones registradas. Ejecuta una sincronizacion manual
+                  despues de aplicar la migracion.
+                </p>
+              ) : (
+                apiSyncRuns.map((run) => (
+                  <article className="admin-api-run" key={run.id}>
+                    <div>
+                      <strong>{run.mode}</strong>
+                      <span>{formatearFecha(run.started_at)}</span>
+                    </div>
+                    <span
+                      className={`admin-api-run-status admin-api-run-${run.status}`}
+                    >
+                      {etiquetaEstadoSync(run.status)}
+                    </span>
+                    <span>{run.requests_count} requests</span>
+                    <span>{run.fixtures_count} fixtures</span>
+                    <span>{run.duration_ms ? `${run.duration_ms} ms` : "En curso"}</span>
+                    {run.error_message && <small>{run.error_message}</small>}
+                  </article>
+                ))
+              )}
+            </div>
+          </>
+        )}
+      </section>
 
       <form className="admin-api-football-panel" onSubmit={sincronizarApiFootball}>
         <div>

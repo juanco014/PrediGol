@@ -7,6 +7,7 @@ import {
   calcularDetallePuntaje,
   partidoAceptaPronosticos,
 } from "../utils/estadisticas";
+import { obtenerCuentaRegresiva } from "../utils/fechasPartidos";
 
 function formatearFecha(fecha) {
   if (!fecha) {
@@ -298,6 +299,17 @@ function PartidoDetailPage({ session }) {
   }, [partido, pronostico]);
 
   const puedePronosticar = partido ? partidoAceptaPronosticos(partido, momentoActual) : false;
+  const cuentaRegresiva = puedePronosticar
+    ? obtenerCuentaRegresiva(partido.fechaOrden, momentoActual)
+    : null;
+  const pasoFlujo =
+    partido?.estado === "finalizado"
+      ? 3
+      : pronostico
+        ? 2
+        : puedePronosticar
+          ? 1
+          : 0;
 
   return (
     <main className="match-detail-page">
@@ -340,6 +352,15 @@ function PartidoDetailPage({ session }) {
                   <strong>VS</strong>
                 )}
                 <span>{formatearFecha(partido.fechaOrden)}</span>
+                {cuentaRegresiva && (
+                  <em
+                    className={
+                      cuentaRegresiva.urgente ? "match-detail-countdown-urgent" : ""
+                    }
+                  >
+                    {cuentaRegresiva.texto}
+                  </em>
+                )}
               </div>
 
               <div>
@@ -354,6 +375,54 @@ function PartidoDetailPage({ session }) {
               <span>{partido.origenDatos || "manual"}</span>
             </div>
           </header>
+
+          <section className="match-detail-actions">
+            <div>
+              <p className="section-label">SIGUIENTE PASO</p>
+              <strong>
+                {partido.estado === "finalizado"
+                  ? "Revisa los puntos obtenidos con tu marcador."
+                  : pronostico
+                    ? "Tu marcador esta guardado. Puedes editarlo mientras siga abierto."
+                    : puedePronosticar
+                      ? "Guarda tu marcador antes del inicio."
+                      : "Este partido ya no admite nuevos pronosticos."}
+              </strong>
+            </div>
+
+            <div className="match-detail-action-buttons">
+              {puedePronosticar && (
+                <button type="button" onClick={() => navigate("/inicio")}>
+                  {pronostico ? "Editar en Inicio" : "Crear pronostico"}
+                </button>
+              )}
+              {pronostico && (
+                <button
+                  type="button"
+                  className="match-detail-secondary-action"
+                  onClick={() => navigate("/pronosticos")}
+                >
+                  Mis pronosticos
+                </button>
+              )}
+            </div>
+          </section>
+
+          <section className="match-flow-card" aria-label="Flujo del pronostico">
+            {[
+              ["1", "Pronostica"],
+              ["2", "Espera el resultado"],
+              ["3", "Suma puntos"],
+            ].map(([numero, etiqueta], indice) => (
+              <article
+                key={numero}
+                className={indice + 1 <= pasoFlujo ? "match-flow-active" : ""}
+              >
+                <b>{numero}</b>
+                <span>{etiqueta}</span>
+              </article>
+            ))}
+          </section>
 
           <section className="match-detail-grid">
             <article className="match-detail-card">
@@ -435,6 +504,28 @@ function PartidoDetailPage({ session }) {
               </p>
               <span>{partido.fuenteDetalle || "Sin fuente adicional"}</span>
             </article>
+          </section>
+
+          <section className="match-scoring-guide">
+            <div>
+              <p className="section-label">COMO SUMAS</p>
+              <h2>Guia rapida de puntos</h2>
+            </div>
+
+            <div className="match-scoring-grid">
+              <article>
+                <strong>5 pts</strong>
+                <span>Marcador exacto</span>
+              </article>
+              <article>
+                <strong>3 pts</strong>
+                <span>Aciertas ganador o empate</span>
+              </article>
+              <article>
+                <strong>+1 pt</strong>
+                <span>Aciertas tambien la diferencia</span>
+              </article>
+            </div>
           </section>
 
           <section className="match-history-section">

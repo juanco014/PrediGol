@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Search, Target } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
+import LoadingState from "../components/LoadingState";
 import {
   estadisticasVacias,
   obtenerEstadisticasSupabase,
@@ -249,9 +250,7 @@ function PronosticosPage({ session }) {
         </div>
 
         {cargando ? (
-          <article className="no-predictions-card">
-            Cargando tus pronosticos...
-          </article>
+          <LoadingState cards={3} label="Cargando tus pronosticos" />
         ) : error ? (
           <article className="no-predictions-card">{error}</article>
         ) : pronosticosFiltrados.length === 0 ? (
