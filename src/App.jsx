@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import LandingPage from "./pages/LandingPage";
 import AuthPage from "./pages/AuthPage";
@@ -12,8 +12,12 @@ const LigasPage = lazy(() => import("./pages/LigasPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const LigaDetailPage = lazy(() => import("./pages/LigaDetailPage"));
 const AdminPartidosPage = lazy(() => import("./pages/AdminPartidosPage"));
+const ModelAdminPage = lazy(() => import("./pages/ModelAdminPage"));
 const PartidoDetailPage = lazy(() => import("./pages/PartidoDetailPage"));
 const NotificacionesPage = lazy(() => import("./pages/NotificacionesPage"));
+const ExplorarPage = lazy(() => import("./pages/ExplorarPage"));
+const FootballEntityPage = lazy(() => import("./pages/FootballEntityPage"));
+const EstadisticasPage = lazy(() => import("./pages/EstadisticasPage"));
 
 function RouteLoading() {
   return (
@@ -31,6 +35,16 @@ function ProtectedRoute({ session, children }) {
   }
 
   return children;
+}
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [pathname]);
+
+  return null;
 }
 
 function App() {
@@ -77,6 +91,7 @@ function App() {
 
   return (
     <Suspense fallback={<RouteLoading />}>
+      <ScrollToTop />
       <Routes>
       <Route
         path="/"
@@ -97,6 +112,33 @@ function App() {
         element={
           <ProtectedRoute session={session}>
             <HomePage session={session} />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/explorar"
+        element={
+          <ProtectedRoute session={session}>
+            <ExplorarPage session={session} />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/equipos/:entityName"
+        element={
+          <ProtectedRoute session={session}>
+            <FootballEntityPage session={session} type="equipo" />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/torneos/:entityName"
+        element={
+          <ProtectedRoute session={session}>
+            <FootballEntityPage session={session} type="torneo" />
           </ProtectedRoute>
         }
       />
@@ -156,6 +198,15 @@ function App() {
       />
 
       <Route
+        path="/estadisticas"
+        element={
+          <ProtectedRoute session={session}>
+            <EstadisticasPage session={session} />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/perfil"
         element={
           <ProtectedRoute session={session}>
@@ -169,6 +220,15 @@ function App() {
         element={
           <ProtectedRoute session={session}>
             <AdminPartidosPage session={session} />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/modelo"
+        element={
+          <ProtectedRoute session={session}>
+            <ModelAdminPage session={session} />
           </ProtectedRoute>
         }
       />

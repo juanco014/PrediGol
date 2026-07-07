@@ -30,3 +30,21 @@ export async function obtenerRankingGlobalSupabase(usuarioId) {
     adaptarJugadorRankingSupabase(jugador, usuarioId)
   );
 }
+
+export async function obtenerRankingSegmentadoSupabase(
+  usuarioId,
+  { periodo = "global", torneo = null } = {}
+) {
+  const { data, error } = await supabase.rpc("obtener_ranking_segmentado", {
+    p_periodo: periodo,
+    p_torneo: torneo,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data || []).map((jugador) =>
+    adaptarJugadorRankingSupabase(jugador, usuarioId)
+  );
+}

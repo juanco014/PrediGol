@@ -130,3 +130,25 @@ Para Fase 11, la interfaz comparte skeletons de carga, mensajes de exito/error d
 Para Fase 12, las pantallas protegidas usan `React.lazy` y `Suspense`, por lo que cada ruta se descarga solo cuando se visita. El bundle inicial de produccion bajo de 539.42 kB a 444.90 kB y la advertencia de chunks mayores a 500 kB desaparecio; Inicio, detalle, ranking, ligas, perfil, notificaciones y admin se generan como archivos independientes.
 
 Para Fase 13, `../supabase/migrations/202607010001_api_football_sync_monitoring.sql` agrega historial y cuotas de API-Football. La Edge Function registra ejecuciones correctas, parciales o fallidas, y el panel admin permite revisar consumo, errores y configurar el cron pago, que permanece desactivado por defecto. Guia operativa: `../docs/api-football-fase13-operacion.md`.
+
+Para Fase 14, `../prediction-service` incorpora un backtest temporal contra una linea base y guarda resultados en `model_evaluations`. El panel admin muestra acierto 1X2, marcador exacto, Brier y MAE con el tamano de prueba; el detalle del partido explica la prediccion sin presentarla como certeza. Guia: `../docs/modelo-fase14-backtest.md`.
+
+Para Fase 15, la web incluye Error Boundary, monitoreo privado de errores, SEO en espanol, identidad PWA, service worker limitado a recursos locales y headers de seguridad para Vercel. `npm.cmd run release:check` valida lint, build, entorno y archivos de entrega. Checklist: `../docs/lanzamiento-fase15.md`.
+
+Para Fase 16, el detalle se convierte en centro del partido con pestañas de resumen, pronostico, estadisticas e historial. Incluye forma reciente, enfrentamientos directos, comparacion Poisson/Elo y cronologia basada en snapshots reales.
+
+Para Fase 17, los usuarios pueden seguir equipos y torneos. Inicio prioriza y filtra esos partidos, mientras Perfil permite administrar los favoritos protegidos por RLS.
+
+Para Fase 18, Notificaciones incorpora recordatorios de 24 horas y 1 hora, avisos de inicio, resultados, puntos y favoritos con preferencias persistentes por usuario. Guia conjunta: `../docs/fases16-18-experiencia-personalizada.md`.
+
+Para Fase 19, `/explorar` ofrece busqueda y filtros por estado, torneo y favoritos sobre todos los partidos disponibles, con enlaces directos al encuentro.
+
+Para Fase 20, `/equipos/:nombre` y `/torneos/:nombre` muestran estadisticas, calendario, resultados y favoritos sin depender de una API adicional.
+
+Para Fase 21, `obtener_ranking_segmentado` calcula clasificaciones globales, semanales y por torneo con la regla oficial de puntos. Ranking añade logros por participacion, aciertos, marcadores exactos y podio. Guia conjunta: `../docs/fases19-21-exploracion-competencia.md`.
+
+Para Fase 22, `/estadisticas` presenta analitica personal por calidad de acierto, puntos posibles, torneo y resultados recientes.
+
+Para Fase 23, el progreso y las invitaciones de ligas se pueden compartir mediante Web Share o portapapeles. Los enlaces `/ligas?codigo=...` abren el flujo de union con el codigo precargado.
+
+Para Fase 24, `web_push_subscriptions`, el service worker y `send-test-push` permiten registrar dispositivos y comprobar notificaciones con la app cerrada. `dispatch-push-notifications` ejecuta cada 15 minutos recordatorios deduplicados de 24 horas, 1 hora, inicio y resultado. Guia conjunta: `../docs/fases22-24-analitica-social-push.md`.

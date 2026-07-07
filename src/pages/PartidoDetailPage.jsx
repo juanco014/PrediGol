@@ -1,13 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, BarChart3, CalendarClock, Target, Trophy } from "lucide-react";
+import {
+  Activity,
+  ArrowLeft,
+  BarChart3,
+  CalendarClock,
+  Heart,
+  History,
+  Target,
+  Trophy,
+} from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
+import { useFavorites, normalizarClaveFavorito } from "../hooks/useFavorites";
 import { supabase } from "../lib/supabase";
 import {
   calcularDetallePuntaje,
   partidoAceptaPronosticos,
 } from "../utils/estadisticas";
 import { obtenerCuentaRegresiva } from "../utils/fechasPartidos";
+
+const MATCH_TABS = [
+  { id: "resumen", label: "Resumen", icon: Activity },
+  { id: "pronostico", label: "Pronostico", icon: Target },
+  { id: "estadisticas", label: "Estadisticas", icon: BarChart3 },
+  { id: "historial", label: "Historial", icon: History },
+];
 
 function formatearFecha(fecha) {
   if (!fecha) {
@@ -22,12 +39,36 @@ function formatearFecha(fecha) {
 
 function formatearPorcentaje(valor) {
   const numero = Number(valor);
+  return Number.isFinite(numero) ? `${Math.round(numero * 100)}%` : "0%";
+}
 
-  if (!Number.isFinite(numero)) {
-    return "0%";
+function explicarPrediccion(prediccion) {
+  if (!prediccion) {
+    return "";
   }
 
-  return `${Math.round(numero * 100)}%`;
+  const opciones = [
+    ["victoria local", Number(prediccion.home_win_probability)],
+    ["empate", Number(prediccion.draw_probability)],
+    ["victoria visitante", Number(prediccion.away_win_probability)],
+  ].sort((a, b) => b[1] - a[1]);
+  const ventaja = opciones[0][1] - opciones[1][1];
+  const muestras =
+    Number(prediccion.metadata?.home_samples || 0) +
+    Number(prediccion.metadata?.away_samples || 0);
+
+  if (ventaja < 0.08) {
+    return "El modelo ve un partido muy parejo; ninguna opcion tiene una ventaja clara.";
+  }
+
+  const evidencia =
+    muestras < 6
+      ? " La muestra reciente es limitada, asi que conviene interpretar esta estimacion con cautela."
+      : " La estimacion combina goles esperados, rendimiento de local/visitante y fuerza Elo.";
+
+  return `La opcion con mayor probabilidad es ${opciones[0][0]} con ${formatearPorcentaje(
+    opciones[0][1]
+  )}.${evidencia}`;
 }
 
 function adaptarPartido(partido) {
@@ -58,23 +99,40 @@ function adaptarPartido(partido) {
 }
 
 function etiquetaEstado(partido, ahora) {
-  if (!partido) {
-    return "Sin estado";
-  }
-
-  if (partido.estado === "cancelado") {
-    return "Cancelado";
-  }
-
+  if (!partido) return "Sin estado";
+  if (partido.estado === "cancelado") return "Cancelado";
   if (partido.estado === "en_vivo") {
     return partido.minuto ? `En vivo - ${partido.minuto}'` : "En vivo";
   }
+  if (partido.estado === "finalizado") return "Finalizado";
+  return partidoAceptaPronosticos(partido, ahora)
+    ? "Acepta pronosticos"
+    : "Cerrado";
+}
 
-  if (partido.estado === "finalizado") {
-    return "Finalizado";
-  }
+function obtenerForma(historial, equipo) {
+  const claveEquipo = normalizarClaveFavorito(equipo);
 
-  return partidoAceptaPronosticos(partido, ahora) ? "Acepta pronosticos" : "Cerrado";
+  return historial
+    .filter((item) =>
+      [item.local_nombre, item.visitante_nombre]
+        .map(normalizarClaveFavorito)
+        .includes(claveEquipo)
+    )
+    .slice(0, 5)
+    .map((item) => {
+      const esLocal = normalizarClaveFavorito(item.local_nombre) === claveEquipo;
+      const golesFavor = Number(
+        esLocal ? item.goles_local_final : item.goles_visitante_final
+      );
+      const golesContra = Number(
+        esLocal ? item.goles_visitante_final : item.goles_local_final
+      );
+
+      if (golesFavor > golesContra) return "G";
+      if (golesFavor === golesContra) return "E";
+      return "P";
+    });
 }
 
 async function consultarPartidoDetalle(partidoId, usuarioId) {
@@ -82,38 +140,23 @@ async function consultarPartidoDetalle(partidoId, usuarioId) {
     .from("partidos")
     .select(
       `
-        id,
-        torneo,
-        fecha_texto,
-        fecha_orden,
-        local_nombre,
-        visitante_nombre,
-        local_corto,
-        visitante_corto,
-        estado,
-        goles_local_final,
-        goles_visitante_final,
-        api_football_fixture_id,
-        minuto,
-        ronda,
-        temporada,
-        origen_datos,
-        fuente_detalle
+        id, torneo, fecha_texto, fecha_orden, local_nombre, visitante_nombre,
+        local_corto, visitante_corto, estado, goles_local_final,
+        goles_visitante_final, api_football_fixture_id, minuto, ronda,
+        temporada, origen_datos, fuente_detalle
       `
     )
     .eq("id", partidoId)
     .maybeSingle();
 
-  if (partidoError) {
-    throw partidoError;
-  }
-
-  if (!partidoData) {
-    throw new Error("No encontramos este partido.");
-  }
+  if (partidoError) throw partidoError;
+  if (!partidoData) throw new Error("No encontramos este partido.");
 
   const partido = adaptarPartido(partidoData);
-
+  const historialSelect = `
+    id, torneo, fecha_orden, local_nombre, visitante_nombre, estado,
+    goles_local_final, goles_visitante_final
+  `;
   const consultas = [
     supabase
       .from("pronosticos")
@@ -123,44 +166,22 @@ async function consultarPartidoDetalle(partidoId, usuarioId) {
       .maybeSingle(),
     supabase
       .from("partidos")
-      .select(
-        `
-          id,
-          torneo,
-          fecha_orden,
-          local_nombre,
-          visitante_nombre,
-          estado,
-          goles_local_final,
-          goles_visitante_final
-        `
-      )
+      .select(historialSelect)
       .eq("estado", "finalizado")
       .not("goles_local_final", "is", null)
       .not("goles_visitante_final", "is", null)
       .in("local_nombre", [partido.local, partido.visitante])
       .order("fecha_orden", { ascending: false })
-      .limit(8),
+      .limit(12),
     supabase
       .from("partidos")
-      .select(
-        `
-          id,
-          torneo,
-          fecha_orden,
-          local_nombre,
-          visitante_nombre,
-          estado,
-          goles_local_final,
-          goles_visitante_final
-        `
-      )
+      .select(historialSelect)
       .eq("estado", "finalizado")
       .not("goles_local_final", "is", null)
       .not("goles_visitante_final", "is", null)
       .in("visitante_nombre", [partido.local, partido.visitante])
       .order("fecha_orden", { ascending: false })
-      .limit(8),
+      .limit(12),
   ];
 
   if (partido.apiFootballFixtureId) {
@@ -169,61 +190,81 @@ async function consultarPartidoDetalle(partidoId, usuarioId) {
         .from("model_predictions")
         .select(
           `
-            api_football_fixture_id,
-            home_win_probability,
-            draw_probability,
-            away_win_probability,
-            expected_home_goals,
-            expected_away_goals,
-            predicted_home_goals,
-            predicted_away_goals,
-            confidence,
-            model_version,
-            generated_at
+            api_football_fixture_id, home_win_probability, draw_probability,
+            away_win_probability, expected_home_goals, expected_away_goals,
+            predicted_home_goals, predicted_away_goals, confidence,
+            model_version, generated_at, metadata
           `
         )
         .eq("api_football_fixture_id", partido.apiFootballFixtureId)
-        .maybeSingle()
+        .maybeSingle(),
+      supabase
+        .from("football_live_snapshots")
+        .select(
+          "id, captured_at, status, status_short, elapsed, goals_home, goals_away"
+        )
+        .eq("api_football_fixture_id", partido.apiFootballFixtureId)
+        .order("captured_at", { ascending: false })
+        .limit(12)
     );
   }
 
-  const [respuestaPronostico, respuestaHistorialLocal, respuestaHistorialVisitante, respuestaModelo] =
-    await Promise.all(consultas);
+  const [
+    respuestaPronostico,
+    respuestaHistorialLocal,
+    respuestaHistorialVisitante,
+    respuestaModelo,
+    respuestaSnapshots,
+  ] = await Promise.all(consultas);
 
-  if (respuestaPronostico.error) {
-    throw respuestaPronostico.error;
-  }
-
-  if (respuestaHistorialLocal.error) {
-    throw respuestaHistorialLocal.error;
-  }
-
-  if (respuestaHistorialVisitante.error) {
-    throw respuestaHistorialVisitante.error;
-  }
-
-  if (respuestaModelo?.error) {
-    throw respuestaModelo.error;
+  for (const respuesta of [
+    respuestaPronostico,
+    respuestaHistorialLocal,
+    respuestaHistorialVisitante,
+    respuestaModelo,
+    respuestaSnapshots,
+  ]) {
+    if (respuesta?.error) throw respuesta.error;
   }
 
   const historialMap = new Map();
-
-  [...(respuestaHistorialLocal.data || []), ...(respuestaHistorialVisitante.data || [])]
+  [
+    ...(respuestaHistorialLocal.data || []),
+    ...(respuestaHistorialVisitante.data || []),
+  ]
     .filter((item) => item.id !== partido.id)
-    .forEach((item) => {
-      historialMap.set(item.id, item);
-    });
+    .forEach((item) => historialMap.set(item.id, item));
 
   const historial = [...historialMap.values()]
-    .sort((a, b) => new Date(b.fecha_orden).getTime() - new Date(a.fecha_orden).getTime())
-    .slice(0, 6);
+    .sort(
+      (a, b) =>
+        new Date(b.fecha_orden).getTime() - new Date(a.fecha_orden).getTime()
+    )
+    .slice(0, 12);
 
   return {
     partido,
     pronostico: respuestaPronostico.data,
     prediccionModelo: respuestaModelo?.data || null,
+    snapshots: respuestaSnapshots?.data || [],
     historial,
   };
+}
+
+function ProbabilityBar({ label, value }) {
+  const percentage = Math.max(0, Math.min(100, Math.round(Number(value) * 100)));
+
+  return (
+    <div className="match-probability-row">
+      <div>
+        <span>{label}</span>
+        <strong>{percentage}%</strong>
+      </div>
+      <div className="match-probability-track">
+        <span style={{ width: `${percentage}%` }} />
+      </div>
+    </div>
+  );
 }
 
 function PartidoDetailPage({ session }) {
@@ -233,7 +274,9 @@ function PartidoDetailPage({ session }) {
   const [detalle, setDetalle] = useState(null);
   const [mensaje, setMensaje] = useState("");
   const [cargando, setCargando] = useState(true);
+  const [activeTab, setActiveTab] = useState("resumen");
   const [momentoActual, setMomentoActual] = useState(() => new Date());
+  const favorites = useFavorites(usuarioId);
 
   useEffect(() => {
     let respuestaCancelada = false;
@@ -253,15 +296,12 @@ function PartidoDetailPage({ session }) {
       })
       .catch((error) => {
         console.error("Error al cargar detalle del partido:", error);
-
         if (!respuestaCancelada) {
           setMensaje(error.message || "No fue posible cargar el partido.");
         }
       })
       .finally(() => {
-        if (!respuestaCancelada) {
-          setCargando(false);
-        }
+        if (!respuestaCancelada) setCargando(false);
       });
 
     return () => {
@@ -270,35 +310,53 @@ function PartidoDetailPage({ session }) {
   }, [partidoId, usuarioId]);
 
   useEffect(() => {
-    const intervalo = window.setInterval(() => {
-      setMomentoActual(new Date());
-    }, 30000);
-
-    return () => {
-      window.clearInterval(intervalo);
-    };
+    const intervalo = window.setInterval(
+      () => setMomentoActual(new Date()),
+      30000
+    );
+    return () => window.clearInterval(intervalo);
   }, []);
 
   const partido = detalle?.partido;
   const pronostico = detalle?.pronostico;
   const prediccionModelo = detalle?.prediccionModelo;
-  const historial = detalle?.historial || [];
+  const historial = useMemo(() => detalle?.historial || [], [detalle?.historial]);
+  const snapshots = detalle?.snapshots || [];
 
   const detallePuntaje = useMemo(() => {
-    if (!partido?.resultadoFinal || !pronostico) {
-      return null;
-    }
-
+    if (!partido?.resultadoFinal || !pronostico) return null;
     return calcularDetallePuntaje(
-      {
-        local: pronostico.goles_local,
-        visitante: pronostico.goles_visitante,
-      },
+      { local: pronostico.goles_local, visitante: pronostico.goles_visitante },
       partido.resultadoFinal
     );
   }, [partido, pronostico]);
 
-  const puedePronosticar = partido ? partidoAceptaPronosticos(partido, momentoActual) : false;
+  const formaLocal = useMemo(
+    () => obtenerForma(historial, partido?.local),
+    [historial, partido?.local]
+  );
+  const formaVisitante = useMemo(
+    () => obtenerForma(historial, partido?.visitante),
+    [historial, partido?.visitante]
+  );
+  const enfrentamientosDirectos = useMemo(() => {
+    if (!partido) return [];
+    const equipos = new Set([
+      normalizarClaveFavorito(partido.local),
+      normalizarClaveFavorito(partido.visitante),
+    ]);
+    return historial
+      .filter(
+        (item) =>
+          equipos.has(normalizarClaveFavorito(item.local_nombre)) &&
+          equipos.has(normalizarClaveFavorito(item.visitante_nombre))
+      )
+      .slice(0, 5);
+  }, [historial, partido]);
+
+  const puedePronosticar = partido
+    ? partidoAceptaPronosticos(partido, momentoActual)
+    : false;
   const cuentaRegresiva = puedePronosticar
     ? obtenerCuentaRegresiva(partido.fechaOrden, momentoActual)
     : null;
@@ -311,9 +369,23 @@ function PartidoDetailPage({ session }) {
           ? 1
           : 0;
 
+  const cambiarFavorito = async (tipo, nombre) => {
+    try {
+      if (tipo === "equipo") await favorites.toggleTeam(nombre);
+      else await favorites.toggleCompetition(nombre);
+      setMensaje("");
+    } catch (error) {
+      setMensaje(error.message || "No fue posible actualizar tus favoritos.");
+    }
+  };
+
   return (
     <main className="match-detail-page">
-      <button className="league-back-button" type="button" onClick={() => navigate("/inicio")}>
+      <button
+        className="league-back-button"
+        type="button"
+        onClick={() => navigate("/inicio")}
+      >
         <ArrowLeft size={19} />
         Volver a Inicio
       </button>
@@ -323,12 +395,12 @@ function PartidoDetailPage({ session }) {
           <p>Cargando partido...</p>
           <span>Estamos preparando el detalle.</span>
         </section>
-      ) : mensaje || !partido ? (
+      ) : mensaje && !partido ? (
         <section className="empty-league-card">
           <p>No pudimos abrir este partido.</p>
-          <span>{mensaje || "El partido no existe o ya no esta disponible."}</span>
+          <span>{mensaje}</span>
         </section>
-      ) : (
+      ) : !partido ? null : (
         <>
           <header className="match-detail-hero">
             <p className="brand">PREDIGOL PARTIDO</p>
@@ -342,32 +414,52 @@ function PartidoDetailPage({ session }) {
                 <b>{partido.localShort}</b>
                 <h1>{partido.local}</h1>
               </div>
-
               <div className="match-detail-score">
-                {partido.resultadoFinal ? (
-                  <strong>
-                    {partido.resultadoFinal.local} - {partido.resultadoFinal.visitante}
-                  </strong>
-                ) : (
-                  <strong>VS</strong>
-                )}
+                <strong>
+                  {partido.resultadoFinal
+                    ? `${partido.resultadoFinal.local} - ${partido.resultadoFinal.visitante}`
+                    : "VS"}
+                </strong>
                 <span>{formatearFecha(partido.fechaOrden)}</span>
                 {cuentaRegresiva && (
                   <em
                     className={
-                      cuentaRegresiva.urgente ? "match-detail-countdown-urgent" : ""
+                      cuentaRegresiva.urgente
+                        ? "match-detail-countdown-urgent"
+                        : ""
                     }
                   >
                     {cuentaRegresiva.texto}
                   </em>
                 )}
               </div>
-
               <div>
                 <b>{partido.visitanteShort}</b>
                 <h1>{partido.visitante}</h1>
               </div>
             </section>
+
+            <div className="match-favorite-actions">
+              {[
+                ["equipo", partido.local, favorites.isTeamFavorite(partido.local)],
+                ["competicion", partido.torneo, favorites.isCompetitionFavorite(partido.torneo)],
+                ["equipo", partido.visitante, favorites.isTeamFavorite(partido.visitante)],
+              ].map(([tipo, nombre, activo]) => {
+                const savingKey = `${tipo === "equipo" ? "team" : "competition"}:${normalizarClaveFavorito(nombre)}`;
+                return (
+                  <button
+                    type="button"
+                    className={activo ? "match-favorite-active" : ""}
+                    disabled={favorites.savingKey === savingKey}
+                    onClick={() => cambiarFavorito(tipo, nombre)}
+                    key={`${tipo}-${nombre}`}
+                  >
+                    <Heart size={15} fill={activo ? "currentColor" : "none"} />
+                    {tipo === "equipo" ? nombre : "Seguir torneo"}
+                  </button>
+                );
+              })}
+            </div>
 
             <div className="match-detail-meta">
               <span>{partido.ronda || "Sin ronda"}</span>
@@ -376,6 +468,8 @@ function PartidoDetailPage({ session }) {
             </div>
           </header>
 
+          {mensaje && <p className="match-inline-message">{mensaje}</p>}
+
           <section className="match-detail-actions">
             <div>
               <p className="section-label">SIGUIENTE PASO</p>
@@ -383,13 +477,12 @@ function PartidoDetailPage({ session }) {
                 {partido.estado === "finalizado"
                   ? "Revisa los puntos obtenidos con tu marcador."
                   : pronostico
-                    ? "Tu marcador esta guardado. Puedes editarlo mientras siga abierto."
+                    ? "Tu marcador esta guardado y puedes editarlo mientras siga abierto."
                     : puedePronosticar
                       ? "Guarda tu marcador antes del inicio."
                       : "Este partido ya no admite nuevos pronosticos."}
               </strong>
             </div>
-
             <div className="match-detail-action-buttons">
               {puedePronosticar && (
                 <button type="button" onClick={() => navigate("/inicio")}>
@@ -408,156 +501,274 @@ function PartidoDetailPage({ session }) {
             </div>
           </section>
 
-          <section className="match-flow-card" aria-label="Flujo del pronostico">
-            {[
-              ["1", "Pronostica"],
-              ["2", "Espera el resultado"],
-              ["3", "Suma puntos"],
-            ].map(([numero, etiqueta], indice) => (
-              <article
-                key={numero}
-                className={indice + 1 <= pasoFlujo ? "match-flow-active" : ""}
-              >
-                <b>{numero}</b>
-                <span>{etiqueta}</span>
-              </article>
-            ))}
-          </section>
+          <nav className="match-detail-tabs" aria-label="Secciones del partido">
+            {MATCH_TABS.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  type="button"
+                  className={activeTab === tab.id ? "match-tab-active" : ""}
+                  onClick={() => setActiveTab(tab.id)}
+                  aria-pressed={activeTab === tab.id}
+                  key={tab.id}
+                >
+                  <Icon size={16} />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
 
-          <section className="match-detail-grid">
-            <article className="match-detail-card">
-              <div className="match-detail-card-title">
-                <Target size={19} />
-                <h2>Tu pronostico</h2>
-              </div>
-
-              {pronostico ? (
-                <>
-                  <strong className="match-detail-user-score">
-                    {pronostico.goles_local} - {pronostico.goles_visitante}
-                  </strong>
-                  <span>
-                    Guardado {pronostico.actualizado_en ? formatearFecha(pronostico.actualizado_en) : ""}
-                  </span>
-                  {detallePuntaje && (
-                    <p>
-                      {detallePuntaje.estado === "acertado"
-                        ? `Acertado: +${detallePuntaje.puntos} puntos`
-                        : "Fallado: +0 puntos"}
-                    </p>
-                  )}
-                </>
-              ) : (
-                <>
-                  <p>No has guardado pronostico para este partido.</p>
-                  <span>
-                    {puedePronosticar
-                      ? "Vuelve a Inicio para guardar tu marcador."
-                      : "El partido ya no acepta pronosticos."}
-                  </span>
-                </>
-              )}
-            </article>
-
-            <article className="match-detail-card">
-              <div className="match-detail-card-title">
-                <BarChart3 size={19} />
-                <h2>Modelo PrediGol</h2>
-              </div>
-
-              {prediccionModelo ? (
-                <>
-                  <strong className="match-detail-user-score">
-                    {prediccionModelo.predicted_home_goals} -{" "}
-                    {prediccionModelo.predicted_away_goals}
-                  </strong>
-                  <div className="match-detail-probabilities">
-                    <span>Local {formatearPorcentaje(prediccionModelo.home_win_probability)}</span>
-                    <span>Empate {formatearPorcentaje(prediccionModelo.draw_probability)}</span>
-                    <span>
-                      Visitante {formatearPorcentaje(prediccionModelo.away_win_probability)}
-                    </span>
-                  </div>
-                  <p>
-                    Confianza {formatearPorcentaje(prediccionModelo.confidence)} -{" "}
-                    {prediccionModelo.model_version}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p>Aun no hay prediccion guardada para este partido.</p>
-                  <span>Cuando corra el modelo, aparecera aqui y en Inicio.</span>
-                </>
-              )}
-            </article>
-
-            <article className="match-detail-card">
-              <div className="match-detail-card-title">
-                <CalendarClock size={19} />
-                <h2>Estado del juego</h2>
-              </div>
-
-              <p>
-                {puedePronosticar
-                  ? "El partido sigue abierto para pronosticos."
-                  : "Los pronosticos estan cerrados para este partido."}
-              </p>
-              <span>{partido.fuenteDetalle || "Sin fuente adicional"}</span>
-            </article>
-          </section>
-
-          <section className="match-scoring-guide">
-            <div>
-              <p className="section-label">COMO SUMAS</p>
-              <h2>Guia rapida de puntos</h2>
-            </div>
-
-            <div className="match-scoring-grid">
-              <article>
-                <strong>5 pts</strong>
-                <span>Marcador exacto</span>
-              </article>
-              <article>
-                <strong>3 pts</strong>
-                <span>Aciertas ganador o empate</span>
-              </article>
-              <article>
-                <strong>+1 pt</strong>
-                <span>Aciertas tambien la diferencia</span>
-              </article>
-            </div>
-          </section>
-
-          <section className="match-history-section">
-            <div className="match-detail-card-title">
-              <Trophy size={19} />
-              <h2>Historial reciente</h2>
-            </div>
-
-            {historial.length === 0 ? (
-              <article className="match-history-empty">
-                No hay partidos finalizados recientes para estos equipos.
-              </article>
-            ) : (
-              <div className="match-history-list">
-                {historial.map((item) => (
-                  <article className="match-history-row" key={item.id}>
-                    <div>
-                      <span>{item.torneo}</span>
-                      <strong>
-                        {item.local_nombre} vs {item.visitante_nombre}
-                      </strong>
-                      <small>{formatearFecha(item.fecha_orden)}</small>
-                    </div>
-
-                    <b>
-                      {item.goles_local_final} - {item.goles_visitante_final}
-                    </b>
+          {activeTab === "resumen" && (
+            <>
+              <section className="match-flow-card" aria-label="Flujo del pronostico">
+                {[
+                  ["1", "Pronostica"],
+                  ["2", "Espera el resultado"],
+                  ["3", "Suma puntos"],
+                ].map(([numero, etiqueta], indice) => (
+                  <article
+                    key={numero}
+                    className={indice + 1 <= pasoFlujo ? "match-flow-active" : ""}
+                  >
+                    <b>{numero}</b>
+                    <span>{etiqueta}</span>
                   </article>
                 ))}
+              </section>
+
+              <section className="match-detail-grid">
+                <article className="match-detail-card">
+                  <div className="match-detail-card-title">
+                    <Target size={19} />
+                    <h2>Tu pronostico</h2>
+                  </div>
+                  {pronostico ? (
+                    <>
+                      <strong className="match-detail-user-score">
+                        {pronostico.goles_local} - {pronostico.goles_visitante}
+                      </strong>
+                      <span>Guardado {formatearFecha(pronostico.actualizado_en)}</span>
+                      {detallePuntaje && (
+                        <p>
+                          {detallePuntaje.puntos > 0
+                            ? `Acertado: +${detallePuntaje.puntos} puntos`
+                            : "Fallado: +0 puntos"}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p>No has guardado pronostico para este partido.</p>
+                  )}
+                </article>
+
+                <article className="match-detail-card">
+                  <div className="match-detail-card-title">
+                    <BarChart3 size={19} />
+                    <h2>Modelo PrediGol</h2>
+                  </div>
+                  {prediccionModelo ? (
+                    <>
+                      <strong className="match-detail-user-score">
+                        {prediccionModelo.predicted_home_goals} -{" "}
+                        {prediccionModelo.predicted_away_goals}
+                      </strong>
+                      <p>{explicarPrediccion(prediccionModelo)}</p>
+                      <span>
+                        {prediccionModelo.model_version} - Confianza {formatearPorcentaje(prediccionModelo.confidence)}
+                      </span>
+                      {(prediccionModelo.metadata?.warnings || []).slice(0, 2).map((warning) => (
+                        <small key={warning}>{warning}</small>
+                      ))}
+                    </>
+                  ) : (
+                    <p>Aun no hay prediccion guardada para este partido.</p>
+                  )}
+                </article>
+
+                <article className="match-detail-card">
+                  <div className="match-detail-card-title">
+                    <CalendarClock size={19} />
+                    <h2>Estado del juego</h2>
+                  </div>
+                  <p>
+                    {puedePronosticar
+                      ? "El partido sigue abierto para pronosticos."
+                      : "Los pronosticos estan cerrados para este partido."}
+                  </p>
+                  <span>{partido.fuenteDetalle || "Sin fuente adicional"}</span>
+                </article>
+              </section>
+
+              <section className="match-timeline-section">
+                <div className="match-detail-card-title">
+                  <Activity size={19} />
+                  <h2>Cronologia en vivo</h2>
+                </div>
+                {snapshots.length === 0 ? (
+                  <article className="match-history-empty">
+                    La cronologia quedo preparada. Aparecera al recibir datos en vivo de API-Football.
+                  </article>
+                ) : (
+                  <div className="match-timeline-list">
+                    {snapshots.map((snapshot) => (
+                      <article key={snapshot.id}>
+                        <b>{snapshot.elapsed ? `${snapshot.elapsed}'` : "Actualizacion"}</b>
+                        <span>{snapshot.status || snapshot.status_short}</span>
+                        <strong>{snapshot.goals_home ?? 0} - {snapshot.goals_away ?? 0}</strong>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </>
+          )}
+
+          {activeTab === "pronostico" && (
+            <>
+              <section className="match-detail-card match-prediction-focus">
+                <div className="match-detail-card-title">
+                  <Target size={19} />
+                  <h2>Tu marcador</h2>
+                </div>
+                {pronostico ? (
+                  <>
+                    <strong className="match-detail-user-score">
+                      {pronostico.goles_local} - {pronostico.goles_visitante}
+                    </strong>
+                    <p>
+                      {detallePuntaje
+                        ? `Resultado: ${detallePuntaje.puntos} puntos obtenidos.`
+                        : "Tu pronostico esta guardado y pendiente del resultado."}
+                    </p>
+                  </>
+                ) : (
+                  <p>
+                    {puedePronosticar
+                      ? "Todavia estas a tiempo de guardar tu marcador desde Inicio."
+                      : "No guardaste marcador antes del cierre."}
+                  </p>
+                )}
+              </section>
+              <section className="match-scoring-guide">
+                <div>
+                  <p className="section-label">COMO SUMAS</p>
+                  <h2>Guia rapida de puntos</h2>
+                </div>
+                <div className="match-scoring-grid">
+                  <article><strong>5 pts</strong><span>Marcador exacto</span></article>
+                  <article><strong>3 pts</strong><span>Aciertas ganador o empate</span></article>
+                  <article><strong>+1 pt</strong><span>Aciertas tambien la diferencia</span></article>
+                </div>
+              </section>
+            </>
+          )}
+
+          {activeTab === "estadisticas" && (
+            <section className="match-statistics-layout">
+              <article className="match-detail-card">
+                <div className="match-detail-card-title">
+                  <BarChart3 size={19} />
+                  <h2>Probabilidades 1X2</h2>
+                </div>
+                {prediccionModelo ? (
+                  <div className="match-probability-list">
+                    <ProbabilityBar label={partido.local} value={prediccionModelo.home_win_probability} />
+                    <ProbabilityBar label="Empate" value={prediccionModelo.draw_probability} />
+                    <ProbabilityBar label={partido.visitante} value={prediccionModelo.away_win_probability} />
+                  </div>
+                ) : (
+                  <p>No hay datos del modelo para comparar.</p>
+                )}
+              </article>
+
+              <article className="match-detail-card">
+                <div className="match-detail-card-title">
+                  <Activity size={19} />
+                  <h2>Poisson y Elo</h2>
+                </div>
+                {prediccionModelo ? (
+                  <div className="match-model-metrics">
+                    <span><b>{Number(prediccionModelo.expected_home_goals).toFixed(2)}</b> xG local</span>
+                    <span><b>{Number(prediccionModelo.expected_away_goals).toFixed(2)}</b> xG visitante</span>
+                    <span><b>{prediccionModelo.metadata?.home_rating || "N/D"}</b> Elo local</span>
+                    <span><b>{prediccionModelo.metadata?.away_rating || "N/D"}</b> Elo visitante</span>
+                    <span><b>{prediccionModelo.metadata?.home_samples || 0}</b> muestras local</span>
+                    <span><b>{prediccionModelo.metadata?.away_samples || 0}</b> muestras visitante</span>
+                  </div>
+                ) : (
+                  <p>Estos indicadores apareceran despues de ejecutar el modelo.</p>
+                )}
+              </article>
+
+              <article className="match-detail-card match-form-card">
+                <div className="match-detail-card-title">
+                  <Trophy size={19} />
+                  <h2>Forma reciente</h2>
+                </div>
+                {[[partido.local, formaLocal], [partido.visitante, formaVisitante]].map(([equipo, forma]) => (
+                  <div className="match-form-row" key={equipo}>
+                    <strong>{equipo}</strong>
+                    <div>
+                      {forma.length > 0 ? forma.map((resultado, index) => (
+                        <span className={`form-${resultado.toLowerCase()}`} key={`${equipo}-${index}`}>{resultado}</span>
+                      )) : <small>Sin datos</small>}
+                    </div>
+                  </div>
+                ))}
+              </article>
+            </section>
+          )}
+
+          {activeTab === "historial" && (
+            <section className="match-history-section">
+              <div className="match-detail-card-title">
+                <Trophy size={19} />
+                <h2>Enfrentamientos directos</h2>
               </div>
-            )}
-          </section>
+              {enfrentamientosDirectos.length === 0 ? (
+                <article className="match-history-empty">
+                  No hay enfrentamientos directos cargados entre estos equipos.
+                </article>
+              ) : (
+                <div className="match-history-list">
+                  {enfrentamientosDirectos.map((item) => (
+                    <article className="match-history-row" key={item.id}>
+                      <div>
+                        <span>{item.torneo}</span>
+                        <strong>{item.local_nombre} vs {item.visitante_nombre}</strong>
+                        <small>{formatearFecha(item.fecha_orden)}</small>
+                      </div>
+                      <b>{item.goles_local_final} - {item.goles_visitante_final}</b>
+                    </article>
+                  ))}
+                </div>
+              )}
+
+              <div className="match-detail-card-title match-history-subtitle">
+                <History size={19} />
+                <h2>Partidos recientes de ambos equipos</h2>
+              </div>
+              {historial.length === 0 ? (
+                <article className="match-history-empty">
+                  No hay partidos finalizados recientes para estos equipos.
+                </article>
+              ) : (
+                <div className="match-history-list">
+                  {historial.map((item) => (
+                    <article className="match-history-row" key={item.id}>
+                      <div>
+                        <span>{item.torneo}</span>
+                        <strong>{item.local_nombre} vs {item.visitante_nombre}</strong>
+                        <small>{formatearFecha(item.fecha_orden)}</small>
+                      </div>
+                      <b>{item.goles_local_final} - {item.goles_visitante_final}</b>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
         </>
       )}
 

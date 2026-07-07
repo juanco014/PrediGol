@@ -1,5 +1,15 @@
 import { useEffect, useState } from "react";
-import { Award, Flame, LogOut, Percent, Target, Trophy } from "lucide-react";
+import {
+  Award,
+  BarChart3,
+  Flame,
+  Heart,
+  LogOut,
+  Percent,
+  Target,
+  Trophy,
+  X,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
 import {
@@ -12,6 +22,7 @@ import {
 } from "../utils/ranking";
 import { obtenerRankingGlobalSupabase } from "../utils/rankingSupabase";
 import { supabase } from "../lib/supabase";
+import { useFavorites } from "../hooks/useFavorites";
 import { useProfile } from "../hooks/useProfile";
 
 function ProfilePage({ session }) {
@@ -22,9 +33,26 @@ function ProfilePage({ session }) {
   const [estadisticasPrediGol, setEstadisticasPrediGol] =
     useState(estadisticasVacias);
   const [rankingSupabase, setRankingSupabase] = useState([]);
+  const [favoritosMensaje, setFavoritosMensaje] = useState("");
 
   const usuarioId = session?.user?.id;
   const { profile } = useProfile(usuarioId);
+  const favorites = useFavorites(usuarioId);
+
+  const quitarFavorito = async (tipo, nombre) => {
+    try {
+      if (tipo === "equipo") {
+        await favorites.toggleTeam(nombre);
+      } else {
+        await favorites.toggleCompetition(nombre);
+      }
+      setFavoritosMensaje("");
+    } catch (error) {
+      setFavoritosMensaje(
+        error.message || "No fue posible actualizar tus favoritos."
+      );
+    }
+  };
 
   useEffect(() => {
     let respuestaCancelada = false;
@@ -315,6 +343,80 @@ function ProfilePage({ session }) {
         )}
       </section>
 
+      <section className="profile-section profile-favorites-section">
+        <div className="profile-favorites-heading">
+          <div>
+            <p className="section-label">PERSONALIZACION</p>
+            <h2>Mis favoritos</h2>
+          </div>
+          <Heart size={22} />
+        </div>
+
+        <p className="profile-favorites-help">
+          Estos equipos y torneos aparecen primero en Inicio y generan avisos
+          personalizados.
+        </p>
+
+        {favoritosMensaje && (
+          <p className="profile-favorites-error">{favoritosMensaje}</p>
+        )}
+
+        {favorites.loading ? (
+          <article className="no-predictions-card">Cargando favoritos...</article>
+        ) : favorites.teams.length === 0 &&
+          favorites.competitions.length === 0 ? (
+          <article className="no-predictions-card">
+            Aun no sigues equipos ni torneos. Puedes agregarlos desde el
+            detalle de cualquier partido.
+          </article>
+        ) : (
+          <div className="profile-favorite-groups">
+            <div>
+              <strong>Equipos</strong>
+              <div className="profile-favorite-chips">
+                {favorites.teams.map((team) => (
+                  <button
+                    type="button"
+                    onClick={() => quitarFavorito("equipo", team.team_name)}
+                    disabled={favorites.savingKey === `team:${team.team_key}`}
+                    key={team.id}
+                    title={`Dejar de seguir a ${team.team_name}`}
+                  >
+                    {team.team_name}
+                    <X size={14} />
+                  </button>
+                ))}
+                {favorites.teams.length === 0 && <span>Sin equipos</span>}
+              </div>
+            </div>
+
+            <div>
+              <strong>Torneos</strong>
+              <div className="profile-favorite-chips">
+                {favorites.competitions.map((competition) => (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      quitarFavorito("competicion", competition.competition_name)
+                    }
+                    disabled={
+                      favorites.savingKey ===
+                      `competition:${competition.competition_key}`
+                    }
+                    key={competition.id}
+                    title={`Dejar de seguir ${competition.competition_name}`}
+                  >
+                    {competition.competition_name}
+                    <X size={14} />
+                  </button>
+                ))}
+                {favorites.competitions.length === 0 && <span>Sin torneos</span>}
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
       <section
         className={`achievement-card ${
           tienePrimerAcierto ? "achievement-unlocked" : ""
@@ -329,6 +431,15 @@ function ProfilePage({ session }) {
           <h3>{logro.titulo}</h3>
           <span>{logro.descripcion}</span>
         </div>
+
+        <button
+          type="button"
+          className="profile-analytics-link"
+          onClick={() => navigate("/estadisticas")}
+        >
+          <BarChart3 size={17} />
+          Ver analitica completa
+        </button>
       </section>
 
       {(profile?.rol === "admin" || profile?.es_admin) && (

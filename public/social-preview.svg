@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#101813"/>
+  <circle cx="940" cy="315" r="190" fill="#17231c" stroke="#b7ff44" stroke-width="10"/>
+  <path d="M880 210h120l55 115-115 95-115-95 55-115Z" fill="none" stroke="#d8ff9f" stroke-width="14" stroke-linejoin="round"/>
+  <text x="90" y="260" fill="#b7ff44" font-family="Arial, sans-serif" font-size="34" font-weight="700" letter-spacing="8">PREDIGOL</text>
+  <text x="90" y="350" fill="#f7f8f7" font-family="Arial, sans-serif" font-size="64" font-weight="800">Pronostica. Compite.</text>
+  <text x="90" y="425" fill="#f7f8f7" font-family="Arial, sans-serif" font-size="64" font-weight="800">Demuestra lo que sabes.</text>
+</svg>

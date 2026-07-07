@@ -165,6 +165,8 @@ function AdminPartidosPage({ session }) {
   const [resumenDatos, setResumenDatos] = useState(null);
   const [cargandoResumenDatos, setCargandoResumenDatos] = useState(false);
   const [historicoBatch, setHistoricoBatch] = useState({ year: "2024", month: "8" });
+  const [modelSettings, setModelSettings] = useState(null);
+  const [guardandoModeloActivo, setGuardandoModeloActivo] = useState(false);
 
   const esAdmin = profile?.rol === "admin" || Boolean(profile?.es_admin);
   const apiSyncRuns = apiMonitor?.runs ?? [];
@@ -337,7 +339,12 @@ function AdminPartidosPage({ session }) {
   const cargarResumenDatos = useCallback(async () => {
     setCargandoResumenDatos(true);
 
-    const [respuestaPartidos, respuestaPredicciones] = await Promise.all([
+    const [
+      respuestaPartidos,
+      respuestaPredicciones,
+      respuestaEvaluaciones,
+      respuestaErroresCliente,
+    ] = await Promise.all([
       supabase
         .from("partidos")
         .select(
@@ -354,9 +361,21 @@ function AdminPartidosPage({ session }) {
         .limit(3000),
       supabase
         .from("model_predictions")
-        .select("api_football_fixture_id,confidence,generated_at")
+        .select("api_football_fixture_id,confidence,generated_at,model_version")
         .order("generated_at", { ascending: false })
         .limit(3000),
+      supabase
+        .from("model_evaluations")
+        .select(
+          "model_version,evaluated_at,split_date,training_matches,test_matches,outcome_accuracy,exact_score_accuracy,home_goals_mae,away_goals_mae,brier_score,log_loss,baseline_outcome_accuracy,baseline_brier_score,metadata"
+        )
+        .order("evaluated_at", { ascending: false })
+        .limit(8),
+      supabase
+        .from("app_error_logs")
+        .select("source,message,route,created_at")
+        .order("created_at", { ascending: false })
+        .limit(20),
     ]);
 
     if (respuestaPartidos.error) {
@@ -369,6 +388,12 @@ function AdminPartidosPage({ session }) {
 
     const filas = respuestaPartidos.data || [];
     const predicciones = respuestaPredicciones.error ? [] : respuestaPredicciones.data || [];
+    const evaluaciones = respuestaEvaluaciones.error ? [] : respuestaEvaluaciones.data || [];
+    const ultimaEvaluacion = evaluaciones[0] ?? null;
+    const erroresCliente = respuestaErroresCliente.error
+      ? []
+      : respuestaErroresCliente.data || [];
+    const hace24Horas = Date.now() - 24 * 60 * 60 * 1000;
     const fixturesConPrediccion = new Set(
       predicciones
         .map((prediccion) => prediccion.api_football_fixture_id)
@@ -407,20 +432,44 @@ function AdminPartidosPage({ session }) {
       manuales: filas.filter((partido) => !partido.origen_datos || partido.origen_datos === "manual")
         .length,
       prediccionesGuardadas: predicciones.length,
+      prediccionesPorModelo: predicciones.reduce((conteo, prediccion) => {
+        const version = prediccion.model_version || "sin version";
+        conteo[version] = (conteo[version] || 0) + 1;
+        return conteo;
+      }, {}),
       proximosConPrediccion,
       faltanPredicciones: Math.max(proximosRelevantes - proximosConPrediccion, 0),
       ultimaPrediccion: predicciones[0]?.generated_at ?? null,
       confianzaPromedio,
       prediccionesError: respuestaPredicciones.error?.message ?? null,
+      ultimaEvaluacion,
+      evaluaciones,
+      evaluacionError: respuestaEvaluaciones.error?.message ?? null,
+      erroresCliente24h: erroresCliente.filter(
+        (errorCliente) => new Date(errorCliente.created_at).getTime() >= hace24Horas
+      ).length,
+      ultimoErrorCliente: erroresCliente[0] ?? null,
+      erroresClienteError: respuestaErroresCliente.error?.message ?? null,
       faltanHistoricos,
       listoModelo: faltanHistoricos === 0 && proximosRelevantes > 0,
     });
     setCargandoResumenDatos(false);
   }, []);
 
+  const cargarModelSettings = useCallback(async () => {
+    const { data, error } = await supabase.rpc("obtener_model_prediction_settings");
+
+    if (error) {
+      setModelSettings({ error: error.message || "No fue posible leer el modelo activo." });
+      return;
+    }
+
+    setModelSettings(data);
+  }, []);
+
   const actualizarDatosAdmin = useCallback(async () => {
-    await Promise.all([cargarPartidos(), cargarResumenDatos()]);
-  }, [cargarPartidos, cargarResumenDatos]);
+    await Promise.all([cargarPartidos(), cargarResumenDatos(), cargarModelSettings()]);
+  }, [cargarPartidos, cargarResumenDatos, cargarModelSettings]);
 
   const cargarSyncConfig = useCallback(async () => {
     const { data, error } = await supabase.rpc("obtener_google_sheet_sync_config");
@@ -471,6 +520,7 @@ function AdminPartidosPage({ session }) {
         actualizarDatosAdmin();
         cargarSyncConfig();
         cargarApiFootballMonitor();
+        cargarModelSettings();
       }, 0);
 
       return () => {
@@ -485,7 +535,35 @@ function AdminPartidosPage({ session }) {
     actualizarDatosAdmin,
     cargarSyncConfig,
     cargarApiFootballMonitor,
+    cargarModelSettings,
   ]);
+
+  const guardarModeloActivo = async (modelo) => {
+    const confirmar = window.confirm(
+      `Vas a dejar ${modelo} como modelo activo administrativo. V1 seguira siendo seguro hasta que ejecutes predicciones explicitamente.`
+    );
+
+    if (!confirmar) {
+      return;
+    }
+
+    setGuardandoModeloActivo(true);
+    setMensaje("");
+
+    const { data, error } = await supabase.rpc("guardar_model_prediction_settings", {
+      p_active_model: modelo,
+    });
+
+    if (error) {
+      setMensaje(error.message || "No fue posible guardar el modelo activo.");
+      setGuardandoModeloActivo(false);
+      return;
+    }
+
+    setModelSettings(data);
+    setMensaje(`Modelo activo actualizado a ${modelo}.`);
+    setGuardandoModeloActivo(false);
+  };
 
   const actualizarCampo = (campo, valor) => {
     setFormulario((actual) => ({
@@ -1093,6 +1171,7 @@ function AdminPartidosPage({ session }) {
         <p className="brand">PREDIGOL ADMIN</p>
         <h1>Partidos de temporada</h1>
         <p>Carga partidos actuales y marca solo los encuentros relevantes que deben verse en Inicio.</p>
+        <button type="button" onClick={() => navigate("/admin/modelo")}>Abrir admin del modelo</button>
       </header>
 
       {mensaje && <p className="prediction-message">{mensaje}</p>}
@@ -1140,6 +1219,7 @@ function AdminPartidosPage({ session }) {
           <span>Google Sheets: {resumenDatos?.googleSheets ?? "-"}</span>
           <span>Manuales: {resumenDatos?.manuales ?? "-"}</span>
           <span>Predicciones: {resumenDatos?.prediccionesGuardadas ?? "-"}</span>
+          <span>Errores web 24 h: {resumenDatos?.erroresCliente24h ?? "-"}</span>
           <span>Proximos con modelo: {resumenDatos?.proximosConPrediccion ?? "-"}</span>
           <span>
             Confianza prom.:{" "}
@@ -1150,7 +1230,38 @@ function AdminPartidosPage({ session }) {
           {resumenDatos?.ultimaPrediccion && (
             <span>Ultima prediccion: {formatearFecha(resumenDatos.ultimaPrediccion)}</span>
           )}
+          <span>Modelo activo: {modelSettings?.active_model || "V1"}</span>
+          <span>Python local: verificar con scripts/verificar_python.py</span>
         </div>
+
+        {resumenDatos?.prediccionesPorModelo && (
+          <p className="admin-data-health-note">
+            Predicciones por modelo: {Object.entries(resumenDatos.prediccionesPorModelo)
+              .map(([version, cantidad]) => `${version}: ${cantidad}`)
+              .join(" | ")}
+          </p>
+        )}
+
+        <div className="admin-import-actions">
+          <button
+            type="button"
+            onClick={() => guardarModeloActivo("V1")}
+            disabled={guardandoModeloActivo || modelSettings?.active_model === "V1"}
+          >
+            Usar V1
+          </button>
+          <button
+            type="button"
+            onClick={() => guardarModeloActivo("V2")}
+            disabled={guardandoModeloActivo || modelSettings?.active_model === "V2"}
+          >
+            Usar V2
+          </button>
+        </div>
+
+        <p className="admin-data-health-note">
+          Acciones locales: `python scripts/diagnostico_modelo_v1.py`, `python scripts/diagnostico_modelo_v2.py`, `python scripts/backtest_modelo_v1.py --model V1`, `python scripts/backtest_modelo_v1.py --model V2`.
+        </p>
 
         {resumenDatos?.prediccionesError && (
           <p className="admin-data-health-note">
@@ -1158,9 +1269,128 @@ function AdminPartidosPage({ session }) {
           </p>
         )}
 
+        {resumenDatos?.erroresClienteError && (
+          <p className="admin-data-health-note">
+            No fue posible leer errores web: {resumenDatos.erroresClienteError}
+          </p>
+        )}
+
+        {resumenDatos?.ultimoErrorCliente && (
+          <p className="admin-client-error-summary">
+            <strong>Ultimo error web:</strong>{" "}
+            {resumenDatos.ultimoErrorCliente.message} en{" "}
+            {resumenDatos.ultimoErrorCliente.route} -{" "}
+            {formatearFecha(resumenDatos.ultimoErrorCliente.created_at)}
+          </p>
+        )}
+
         <p className={`admin-data-health-status ${estadoDatosMvp.className}`}>
           {estadoDatosMvp.texto}
         </p>
+
+        {resumenDatos?.evaluacionError ? (
+          <p className="admin-data-health-note">
+            No fue posible leer evaluaciones: {resumenDatos.evaluacionError}
+          </p>
+        ) : resumenDatos?.ultimaEvaluacion ? (
+          <section className="admin-model-evaluation">
+            <div className="admin-model-evaluation-header">
+              <div>
+                <p className="section-label">BACKTEST TEMPORAL</p>
+                <strong>{resumenDatos.ultimaEvaluacion.model_version}</strong>
+                <span>
+                  Entreno con {resumenDatos.ultimaEvaluacion.training_matches} y probo con{" "}
+                  {resumenDatos.ultimaEvaluacion.test_matches} partidos desde{" "}
+                  {formatearFecha(resumenDatos.ultimaEvaluacion.split_date)}.
+                </span>
+              </div>
+              <b
+                className={
+                  resumenDatos.ultimaEvaluacion.metadata?.beats_baseline_brier
+                    ? "admin-model-beats-baseline"
+                    : "admin-model-needs-review"
+                }
+              >
+                {resumenDatos.ultimaEvaluacion.metadata?.beats_baseline_brier
+                  ? "Supera linea base"
+                  : "Revisar modelo"}
+              </b>
+            </div>
+
+            <div className="admin-model-evaluation-grid">
+              <span>
+                Acierto 1X2
+                <strong>
+                  {Math.round(resumenDatos.ultimaEvaluacion.outcome_accuracy * 100)}%
+                </strong>
+              </span>
+              <span>
+                Linea base
+                <strong>
+                  {Math.round(
+                    resumenDatos.ultimaEvaluacion.baseline_outcome_accuracy * 100
+                  )}%
+                </strong>
+              </span>
+              <span>
+                Marcador exacto
+                <strong>
+                  {Math.round(resumenDatos.ultimaEvaluacion.exact_score_accuracy * 100)}%
+                </strong>
+              </span>
+              <span>
+                Brier
+                <strong>{Number(resumenDatos.ultimaEvaluacion.brier_score).toFixed(3)}</strong>
+              </span>
+              <span>
+                Brier base
+                <strong>
+                  {Number(resumenDatos.ultimaEvaluacion.baseline_brier_score).toFixed(3)}
+                </strong>
+              </span>
+              <span>
+                MAE goles L/V
+                <strong>
+                  {Number(resumenDatos.ultimaEvaluacion.home_goals_mae).toFixed(2)} /{" "}
+                  {Number(resumenDatos.ultimaEvaluacion.away_goals_mae).toFixed(2)}
+                </strong>
+              </span>
+            </div>
+
+            {resumenDatos.ultimaEvaluacion.test_matches < 30 && (
+              <small>
+                Muestra pequena: espera al menos 30 partidos de prueba antes de tomar
+                decisiones fuertes sobre el modelo.
+              </small>
+            )}
+          </section>
+        ) : (
+          <p className="admin-data-health-note">
+            Aun no hay backtest. Ejecuta el servicio con `--backtest` para medir el modelo.
+          </p>
+        )}
+
+        {(resumenDatos?.evaluaciones || []).length > 1 && (
+          <section className="admin-model-evaluation">
+            <div className="admin-model-evaluation-header">
+              <div>
+                <p className="section-label">COMPARACION V1/V2</p>
+                <strong>Ultimas evaluaciones</strong>
+                <span>Compara modelos solo con backtests temporales equivalentes.</span>
+              </div>
+            </div>
+            <div className="admin-model-evaluation-grid">
+              {resumenDatos.evaluaciones.map((evaluacion) => (
+                <span key={`${evaluacion.model_version}-${evaluacion.evaluated_at}`}>
+                  {evaluacion.model_version}
+                  <strong>
+                    Brier {Number(evaluacion.brier_score).toFixed(3)} / Log {Number(evaluacion.log_loss).toFixed(3)}
+                  </strong>
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
       </section>
 
       <form className="admin-form" onSubmit={crearPartido}>

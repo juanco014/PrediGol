@@ -1,4 +1,4 @@
-import { Medal, Target, Trophy, UserRound, Users } from "lucide-react";
+import { Medal, Search, Target, Trophy, UserRound, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 function BottomNavigation({ activePage }) {
@@ -18,6 +18,17 @@ function BottomNavigation({ activePage }) {
       >
         <Trophy size={20} />
         <span>Partidos</span>
+      </button>
+
+      <button
+        type="button"
+        title="Explorar futbol"
+        className={`nav-item ${activePage === "explorar" ? "active" : ""}`}
+        aria-current={activePage === "explorar" ? "page" : undefined}
+        onClick={() => navigate("/explorar")}
+      >
+        <Search size={20} />
+        <span>Explorar</span>
       </button>
 
       <button

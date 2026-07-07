@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Plus, Users, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Plus, Share2, Users, X } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
 import { supabase } from "../lib/supabase";
+import { compartirContenido } from "../utils/shareContent";
 
 function generarCodigoLiga() {
   const caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -36,17 +37,20 @@ async function consultarMisLigas() {
 }
 
 function LigasPage({ session }) {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const usuarioId = session?.user?.id;
+  const codigoInvitacion = searchParams.get("codigo")?.trim().toUpperCase() || "";
   const [ligas, setLigas] = useState([]);
-  const [modalActivo, setModalActivo] = useState("");
+  const [modalActivo, setModalActivo] = useState(() =>
+    codigoInvitacion ? "unirse" : ""
+  );
   const [nombreLiga, setNombreLiga] = useState("");
-  const [codigoLiga, setCodigoLiga] = useState("");
+  const [codigoLiga, setCodigoLiga] = useState(codigoInvitacion);
   const [mensaje, setMensaje] = useState("");
   const [notificacion, setNotificacion] = useState("");
   const [cargando, setCargando] = useState(true);
   const [procesando, setProcesando] = useState(false);
-
-  const navigate = useNavigate();
-  const usuarioId = session?.user?.id;
 
   useEffect(() => {
     let respuestaCancelada = false;
@@ -281,6 +285,24 @@ function LigasPage({ session }) {
     }
   };
 
+  const compartirLiga = async (event, liga) => {
+    event.stopPropagation();
+    const url = `${window.location.origin}/ligas?codigo=${encodeURIComponent(liga.codigo)}`;
+
+    try {
+      const result = await compartirContenido({
+        title: `Liga ${liga.nombre} en PrediGol`,
+        text: `Unete a mi liga "${liga.nombre}" con el codigo ${liga.codigo}.`,
+        url,
+      });
+      setNotificacion(result === "copied" ? "Invitacion copiada al portapapeles." : "Invitacion compartida.");
+    } catch (shareError) {
+      if (shareError.name !== "AbortError") {
+        setNotificacion(shareError.message || "No fue posible compartir la liga.");
+      }
+    }
+  };
+
   return (
     <main className="league-page">
       <header className="league-header">
@@ -372,6 +394,15 @@ function LigasPage({ session }) {
                 <span>Tu posición</span>
                 <strong>—</strong>
               </div>
+
+              <button
+                type="button"
+                className="league-share-button"
+                aria-label={`Compartir liga ${liga.nombre}`}
+                onClick={(event) => compartirLiga(event, liga)}
+              >
+                <Share2 size={17} />
+              </button>
             </article>
           ))}
         </section>

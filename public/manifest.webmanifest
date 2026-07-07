@@ -1,0 +1,19 @@
+{
+  "name": "PrediGol",
+  "short_name": "PrediGol",
+  "description": "Pronosticos de futbol, rankings y ligas privadas.",
+  "lang": "es-CO",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#101813",
+  "theme_color": "#101813",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

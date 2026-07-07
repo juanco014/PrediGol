@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bell, Clock3, Medal, Target, Users } from "lucide-react";
+import { Bell, Clock3, Heart, Medal, Target, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
 import LoadingState from "../components/LoadingState";
 import StatusMessage from "../components/StatusMessage";
+import { useFavorites } from "../hooks/useFavorites";
 import { useProfile } from "../hooks/useProfile";
 import { supabase } from "../lib/supabase";
 import {
@@ -17,6 +18,7 @@ import {
 import { obtenerCuentaRegresiva } from "../utils/fechasPartidos";
 
 const MAX_PARTIDOS_INICIO = 10;
+const MAX_PARTIDOS_CONSULTA = 40;
 
 function formatearPorcentaje(valor) {
   const numero = Number(valor);
@@ -54,7 +56,7 @@ async function consultarDatosInicio(usuarioId) {
       .eq("es_relevante", true)
       .order("prioridad_visual", { ascending: true })
       .order("fecha_orden", { ascending: true })
-      .limit(MAX_PARTIDOS_INICIO),
+      .limit(MAX_PARTIDOS_CONSULTA),
 
     supabase
       .from("pronosticos")
@@ -162,9 +164,12 @@ function HomePage({ session }) {
   const [guardandoPartidoId, setGuardandoPartidoId] = useState(null);
   const [momentoActual, setMomentoActual] = useState(() => new Date());
   const [versionDatosEnVivo, setVersionDatosEnVivo] = useState(0);
+  const [filtroPartidos, setFiltroPartidos] = useState("todos");
 
   const usuarioId = session?.user?.id;
   const { profile } = useProfile(usuarioId);
+  const favorites = useFavorites(usuarioId);
+  const { isCompetitionFavorite, isTeamFavorite } = favorites;
 
   const nombreCompleto =
     profile?.nombre ||
@@ -309,6 +314,27 @@ function HomePage({ session }) {
     estadisticas.resumen.map((pronostico) => [pronostico.id, pronostico])
   );
 
+  const partidosPersonalizados = useMemo(() => {
+    const esFavorito = (partido) =>
+      isTeamFavorite(partido.local) ||
+      isTeamFavorite(partido.visitante) ||
+      isCompetitionFavorite(partido.torneo);
+    const ordenados = [...partidos].sort(
+      (a, b) => Number(esFavorito(b)) - Number(esFavorito(a))
+    );
+    const filtrados =
+      filtroPartidos === "favoritos"
+        ? ordenados.filter(esFavorito)
+        : ordenados;
+
+    return filtrados.slice(0, MAX_PARTIDOS_INICIO);
+  }, [
+    isCompetitionFavorite,
+    isTeamFavorite,
+    filtroPartidos,
+    partidos,
+  ]);
+
   const usuarioActual = crearUsuarioRanking({
     puntosTotales: estadisticas.puntosTotales,
     aciertos: estadisticas.aciertos,
@@ -319,15 +345,15 @@ function HomePage({ session }) {
 
   const { posicionUsuario } = obtenerRankingGlobal(usuarioActual);
 
-  const partidosAbiertos = partidos.filter((partido) =>
+  const partidosAbiertos = partidosPersonalizados.filter((partido) =>
     partidoAceptaPronosticos(partido, momentoActual)
   ).length;
 
-  const pronosticosListos = partidos.filter(
+  const pronosticosListos = partidosPersonalizados.filter(
     (partido) => pronosticosGuardados[partido.id]
   ).length;
 
-  const partidosConModelo = partidos.filter(
+  const partidosConModelo = partidosPersonalizados.filter(
     (partido) => prediccionesModelo[partido.apiFootballFixtureId]
   ).length;
 
@@ -540,25 +566,51 @@ function HomePage({ session }) {
 
         <div className="home-section-counters">
           <span className="matches-count">
-            {partidos.length} {partidos.length === 1 ? "partido" : "partidos"}
+            {partidosPersonalizados.length}{" "}
+            {partidosPersonalizados.length === 1 ? "partido" : "partidos"}
           </span>
           <span>{partidosConModelo} con modelo</span>
         </div>
       </section>
 
+      <section className="home-match-filters" aria-label="Filtrar partidos">
+        <button
+          type="button"
+          className={filtroPartidos === "todos" ? "home-filter-active" : ""}
+          onClick={() => setFiltroPartidos("todos")}
+        >
+          Todos
+        </button>
+        <button
+          type="button"
+          className={
+            filtroPartidos === "favoritos" ? "home-filter-active" : ""
+          }
+          onClick={() => setFiltroPartidos("favoritos")}
+        >
+          <Heart size={15} />
+          Mis favoritos
+        </button>
+      </section>
+
       {cargando ? (
         <LoadingState cards={3} label="Cargando partidos destacados" />
-      ) : partidos.length === 0 ? (
+      ) : partidosPersonalizados.length === 0 ? (
         <section className="empty-league-card">
-          <p>No hay partidos disponibles.</p>
+          <p>
+            {filtroPartidos === "favoritos"
+              ? "Aun no hay partidos de tus favoritos."
+              : "No hay partidos disponibles."}
+          </p>
           <span>
-            Cuando el admin marque partidos relevantes de la temporada,
-            aparecerán aquí para pronosticar.
+            {filtroPartidos === "favoritos"
+              ? "Abre el detalle de un partido y sigue un equipo o torneo."
+              : "Los partidos relevantes de la temporada apareceran aqui para pronosticar."}
           </span>
         </section>
       ) : (
         <section className="matches-list">
-          {partidos.map((partido) => {
+          {partidosPersonalizados.map((partido) => {
             const partidoFinalizado = partido.estado === "finalizado";
             const partidoEnVivo = partido.estado === "en_vivo";
             const partidoCancelado = partido.estado === "cancelado";
@@ -585,6 +637,10 @@ function HomePage({ session }) {
                   : partido.fecha;
 
             const pronosticoGuardado = pronosticosGuardados[partido.id];
+            const partidoFavorito =
+              isTeamFavorite(partido.local) ||
+              isTeamFavorite(partido.visitante) ||
+              isCompetitionFavorite(partido.torneo);
             const cuentaRegresiva = partidoBloqueado
               ? null
               : obtenerCuentaRegresiva(partido.fechaOrden, momentoActual);
@@ -599,7 +655,16 @@ function HomePage({ session }) {
             return (
               <article className={claseTarjeta} key={partido.id}>
                 <div className="match-top">
-                  <span>{partido.torneo}</span>
+                  <span>
+                    {partidoFavorito && (
+                      <Heart
+                        className="match-favorite-mark"
+                        size={13}
+                        fill="currentColor"
+                      />
+                    )}
+                    {partido.torneo}
+                  </span>
 
                   <div className="match-status-group">
                     {pronosticoGuardado && <em>Guardado</em>}
@@ -654,7 +719,7 @@ function HomePage({ session }) {
                 {prediccionModelo && (
                   <div className="model-prediction-card">
                     <div>
-                      <span>Modelo PrediGol</span>
+                      <span>Modelo PrediGol {prediccionModelo.model_version || ""}</span>
                       <strong>
                         {prediccionModelo.predicted_home_goals} -{" "}
                         {prediccionModelo.predicted_away_goals}
