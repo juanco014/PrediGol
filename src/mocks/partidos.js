@@ -1,3 +1,4 @@
+// Datos demo/fallback para estadísticas locales guardadas en localStorage.
 const partidos = [
   {
     id: 1,

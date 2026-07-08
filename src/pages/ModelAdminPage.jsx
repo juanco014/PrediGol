@@ -3,6 +3,7 @@ import { ArrowLeft, RefreshCw, Save, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useProfile } from "../hooks/useProfile";
 import { supabase } from "../lib/supabase";
+import { isAdminUser } from "../utils/admin";
 
 function formatearFecha(fecha) {
   if (!fecha) return "Sin fecha";
@@ -34,7 +35,7 @@ function ModelAdminPage({ session }) {
   const [aliasForm, setAliasForm] = useState({ canonical: "", alias: "", tournament: "", country: "", notes: "" });
   const [apiForm, setApiForm] = useState({ liga: "239", temporada: "2026" });
   const [guardando, setGuardando] = useState(false);
-  const esAdmin = profile?.rol === "admin" || Boolean(profile?.es_admin);
+  const esAdmin = isAdminUser(profile);
 
   const cargarDatos = useCallback(async () => {
     setCargando(true);

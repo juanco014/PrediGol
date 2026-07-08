@@ -13,6 +13,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useProfile } from "../hooks/useProfile";
+import { isAdminUser } from "../utils/admin";
 
 const formularioInicial = {
   torneo: "Liga BetPlay",
@@ -168,7 +169,7 @@ function AdminPartidosPage({ session }) {
   const [modelSettings, setModelSettings] = useState(null);
   const [guardandoModeloActivo, setGuardandoModeloActivo] = useState(false);
 
-  const esAdmin = profile?.rol === "admin" || Boolean(profile?.es_admin);
+  const esAdmin = isAdminUser(profile);
   const apiSyncRuns = apiMonitor?.runs ?? [];
   const ultimaApiSync = apiSyncRuns[0] ?? null;
 

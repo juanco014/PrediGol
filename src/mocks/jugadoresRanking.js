@@ -1,3 +1,4 @@
+// Datos demo/fallback usados cuando no hay ranking real desde Supabase.
 const jugadoresBase = [
   {
     id: "mateo",

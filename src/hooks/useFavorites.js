@@ -1,13 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { normalizarClaveFavorito } from "../utils/favorites";
 
-export function normalizarClaveFavorito(valor) {
-  return String(valor || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
-}
+export { normalizarClaveFavorito };
 
 export function useFavorites(usuarioId) {
   const [teams, setTeams] = useState([]);

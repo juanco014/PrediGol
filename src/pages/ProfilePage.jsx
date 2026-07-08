@@ -24,6 +24,7 @@ import { obtenerRankingGlobalSupabase } from "../utils/rankingSupabase";
 import { supabase } from "../lib/supabase";
 import { useFavorites } from "../hooks/useFavorites";
 import { useProfile } from "../hooks/useProfile";
+import { isAdminUser } from "../utils/admin";
 
 function ProfilePage({ session }) {
   const navigate = useNavigate();
@@ -38,6 +39,7 @@ function ProfilePage({ session }) {
   const usuarioId = session?.user?.id;
   const { profile } = useProfile(usuarioId);
   const favorites = useFavorites(usuarioId);
+  const esAdmin = isAdminUser(profile);
 
   const quitarFavorito = async (tipo, nombre) => {
     try {
@@ -442,7 +444,7 @@ function ProfilePage({ session }) {
         </button>
       </section>
 
-      {(profile?.rol === "admin" || profile?.es_admin) && (
+      {esAdmin && (
         <section className="achievement-card admin-shortcut-card">
           <div>
             <p className="section-label">ADMINISTRACION</p>
@@ -456,7 +458,7 @@ function ProfilePage({ session }) {
         </section>
       )}
 
-      {profile && !(profile.rol === "admin" || profile.es_admin) && (
+      {profile && !esAdmin && (
         <section className="achievement-card admin-shortcut-card">
           <div>
             <p className="section-label">CONFIGURACION INICIAL</p>

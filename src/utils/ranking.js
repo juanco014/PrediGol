@@ -1,4 +1,4 @@
-import jugadoresBase from "../data/jugadoresRanking";
+import jugadoresBase from "../mocks/jugadoresRanking.js";
 
 export function crearUsuarioRanking({
   puntosTotales = 0,

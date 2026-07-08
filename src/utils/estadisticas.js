@@ -1,4 +1,4 @@
-import partidos from "../data/partidos";
+import partidos from "../mocks/partidos.js";
 
 export const PUNTOS_PRONOSTICO = {
   RESULTADO: 3,
