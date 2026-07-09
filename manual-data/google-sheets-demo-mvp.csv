@@ -1,0 +1,11 @@
+id,torneo,fecha,hora,local,visitante,local_corto,visitante_corto,temporada,ronda,estado,goles_local,goles_visitante,relevante,prioridad,fuente
+demo-cierre-rapido-01,Liga BetPlay,2026-07-01,19:00,Atletico Nacional,Millonarios,NAL,MIL,2026,Demo cierre,proximo,,,si,5,demo mvp no oficial
+demo-betplay-02,Liga BetPlay,2026-07-02,20:10,America de Cali,Deportivo Cali,AME,CAL,2026,Demo fecha 1,proximo,,,si,20,demo mvp no oficial
+demo-libertadores-01,Copa Libertadores,2026-07-03,19:30,Junior,River Plate,JUN,RIV,2026,Demo octavos,proximo,,,si,30,demo mvp no oficial
+demo-sudamericana-01,Copa Sudamericana,2026-07-04,18:00,Independiente Medellin,LDU Quito,DIM,LDU,2026,Demo octavos,proximo,,,si,40,demo mvp no oficial
+demo-champions-01,Champions League,2026-07-05,14:00,Real Madrid,Manchester City,RMA,MCI,2026,Demo fase liga,proximo,,,si,50,demo mvp no oficial
+demo-champions-02,Champions League,2026-07-06,14:00,Barcelona,Inter de Milan,BAR,INT,2026,Demo fase liga,proximo,,,si,60,demo mvp no oficial
+demo-selecciones-01,Eliminatorias CONMEBOL,2026-07-07,18:30,Colombia,Argentina,COL,ARG,2026,Demo fecha 1,proximo,,,si,70,demo mvp no oficial
+demo-selecciones-02,FIFA World Cup,2026-07-08,15:00,Brasil,Francia,BRA,FRA,2026,Demo grupos,proximo,,,si,80,demo mvp no oficial
+demo-finalizado-01,Liga BetPlay,2026-06-20,19:00,Santa Fe,Once Caldas,SFE,ONC,2026,Demo historico,finalizado,2,1,no,100,demo mvp no oficial
+demo-finalizado-02,Copa Libertadores,2026-06-21,18:30,Flamengo,Boca Juniors,FLA,BOC,2026,Demo historico,finalizado,1,1,no,110,demo mvp no oficial

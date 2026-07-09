@@ -1,24 +1,43 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
 
-node_modules
-dist
-dist-ssr
-*.local
+# Local secrets
+.env
+.env.*
+!.env.example
+prediction-service/.env
+prediction-service/.env.*
+!prediction-service/.env.example
+predigol-web/.env
+predigol-web/.env.*
+!predigol-web/.env.example
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+# Build artifacts
+predigol-web/dist/
+prediction-service/*.egg-info/
+
+# Node
+node_modules/
+predigol-web/node_modules/
+
+# Build frontend
+dist/
+predigol-web/dist/
+
+# Reports y datasets generados localmente
+reports/*
+!reports/.gitkeep
+
+# Caches extra
+.cache/
+.mypy_cache/
+.ruff_cache/
+
+# Config local de agentes, si no hace parte del proyecto
+.codex/
+agents/
+
+# Supabase local temp
+supabase/.temp/
