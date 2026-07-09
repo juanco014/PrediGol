@@ -57,6 +57,7 @@ class ComparativeBacktestTests(unittest.TestCase):
         self.assertEqual(sum(diagnostics["actual_outcome_distribution"].values()), len(v2_rows))
         self.assertEqual(sum(diagnostics["argmax_distribution"].values()), len(v2_rows))
         self.assertEqual(len(diagnostics["draw_decision_margin_sweep"]), 7)
+        self.assertEqual(len(diagnostics["experiment_5"]), 8)
         self.assertIn("0.03", diagnostics["draw_within_max_margin_counts"])
         self.assertIn("0.10", diagnostics["draw_within_max_margin_counts"])
         self.assertIn("home_bias", diagnostics)
@@ -67,6 +68,15 @@ class ComparativeBacktestTests(unittest.TestCase):
         self.assertEqual(zero_margin["margin"], 0.0)
         self.assertAlmostEqual(zero_margin["accuracy"], baseline_accuracy, places=6)
         self.assertEqual(zero_margin["accuracy_delta_vs_baseline"], 0.0)
+
+        neutral_home_xg = diagnostics["experiment_5"][0]
+        self.assertEqual(neutral_home_xg["label"], "home_xg_multiplier=1.00")
+        self.assertAlmostEqual(neutral_home_xg["accuracy"], baseline_accuracy, places=6)
+        self.assertIn("brier_score", neutral_home_xg)
+        self.assertIn("log_loss", neutral_home_xg)
+        self.assertIn("predicted_outcome_distribution", neutral_home_xg)
+        self.assertIn("expected_home_goals_mean", neutral_home_xg)
+        self.assertEqual(sum(neutral_home_xg["predicted_outcome_distribution"].values()), len(v2_rows))
 
         for row in v2_rows:
             self.assertIn(row["predicted_outcome"], {"home", "draw", "away"})

@@ -5,6 +5,7 @@ import json
 import math
 import time
 from collections import defaultdict
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -167,7 +168,95 @@ def _simulate_draw_margin(rows: list[dict[str, Any]], margin: float, baseline_ac
     }
 
 
-def _v2_diagnostics(rows: list[dict[str, Any]]) -> dict[str, Any]:
+def _experiment_5_configs(base_config: V2Config) -> list[dict[str, Any]]:
+    configs: list[dict[str, Any]] = []
+    for value in [1.00, 0.95, 0.90, 0.85]:
+        configs.append(
+            {
+                "label": f"home_xg_multiplier={value:.2f}",
+                "config": replace(
+                    base_config,
+                    enable_home_bias_adjustment=True,
+                    home_bias_multiplier=1.0,
+                    home_xg_multiplier=value,
+                    away_xg_multiplier=1.0,
+                ),
+                "parameters": {
+                    "enable_home_bias_adjustment": True,
+                    "home_bias_multiplier": 1.0,
+                    "home_xg_multiplier": value,
+                    "away_xg_multiplier": 1.0,
+                },
+            }
+        )
+    for value in [1.00, 0.95, 0.90, 0.85]:
+        configs.append(
+            {
+                "label": f"home_bias_multiplier={value:.2f}",
+                "config": replace(
+                    base_config,
+                    enable_home_bias_adjustment=True,
+                    home_bias_multiplier=value,
+                    home_xg_multiplier=1.0,
+                    away_xg_multiplier=1.0,
+                ),
+                "parameters": {
+                    "enable_home_bias_adjustment": True,
+                    "home_bias_multiplier": value,
+                    "home_xg_multiplier": 1.0,
+                    "away_xg_multiplier": 1.0,
+                },
+            }
+        )
+    return configs
+
+
+def _experiment_5_summary(rows: list[dict[str, Any]], config: dict[str, Any], baseline: dict[str, Any]) -> dict[str, Any]:
+    summary = _aggregate(rows)
+    matches = len(rows)
+    actual_home_wins = sum(1 for row in rows if row["actual_outcome"] == "home")
+    predicted_home = sum(1 for row in rows if row["predicted_outcome"] == "home")
+    true_predicted_home = sum(1 for row in rows if row["predicted_outcome"] == "home" and row["actual_outcome"] == "home")
+    actual_home_goals = []
+    actual_away_goals = []
+    for row in rows:
+        home_goals, away_goals = _score_from_text(row["actual_score"])
+        actual_home_goals.append(home_goals)
+        actual_away_goals.append(away_goals)
+
+    expected_home = [row["expected_home_goals"] for row in rows]
+    expected_away = [row["expected_away_goals"] for row in rows]
+    return {
+        "label": config["label"],
+        "parameters": config["parameters"],
+        "accuracy": summary.get("outcome_accuracy"),
+        "accuracy_delta_vs_baseline": round(summary.get("outcome_accuracy", 0.0) - baseline.get("outcome_accuracy", 0.0), 6),
+        "brier_score": summary.get("brier_score"),
+        "brier_delta_vs_baseline": round(summary.get("brier_score", 0.0) - baseline.get("brier_score", 0.0), 6),
+        "log_loss": summary.get("log_loss"),
+        "log_loss_delta_vs_baseline": round(summary.get("log_loss", 0.0) - baseline.get("log_loss", 0.0), 6),
+        "argmax_distribution": {
+            outcome: sum(1 for row in rows if max(OUTCOMES, key=row["probabilities"].get) == outcome)
+            for outcome in OUTCOMES
+        },
+        "predicted_outcome_distribution": _outcome_counts(rows, "predicted_outcome"),
+        "predicted_home": predicted_home,
+        "precision_when_predicting_home": _safe_rate(true_predicted_home, predicted_home),
+        "recall_home_wins": _safe_rate(true_predicted_home, actual_home_wins),
+        "false_home_predictions": predicted_home - true_predicted_home,
+        "expected_home_goals_mean": round(sum(expected_home) / matches, 6) if rows else None,
+        "expected_away_goals_mean": round(sum(expected_away) / matches, 6) if rows else None,
+        "expected_total_goals_mean": round(sum(h + a for h, a in zip(expected_home, expected_away)) / matches, 6) if rows else None,
+        "home_xg_error_mean": round(sum(xg - actual for xg, actual in zip(expected_home, actual_home_goals)) / matches, 6) if rows else None,
+        "away_xg_error_mean": round(sum(xg - actual for xg, actual in zip(expected_away, actual_away_goals)) / matches, 6) if rows else None,
+        "total_xg_error_mean": round(
+            sum((eh + ea) - (ah + aa) for eh, ea, ah, aa in zip(expected_home, expected_away, actual_home_goals, actual_away_goals)) / matches,
+            6,
+        ) if rows else None,
+    }
+
+
+def _v2_diagnostics(rows: list[dict[str, Any]], experiment_5_rows: dict[str, list[dict[str, Any]]] | None = None, experiment_5_configs: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     if not rows:
         return {"matches": 0}
 
@@ -258,6 +347,12 @@ def _v2_diagnostics(rows: list[dict[str, Any]]) -> dict[str, Any]:
             ),
         },
     }
+    if experiment_5_rows is not None and experiment_5_configs is not None:
+        baseline_summary = _aggregate(rows)
+        diagnostics["experiment_5"] = [
+            _experiment_5_summary(experiment_5_rows[item["label"]], item, baseline_summary)
+            for item in experiment_5_configs
+        ]
     return diagnostics
 
 
@@ -286,6 +381,9 @@ def compare_v1_v2(
     tournament_set = {item.casefold() for item in tournaments or []}
     excluded: list[dict[str, Any]] = []
     rows: list[dict[str, Any]] = []
+    base_v2_config = v2_config or V2Config()
+    experiment_5_configs = _experiment_5_configs(base_v2_config)
+    experiment_5_rows: dict[str, list[dict[str, Any]]] = {item["label"]: [] for item in experiment_5_configs}
 
     for index, match in enumerate(ordered):
         match_date = parse_date(match.get("fecha_orden"))
@@ -313,6 +411,12 @@ def compare_v1_v2(
             started = time.perf_counter()
             prediction = model.predict(match)
             rows.append(_score_prediction(model_version, prediction, match, (time.perf_counter() - started) * 1000, len(training)))
+        for item in experiment_5_configs:
+            started = time.perf_counter()
+            prediction = PoissonEloFormModel(training, item["config"]).predict(match)
+            row = _score_prediction(MODEL_VERSION_V2, prediction, match, (time.perf_counter() - started) * 1000, len(training))
+            row["experiment_5_label"] = item["label"]
+            experiment_5_rows[item["label"]].append(row)
 
     by_model = defaultdict(list)
     for row in rows:
@@ -360,7 +464,7 @@ def compare_v1_v2(
         "evaluated_matches": len(paired),
         "same_evaluation_set": same_evaluation_set,
         "summaries": {MODEL_VERSION: v1_summary, MODEL_VERSION_V2: v2_summary},
-        "diagnostics": {"v2": _v2_diagnostics(v2_rows)},
+        "diagnostics": {"v2": _v2_diagnostics(v2_rows, experiment_5_rows, experiment_5_configs)},
         "data_quality": data_quality,
         "by_tournament": {
             tournament: {

@@ -255,3 +255,34 @@ Conclusion neutral: el problema de empates no parece resolverse con un margen pe
 Recomendacion para Experimento 5: no ajustar solo `draw_decision_margin`. Probar primero una reduccion configurable del sesgo de localia o del factor de ventaja local/form/elo en V2, y medir si baja p_local y xG local sin degradar Brier/log-loss. Otra opcion es una calibracion especifica de probabilidades 1X2 basada en bins, pero debe validarse fuera de esta unica temporada antes de adoptarse.
 
 Limitaciones: este diagnostico usa Premier League 2024 como holdout con 380 partidos. El sweep es simulacion sobre predicciones ya generadas, no entrenamiento ni busqueda validada de hiperparametros. No declara superioridad de V2.
+
+## Experimento 5 V2: diagnostico de ajuste local/xG
+
+Hipotesis: el sesgo de V2 hacia local y la inflacion de xG local pueden reducirse con multiplicadores configurables sobre el componente local, sin cambiar el comportamiento por defecto del modelo.
+
+Cambio aplicado: se agregaron parametros experimentales a `V2Config`: `enable_home_bias_adjustment: bool = False`, `home_bias_multiplier: float = 1.0`, `home_xg_multiplier: float = 1.0` y `away_xg_multiplier: float = 1.0`. Los rangos permitidos para los multiplicadores son `0.70` a `1.30`. Con `enable_home_bias_adjustment=False`, los multiplicadores no se aplican y el comportamiento por defecto queda igual que antes. El JSON de backtest incorpora `diagnostics.v2.experiment_5` con un sweep diagnostico; no cambia las filas base ni las metricas default.
+
+Reporte analizado: `reports/backtest_v1_v2_20260709T221259Z.json`.
+
+Baseline V2 default contra Experimento 4: Brier `0.614925`, log-loss `1.025598`, accuracy 1X2 `0.471053`, xG local medio `2.071161`, xG total medio `3.763979`, predicciones `294` locales, `0` empates y `86` visitantes.
+
+Sweep Experimento 5:
+
+| Configuracion | Accuracy | Delta acc. | Brier | Delta Brier | Log-loss | Delta log-loss | Local | Empate | Visitante | Precision local | Recall local | Falsos locales | xG local | xG total | Error xG total |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| home_xg_multiplier=1.00 | 0.471053 | 0.000000 | 0.614925 | 0.000000 | 1.025598 | 0.000000 | 294 | 0 | 86 | 0.455782 | 0.864516 | 160 | 2.071161 | 3.763979 | 0.829768 |
+| home_xg_multiplier=0.95 | 0.494737 | 0.023684 | 0.613285 | -0.001640 | 1.023432 | -0.002166 | 266 | 0 | 114 | 0.477444 | 0.819355 | 139 | 1.967629 | 3.660447 | 0.726237 |
+| home_xg_multiplier=0.90 | 0.500000 | 0.028947 | 0.613012 | -0.001913 | 1.023032 | -0.002566 | 247 | 0 | 133 | 0.497976 | 0.793548 | 124 | 1.864068 | 3.556887 | 0.622676 |
+| home_xg_multiplier=0.85 | 0.526316 | 0.055263 | 0.614225 | -0.000700 | 1.024570 | -0.001028 | 222 | 0 | 158 | 0.531532 | 0.761290 | 104 | 1.760482 | 3.453300 | 0.519089 |
+| home_bias_multiplier=1.00 | 0.471053 | 0.000000 | 0.614925 | 0.000000 | 1.025598 | 0.000000 | 294 | 0 | 86 | 0.455782 | 0.864516 | 160 | 2.071161 | 3.763979 | 0.829768 |
+| home_bias_multiplier=0.95 | 0.494737 | 0.023684 | 0.613285 | -0.001640 | 1.023432 | -0.002166 | 266 | 0 | 114 | 0.477444 | 0.819355 | 139 | 1.967629 | 3.660447 | 0.726237 |
+| home_bias_multiplier=0.90 | 0.500000 | 0.028947 | 0.613012 | -0.001913 | 1.023032 | -0.002566 | 247 | 0 | 133 | 0.497976 | 0.793548 | 124 | 1.864068 | 3.556887 | 0.622676 |
+| home_bias_multiplier=0.85 | 0.526316 | 0.055263 | 0.614225 | -0.000700 | 1.024570 | -0.001028 | 222 | 0 | 158 | 0.531532 | 0.761290 | 104 | 1.760482 | 3.453300 | 0.519089 |
+
+Interpretacion: en la estructura actual de V2, `home_bias_multiplier` y `home_xg_multiplier` producen el mismo efecto en este sweep porque ambos reducen directamente el componente que alimenta `expected_home`. Reducirlo baja falsos locales y xG local, y mejora accuracy 1X2 frente al baseline V2. Sin embargo, aunque `0.85` supera la accuracy de V1 en este holdout, V2 sigue sin superar a V1 en Brier ni log-loss (`V1`: Brier `0.612233`, log-loss `1.019543`). Tampoco resuelve los empates: todas las configuraciones siguen prediciendo `0` empates.
+
+Que NO se concluye: no hay evidencia suficiente para declarar V2 superior. No debe elegirse una configuracion solo por accuracy si Brier/log-loss no acompanan o si la mejora no se valida fuera de esta temporada.
+
+Recomendacion neutral: para Experimento 6, probar de forma controlada `enable_home_bias_adjustment=True` con `home_xg_multiplier=0.90` o `0.85` como candidatos, priorizando Brier/log-loss y calibracion ademas de accuracy. Si se busca menor riesgo, empezar con `0.90` porque mejora Brier/log-loss mas que `0.85`; si se prioriza accuracy, `0.85` es mejor en este holdout pero menos convincente en Brier/log-loss. Mantener defaults neutrales hasta validar en mas temporadas o ligas.
+
+Limitaciones: el sweep usa una unica liga y temporada holdout. Las configuraciones evaluadas son diagnosticas y no cambian el modelo por defecto. No se tocaron V1, backend, contratos publicos, Supabase/RLS ni importacion CSV.

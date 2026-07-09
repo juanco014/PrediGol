@@ -36,6 +36,12 @@ class V2ModelTests(unittest.TestCase):
             V2Config(draw_decision_margin=-0.01)
         with self.assertRaises(ValueError):
             V2Config(draw_decision_margin=0.30)
+        with self.assertRaises(ValueError):
+            V2Config(home_bias_multiplier=0.69)
+        with self.assertRaises(ValueError):
+            V2Config(home_xg_multiplier=1.31)
+        with self.assertRaises(ValueError):
+            V2Config(away_xg_multiplier=0.69)
 
     def test_tournament_fallback_warning_when_few_records(self) -> None:
         model = PoissonEloFormModel(build_history(40))
@@ -127,6 +133,45 @@ class V2ModelTests(unittest.TestCase):
         total = enabled.home_win_probability + enabled.draw_probability + enabled.away_win_probability
         self.assertAlmostEqual(total, 1.0, places=6)
 
+    def test_home_bias_adjustment_defaults_are_neutral(self) -> None:
+        config = V2Config()
+        self.assertFalse(config.enable_home_bias_adjustment)
+        self.assertEqual(config.home_bias_multiplier, 1.0)
+        self.assertEqual(config.home_xg_multiplier, 1.0)
+        self.assertEqual(config.away_xg_multiplier, 1.0)
+
+        match = {"id": 999, "api_football_fixture_id": 999, "torneo": "Liga de prueba", "local_nombre": "Equipo 1", "visitante_nombre": "Equipo 2"}
+        default = PoissonEloFormModel(build_history(90)).predict(match)
+        explicit_neutral = PoissonEloFormModel(
+            build_history(90),
+            V2Config(
+                enable_home_bias_adjustment=False,
+                home_bias_multiplier=0.85,
+                home_xg_multiplier=0.85,
+                away_xg_multiplier=1.15,
+            ),
+        ).predict(match)
+
+        self.assertAlmostEqual(default.expected_home_goals, explicit_neutral.expected_home_goals, places=12)
+        self.assertAlmostEqual(default.expected_away_goals, explicit_neutral.expected_away_goals, places=12)
+        self.assertAlmostEqual(default.home_win_probability, explicit_neutral.home_win_probability, places=12)
+        self.assertAlmostEqual(default.draw_probability, explicit_neutral.draw_probability, places=12)
+        self.assertAlmostEqual(default.away_win_probability, explicit_neutral.away_win_probability, places=12)
+
+    def test_home_bias_adjustment_can_reduce_home_xg(self) -> None:
+        match = {"id": 999, "api_football_fixture_id": 999, "torneo": "Liga de prueba", "local_nombre": "Equipo 1", "visitante_nombre": "Equipo 2"}
+        default = PoissonEloFormModel(build_history(90)).predict(match)
+        adjusted = PoissonEloFormModel(
+            build_history(90),
+            V2Config(enable_home_bias_adjustment=True, home_xg_multiplier=0.85),
+        ).predict(match)
+
+        self.assertLess(adjusted.expected_home_goals, default.expected_home_goals)
+        self.assertAlmostEqual(adjusted.expected_away_goals, default.expected_away_goals, places=12)
+        total = adjusted.home_win_probability + adjusted.draw_probability + adjusted.away_win_probability
+        self.assertAlmostEqual(total, 1.0, places=6)
+        self.assertTrue(adjusted.metadata["enable_home_bias_adjustment"])
+
     def test_v1_does_not_use_expected_goals_shrink(self) -> None:
         match = {"id": 999, "api_football_fixture_id": 999, "torneo": "Liga de prueba", "local_nombre": "Equipo 1", "visitante_nombre": "Equipo 2"}
         v1_prediction = PoissonEloModel(build_history(90)).predict(match)
@@ -134,6 +179,8 @@ class V2ModelTests(unittest.TestCase):
         self.assertNotIn("expected_goals_shrink", v1_prediction.metadata)
         self.assertNotIn("enable_draw_decision_adjustment", v1_prediction.metadata)
         self.assertNotIn("draw_decision_margin", v1_prediction.metadata)
+        self.assertNotIn("enable_home_bias_adjustment", v1_prediction.metadata)
+        self.assertNotIn("home_bias_multiplier", v1_prediction.metadata)
         self.assertEqual(v1_prediction.to_payload()["model_version"], "poisson-elo-v1")
 
 

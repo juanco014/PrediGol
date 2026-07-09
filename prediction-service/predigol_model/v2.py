@@ -34,6 +34,10 @@ class V2Config:
     expected_goals_shrink: float = 1.0
     enable_draw_decision_adjustment: bool = True
     draw_decision_margin: float = 0.03
+    enable_home_bias_adjustment: bool = False
+    home_bias_multiplier: float = 1.0
+    home_xg_multiplier: float = 1.0
+    away_xg_multiplier: float = 1.0
 
     def __post_init__(self) -> None:
         if self.half_life_matches <= 0:
@@ -50,6 +54,12 @@ class V2Config:
             raise ValueError("expected_goals_shrink debe ser mayor que 0 y menor o igual que 1.")
         if not 0 <= self.draw_decision_margin <= 0.25:
             raise ValueError("draw_decision_margin debe estar entre 0 y 0.25.")
+        if not 0.70 <= self.home_bias_multiplier <= 1.30:
+            raise ValueError("home_bias_multiplier debe estar entre 0.70 y 1.30.")
+        if not 0.70 <= self.home_xg_multiplier <= 1.30:
+            raise ValueError("home_xg_multiplier debe estar entre 0.70 y 1.30.")
+        if not 0.70 <= self.away_xg_multiplier <= 1.30:
+            raise ValueError("away_xg_multiplier debe estar entre 0.70 y 1.30.")
 
 
 @dataclass
@@ -110,6 +120,10 @@ class V2Prediction(Prediction):
             "expected_goals_shrink": self.metadata.get("expected_goals_shrink"),
             "enable_draw_decision_adjustment": self.metadata.get("enable_draw_decision_adjustment"),
             "draw_decision_margin": self.metadata.get("draw_decision_margin"),
+            "enable_home_bias_adjustment": self.metadata.get("enable_home_bias_adjustment"),
+            "home_bias_multiplier": self.metadata.get("home_bias_multiplier"),
+            "home_xg_multiplier": self.metadata.get("home_xg_multiplier"),
+            "away_xg_multiplier": self.metadata.get("away_xg_multiplier"),
         }
         return payload
 
@@ -322,18 +336,25 @@ class PoissonEloFormModel:
         form_delta = home_form["points_per_match"] - away_form["points_per_match"]
         home_elo_factor = clamp(1 + (elo_delta / 1900) + (form_delta * 0.035), 0.72, 1.28)
         away_elo_factor = clamp(1 - (elo_delta / 1900) - (form_delta * 0.035), 0.72, 1.28)
+        if self.config.enable_home_bias_adjustment:
+            home_elo_factor = clamp(home_elo_factor * self.config.home_bias_multiplier, 0.72, 1.28)
         volatility = clamp((league.avg_home_goals + league.avg_away_goals) / 2.45, 0.85, 1.18)
 
-        expected_home = clamp(
+        expected_home_before_adjustment = clamp(
             league.avg_home_goals * home_attack * away_defense * home_elo_factor * volatility,
             0.15,
             4.8,
         )
-        expected_away = clamp(
+        expected_away_before_adjustment = clamp(
             league.avg_away_goals * away_attack * away_elo_factor * volatility,
             0.15,
             4.8,
         )
+        expected_home = expected_home_before_adjustment
+        expected_away = expected_away_before_adjustment
+        if self.config.enable_home_bias_adjustment:
+            expected_home = max(0.15, expected_home * self.config.home_xg_multiplier)
+            expected_away = max(0.15, expected_away * self.config.away_xg_multiplier)
         expected_home = max(0.15, expected_home * self.config.expected_goals_shrink)
         expected_away = max(0.15, expected_away * self.config.expected_goals_shrink)
 
@@ -392,6 +413,12 @@ class PoissonEloFormModel:
                 "expected_goals_shrink": self.config.expected_goals_shrink,
                 "enable_draw_decision_adjustment": self.config.enable_draw_decision_adjustment,
                 "draw_decision_margin": self.config.draw_decision_margin,
+                "enable_home_bias_adjustment": self.config.enable_home_bias_adjustment,
+                "home_bias_multiplier": self.config.home_bias_multiplier,
+                "home_xg_multiplier": self.config.home_xg_multiplier,
+                "away_xg_multiplier": self.config.away_xg_multiplier,
+                "expected_home_goals_before_home_bias_adjustment": round(expected_home_before_adjustment, 6),
+                "expected_away_goals_before_home_bias_adjustment": round(expected_away_before_adjustment, 6),
                 "predicted_outcome": predicted_outcome,
                 "predicted_outcome_base": base_predicted_outcome,
                 "draw_decision_adjusted": draw_decision_adjusted,
