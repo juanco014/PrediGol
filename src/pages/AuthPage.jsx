@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { ArrowLeft, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+import {
+  iniciarSesion,
+  obtenerMensajeErrorAuth,
+  registrarUsuario,
+} from "../services/userAccountApi";
 
 function AuthPage() {
   const navigate = useNavigate();
@@ -51,20 +55,12 @@ function AuthPage() {
       setCargando(true);
 
       if (modo === "registro") {
-        const { data, error } = await supabase.auth.signUp({
-          email: correoLimpio,
-          password: contrasena,
-          options: {
-            emailRedirectTo: window.location.origin,
-            data: {
-              nombre: nombre.trim(),
-            },
-          },
+        const data = await registrarUsuario({
+          correo: correoLimpio,
+          contrasena,
+          nombre,
+          redirectTo: window.location.origin,
         });
-
-        if (error) {
-          throw error;
-        }
 
         if (data.session) {
           navigate("/inicio");
@@ -78,20 +74,17 @@ function AuthPage() {
         return;
       }
 
-      const { error } = await supabase.auth.signInWithPassword({
-        email: correoLimpio,
-        password: contrasena,
-      });
-
-      if (error) {
-        throw error;
-      }
+      await iniciarSesion({ correo: correoLimpio, contrasena });
 
       navigate("/inicio");
     } catch (error) {
       setMensaje(
-        error.message ||
-          "No fue posible continuar. Revisa los datos e inténtalo otra vez."
+        obtenerMensajeErrorAuth(
+          error,
+          modo === "registro"
+            ? "No se pudo crear tu cuenta. Revisa los datos e inténtalo otra vez."
+            : "No se pudo iniciar sesión. Revisa tus datos."
+        )
       );
       setTipoMensaje("error");
     } finally {

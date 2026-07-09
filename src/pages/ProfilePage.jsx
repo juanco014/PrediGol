@@ -22,7 +22,11 @@ import {
   obtenerRankingGlobal,
 } from "../utils/ranking";
 import { obtenerRankingGlobalSupabase } from "../utils/rankingSupabase";
-import { supabase } from "../lib/supabase";
+import {
+  cerrarSesion as cerrarSesionCuenta,
+  obtenerMensajeErrorAuth,
+  reclamarPrimerAdmin as reclamarPrimerAdminCuenta,
+} from "../services/userAccountApi";
 import { useFavorites } from "../hooks/useFavorites";
 import { useProfile } from "../hooks/useProfile";
 import { isAdminUser } from "../utils/admin";
@@ -140,14 +144,13 @@ function ProfilePage({ session }) {
     try {
       setCerrandoSesion(true);
 
-      const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        throw error;
-      }
+      await cerrarSesionCuenta();
     } catch (error) {
       window.alert(
-        error.message || "No fue posible cerrar sesión. Inténtalo de nuevo."
+        obtenerMensajeErrorAuth(
+          error,
+          "No fue posible cerrar sesión. Inténtalo de nuevo."
+        )
       );
     } finally {
       setCerrandoSesion(false);
@@ -158,17 +161,15 @@ function ProfilePage({ session }) {
     try {
       setActivandoAdmin(true);
 
-      const { error } = await supabase.rpc("reclamar_primer_admin");
-
-      if (error) {
-        throw error;
-      }
+      await reclamarPrimerAdminCuenta();
 
       window.location.reload();
     } catch (error) {
       window.alert(
-        error.message ||
+        obtenerMensajeErrorAuth(
+          error,
           "No fue posible activar el administrador. Revisa si ya existe otro admin."
+        )
       );
     } finally {
       setActivandoAdmin(false);

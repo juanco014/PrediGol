@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { obtenerPerfilUsuario } from "../services/userAccountApi";
 
 export function useProfile(userId) {
   const [perfilCargado, setPerfilCargado] = useState({
@@ -15,17 +15,22 @@ export function useProfile(userId) {
     let componenteActivo = true;
 
     const cargarPerfil = async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, nombre, username, avatar_url, es_admin, rol")
-        .eq("id", userId)
-        .maybeSingle();
+      try {
+        const data = await obtenerPerfilUsuario(userId);
 
-      if (!componenteActivo) {
-        return;
-      }
+        if (!componenteActivo) {
+          return;
+        }
 
-      if (error) {
+        setPerfilCargado({
+          userId,
+          profile: data,
+        });
+      } catch (error) {
+        if (!componenteActivo) {
+          return;
+        }
+
         console.error("No fue posible cargar el perfil:", error.message);
 
         setPerfilCargado({
@@ -35,11 +40,6 @@ export function useProfile(userId) {
 
         return;
       }
-
-      setPerfilCargado({
-        userId,
-        profile: data,
-      });
     };
 
     cargarPerfil();
