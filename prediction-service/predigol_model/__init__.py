@@ -1,0 +1,1 @@
+"""PrediGol statistical prediction service."""

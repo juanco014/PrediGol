@@ -1,0 +1,4 @@
+id,torneo,fecha,hora,local,visitante,local_corto,visitante_corto,temporada,ronda,estado,goles_local,goles_visitante,relevante,prioridad,fuente
+betplay-2026-01,Liga BetPlay,2026-07-01,19:00,Equipo Local,Equipo Visitante,LOC,VIS,2026,Fecha 1,proximo,,,si,10,google sheets
+libertadores-2026-01,Copa Libertadores,2026-07-02,20:30,Otro Local,Otro Visitante,OTL,OTV,2026,Octavos,proximo,,,si,20,google sheets
+amistoso-2026-01,Amistoso,2026-07-03,18:00,Equipo A,Equipo B,EQA,EQB,2026,Unico,finalizado,2,1,no,100,google sheets
