@@ -302,6 +302,136 @@ def _experiment_6_summary(rows: list[dict[str, Any]], config: dict[str, Any], ba
     return result
 
 
+def _model_diagnostic_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    if not rows:
+        return {"matches": 0}
+
+    summary = _aggregate(rows)
+    matches = len(rows)
+    actual_home_wins = sum(1 for row in rows if row["actual_outcome"] == "home")
+    predicted_home = sum(1 for row in rows if row["predicted_outcome"] == "home")
+    true_home = sum(1 for row in rows if row["predicted_outcome"] == "home" and row["actual_outcome"] == "home")
+    actual_draws = sum(1 for row in rows if row["actual_outcome"] == "draw")
+    predicted_draws = sum(1 for row in rows if row["predicted_outcome"] == "draw")
+    true_draws = sum(1 for row in rows if row["predicted_outcome"] == "draw" and row["actual_outcome"] == "draw")
+    false_draws = sum(1 for row in rows if row["predicted_outcome"] == "draw" and row["actual_outcome"] != "draw")
+    actual_home_goals = []
+    actual_away_goals = []
+    expected_home = []
+    expected_away = []
+    for row in rows:
+        home_goals, away_goals = _score_from_text(row["actual_score"])
+        actual_home_goals.append(home_goals)
+        actual_away_goals.append(away_goals)
+        expected_home.append(row["expected_home_goals"])
+        expected_away.append(row["expected_away_goals"])
+
+    return {
+        "matches": matches,
+        "accuracy": summary.get("outcome_accuracy"),
+        "brier_score": summary.get("brier_score"),
+        "log_loss": summary.get("log_loss"),
+        "prediction_distribution": _outcome_counts(rows, "predicted_outcome"),
+        "argmax_distribution": {
+            outcome: sum(1 for row in rows if max(OUTCOMES, key=row["probabilities"].get) == outcome)
+            for outcome in OUTCOMES
+        },
+        "predicted_home": predicted_home,
+        "predicted_draws": predicted_draws,
+        "predicted_away": sum(1 for row in rows if row["predicted_outcome"] == "away"),
+        "precision_when_predicting_home": _safe_rate(true_home, predicted_home),
+        "recall_home_wins": _safe_rate(true_home, actual_home_wins),
+        "false_home_predictions": predicted_home - true_home,
+        "precision_when_predicting_draw": _safe_rate(true_draws, predicted_draws),
+        "recall_real_draws": _safe_rate(true_draws, actual_draws),
+        "false_draws": false_draws,
+        "expected_home_goals_mean": round(sum(expected_home) / matches, 6),
+        "expected_away_goals_mean": round(sum(expected_away) / matches, 6),
+        "expected_total_goals_mean": round(sum(h + a for h, a in zip(expected_home, expected_away)) / matches, 6),
+        "home_xg_error_mean": round(sum(xg - actual for xg, actual in zip(expected_home, actual_home_goals)) / matches, 6),
+        "away_xg_error_mean": round(sum(xg - actual for xg, actual in zip(expected_away, actual_away_goals)) / matches, 6),
+        "total_xg_error_mean": round(
+            sum((eh + ea) - (ah + aa) for eh, ea, ah, aa in zip(expected_home, expected_away, actual_home_goals, actual_away_goals)) / matches,
+            6,
+        ),
+    }
+
+
+def _experiment_7_candidate(label: str, model: str, rows: list[dict[str, Any]], parameters: dict[str, Any]) -> dict[str, Any]:
+    summary = _model_diagnostic_summary(rows)
+    summary.update({"label": label, "model": model, "parameters": parameters})
+    return summary
+
+
+def _experiment_7_group(rows: list[dict[str, Any]], candidates: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
+    values = sorted({row.get(key) for candidate in candidates for row in candidate["rows"] if row.get(key) is not None})
+    groups = []
+    for value in values:
+        group_candidates = []
+        for candidate in candidates:
+            candidate_rows = [row for row in candidate["rows"] if row.get(key) == value]
+            group_candidates.append(
+                _experiment_7_candidate(candidate["label"], candidate["model"], candidate_rows, candidate["parameters"])
+            )
+        groups.append({key: str(value), "matches": len([row for row in rows if row.get(key) == value]), "candidates": group_candidates})
+    return groups
+
+
+def _experiment_7_diagnostics(v1_rows: list[dict[str, Any]], v2_rows: list[dict[str, Any]], experiment_5_rows: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+    candidates = [
+        {"label": "V1 baseline", "model": MODEL_VERSION, "parameters": {}, "rows": v1_rows},
+        {"label": "V2 baseline", "model": MODEL_VERSION_V2, "parameters": {}, "rows": v2_rows},
+        {
+            "label": "V2 home_xg=0.95",
+            "model": MODEL_VERSION_V2,
+            "parameters": {"enable_home_bias_adjustment": True, "home_xg_multiplier": 0.95, "home_bias_multiplier": 1.0, "away_xg_multiplier": 1.0},
+            "rows": experiment_5_rows.get("home_xg_multiplier=0.95", []),
+        },
+        {
+            "label": "V2 home_xg=0.90",
+            "model": MODEL_VERSION_V2,
+            "parameters": {"enable_home_bias_adjustment": True, "home_xg_multiplier": 0.90, "home_bias_multiplier": 1.0, "away_xg_multiplier": 1.0},
+            "rows": experiment_5_rows.get("home_xg_multiplier=0.90", []),
+        },
+        {
+            "label": "V2 home_xg=0.85",
+            "model": MODEL_VERSION_V2,
+            "parameters": {"enable_home_bias_adjustment": True, "home_xg_multiplier": 0.85, "home_bias_multiplier": 1.0, "away_xg_multiplier": 1.0},
+            "rows": experiment_5_rows.get("home_xg_multiplier=0.85", []),
+        },
+    ]
+    return {
+        "candidates": [
+            {"label": candidate["label"], "model": candidate["model"], "parameters": candidate["parameters"]}
+            for candidate in candidates
+        ],
+        "aggregate": [
+            _experiment_7_candidate(candidate["label"], candidate["model"], candidate["rows"], candidate["parameters"])
+            for candidate in candidates
+        ],
+        "by_season": _experiment_7_group(v1_rows, candidates, "temporada"),
+        "by_league": _experiment_7_group(v1_rows, candidates, "torneo"),
+        "by_dataset": [
+            {
+                "dataset": f"{group['torneo']} {group['temporada']}",
+                "league": group["torneo"],
+                "season": group["temporada"],
+                "matches": len(group["rows"]),
+                "date_from": min((row["fecha_orden"] for row in group["rows"] if row.get("fecha_orden")), default=None),
+                "date_to": max((row["fecha_orden"] for row in group["rows"] if row.get("fecha_orden")), default=None),
+                "candidates": [
+                    _experiment_7_candidate(candidate["label"], candidate["model"], [row for row in candidate["rows"] if row.get("torneo") == group["torneo"] and row.get("temporada") == group["temporada"]], candidate["parameters"])
+                    for candidate in candidates
+                ],
+            }
+            for group in [
+                {"torneo": torneo, "temporada": temporada, "rows": [row for row in v1_rows if row.get("torneo") == torneo and row.get("temporada") == temporada]}
+                for torneo, temporada in sorted({(row.get("torneo"), row.get("temporada")) for row in v1_rows})
+            ]
+        ],
+    }
+
+
 def _v2_diagnostics(
     rows: list[dict[str, Any]],
     experiment_5_rows: dict[str, list[dict[str, Any]]] | None = None,
@@ -530,7 +660,10 @@ def compare_v1_v2(
         "evaluated_matches": len(paired),
         "same_evaluation_set": same_evaluation_set,
         "summaries": {MODEL_VERSION: v1_summary, MODEL_VERSION_V2: v2_summary},
-        "diagnostics": {"v2": _v2_diagnostics(v2_rows, experiment_5_rows, experiment_5_configs, experiment_6_rows, experiment_6_configs)},
+        "diagnostics": {
+            "v2": _v2_diagnostics(v2_rows, experiment_5_rows, experiment_5_configs, experiment_6_rows, experiment_6_configs),
+            "experiment_7": _experiment_7_diagnostics(v1_rows, v2_rows, experiment_5_rows),
+        },
         "data_quality": data_quality,
         "by_tournament": {
             tournament: {

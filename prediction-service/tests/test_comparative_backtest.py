@@ -90,6 +90,34 @@ class ComparativeBacktestTests(unittest.TestCase):
         for row in v2_rows:
             self.assertIn(row["predicted_outcome"], {"home", "draw", "away"})
 
+    def test_experiment_7_reports_multiseason_candidate_validation(self) -> None:
+        history = build_history(80)
+        for index, match in enumerate(history):
+            match["temporada"] = 2024 if index < 40 else 2025
+        result = compare_v1_v2(history, min_training_matches=30)
+        v2_version = result["models"][1]
+        experiment = result["diagnostics"]["experiment_7"]
+
+        labels = [item["label"] for item in experiment["aggregate"]]
+        self.assertEqual(labels, ["V1 baseline", "V2 baseline", "V2 home_xg=0.95", "V2 home_xg=0.90", "V2 home_xg=0.85"])
+        self.assertEqual(len(experiment["by_season"]), 2)
+        self.assertEqual(len(experiment["by_dataset"]), 2)
+        self.assertEqual(len(experiment["by_league"]), 1)
+
+        v2_baseline = next(item for item in experiment["aggregate"] if item["label"] == "V2 baseline")
+        self.assertAlmostEqual(v2_baseline["accuracy"], result["summaries"][v2_version]["outcome_accuracy"], places=6)
+        self.assertEqual(v2_baseline["parameters"], {})
+
+        candidate = next(item for item in experiment["aggregate"] if item["label"] == "V2 home_xg=0.90")
+        self.assertTrue(candidate["parameters"]["enable_home_bias_adjustment"])
+        self.assertEqual(candidate["parameters"]["home_xg_multiplier"], 0.90)
+        self.assertEqual(candidate["matches"], len([row for row in result["rows"] if row["model_version"] == v2_version]))
+
+        for group in experiment["by_dataset"]:
+            self.assertIn("dataset", group)
+            self.assertIn("date_from", group)
+            self.assertEqual(len(group["candidates"]), 5)
+
 
 if __name__ == "__main__":
     unittest.main()

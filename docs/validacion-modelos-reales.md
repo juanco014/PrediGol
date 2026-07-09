@@ -325,3 +325,59 @@ Que NO se concluye: V2 no supera a V1. Tampoco se concluye que la solucion sea f
 Recomendacion neutral: no promocionar `draw_probability_multiplier` por ahora. Si se continua, priorizar Exp. 5 `home_xg_multiplier=0.90` como candidato conservador y explorar calibracion 1X2 mas estructurada, idealmente validada en mas temporadas/ligas. Mantener defaults neutrales.
 
 Limitaciones: el sweep usa solo Premier League 2024. El multiplicador de empate se evaluo como diagnostico, no como optimizacion validada. No se tocaron V1, backend, contratos publicos, Supabase/RLS ni importacion CSV.
+
+## Experimento 7 V2: validacion multi-temporada
+
+Motivacion: evitar seguir ajustando V2 contra un unico holdout 2024. El objetivo fue comparar V1 baseline, V2 baseline y candidatos conservadores de Experimento 5 en las temporadas locales disponibles, sin cambiar defaults.
+
+Cambio aplicado: el reporte comparativo incluye `diagnostics.experiment_7` con resultados agregados, por temporada, por liga y por dataset logico liga-temporada. Los candidatos se calculan desde las filas ya evaluadas de V1/V2 y del sweep de Experimento 5; no cambian el comportamiento normal del modelo.
+
+Datasets evaluados: Premier League 2022, 2023 y 2024, con `1140` partidos finalizados locales. Backtest cronologico sin `--season`, `min_training=30`, con `1110` partidos evaluados. Reporte analizado: `reports/backtest_v1_v2_20260709T222700Z.json`.
+
+Candidatos:
+
+| Candidato | Configuracion |
+| --- | --- |
+| V1 baseline | Modelo V1 sin cambios |
+| V2 baseline | Defaults actuales de V2 |
+| V2 home_xg=0.95 | `enable_home_bias_adjustment=True`, `home_xg_multiplier=0.95` |
+| V2 home_xg=0.90 | `enable_home_bias_adjustment=True`, `home_xg_multiplier=0.90` |
+| V2 home_xg=0.85 | `enable_home_bias_adjustment=True`, `home_xg_multiplier=0.85` |
+
+Resultados agregados:
+
+| Candidato | Accuracy | Brier | Log-loss | Local | Empate | Visitante | Falsos locales | xG total | Error xG total |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| V1 baseline | 0.519820 | 0.594105 | 0.995172 | 815 | 0 | 295 | 388 | 3.000214 | -0.024111 |
+| V2 baseline | 0.513514 | 0.602736 | 1.008483 | 930 | 0 | 180 | 466 | 3.538014 | 0.513690 |
+| V2 home_xg=0.95 | 0.521622 | 0.601952 | 1.007487 | 883 | 0 | 227 | 432 | 3.436594 | 0.412269 |
+| V2 home_xg=0.90 | 0.527928 | 0.602531 | 1.008291 | 834 | 0 | 276 | 394 | 3.335135 | 0.310811 |
+| V2 home_xg=0.85 | 0.536036 | 0.604603 | 1.011079 | 776 | 1 | 333 | 355 | 3.233675 | 0.209350 |
+
+Resultados por temporada:
+
+| Temporada | Candidato | Accuracy | Brier | Log-loss | Distribucion | xG total |
+| --- | --- | ---: | ---: | ---: | --- | ---: |
+| 2022 | V1 baseline | 0.520000 | 0.593085 | 0.993672 | 285-0-65 | 2.873297 |
+| 2022 | V2 baseline | 0.514286 | 0.603470 | 1.009235 | 318-0-32 | 3.238611 |
+| 2022 | V2 home_xg=0.95 | 0.517143 | 0.603068 | 1.008649 | 312-0-38 | 3.141011 |
+| 2022 | V2 home_xg=0.90 | 0.525714 | 0.604005 | 1.009878 | 302-0-48 | 3.043374 |
+| 2022 | V2 home_xg=0.85 | 0.537143 | 0.606417 | 1.013115 | 289-1-60 | 2.945740 |
+| 2023 | V1 baseline | 0.528947 | 0.576916 | 0.972183 | 275-0-105 | 3.010979 |
+| 2023 | V2 baseline | 0.555263 | 0.589871 | 0.990675 | 318-0-62 | 3.587816 |
+| 2023 | V2 home_xg=0.95 | 0.552632 | 0.589590 | 0.990471 | 305-0-75 | 3.484987 |
+| 2023 | V2 home_xg=0.90 | 0.557895 | 0.590693 | 0.992088 | 285-0-95 | 3.382111 |
+| 2023 | V2 home_xg=0.85 | 0.544737 | 0.593310 | 0.995714 | 265-0-115 | 3.279253 |
+| 2024 | V1 baseline | 0.510526 | 0.612233 | 1.019543 | 255-0-125 | 3.106345 |
+| 2024 | V2 baseline | 0.471053 | 0.614925 | 1.025598 | 294-0-86 | 3.763979 |
+| 2024 | V2 home_xg=0.95 | 0.494737 | 0.613285 | 1.023432 | 266-0-114 | 3.660447 |
+| 2024 | V2 home_xg=0.90 | 0.500000 | 0.613012 | 1.023032 | 247-0-133 | 3.556887 |
+| 2024 | V2 home_xg=0.85 | 0.526316 | 0.614225 | 1.024570 | 222-0-158 | 3.453300 |
+
+Interpretacion de estabilidad: `home_xg=0.90` mejora accuracy agregada frente a V2 baseline y reduce sesgo local, falsos locales y xG total. Sin embargo, Brier/log-loss agregados siguen peores que V1 y no hay estabilidad clara por temporada: en 2022 y 2023 Brier/log-loss empeoran frente a V1, y en 2024 mejoran frente a V2 baseline pero siguen sin superar a V1. `home_xg=0.85` logra la mejor accuracy agregada, pero empeora Brier/log-loss frente a `0.90`, por lo que no conviene elegirlo solo por accuracy.
+
+Conclusion neutral: el candidato `home_xg=0.90` se sostiene parcialmente como ajuste conservador para bajar sesgo local y xG, pero no hay evidencia suficiente para cambiar defaults ni declarar superioridad de V2. La mejora depende de la metrica y de la temporada.
+
+Recomendacion: no cambiar defaults todavia. Si se continua, validar `home_xg=0.90` en mas ligas o temporadas y priorizar Brier/log-loss/calibracion sobre accuracy. Tambien conviene investigar por que ambos modelos siguen prediciendo casi ningun empate como clase final.
+
+Limitaciones: los datasets disponibles siguen siendo una sola liga. La validacion es multi-temporada, no multi-liga. El backtest es cronologico y usa partidos anteriores como entrenamiento, pero no reemplaza una validacion externa mas amplia.
