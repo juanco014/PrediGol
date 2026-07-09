@@ -286,3 +286,42 @@ Que NO se concluye: no hay evidencia suficiente para declarar V2 superior. No de
 Recomendacion neutral: para Experimento 6, probar de forma controlada `enable_home_bias_adjustment=True` con `home_xg_multiplier=0.90` o `0.85` como candidatos, priorizando Brier/log-loss y calibracion ademas de accuracy. Si se busca menor riesgo, empezar con `0.90` porque mejora Brier/log-loss mas que `0.85`; si se prioriza accuracy, `0.85` es mejor en este holdout pero menos convincente en Brier/log-loss. Mantener defaults neutrales hasta validar en mas temporadas o ligas.
 
 Limitaciones: el sweep usa una unica liga y temporada holdout. Las configuraciones evaluadas son diagnosticas y no cambian el modelo por defecto. No se tocaron V1, backend, contratos publicos, Supabase/RLS ni importacion CSV.
+
+## Experimento 6 V2: calibracion opcional de empate en matriz
+
+Primera revision obligatoria: `home_xg_multiplier` y `home_bias_multiplier` dieron resultados iguales en el Experimento 5 porque, en el rango probado, ambos escalan el mismo componente efectivo de `expected_home`. `home_bias_multiplier` multiplica `home_elo_factor` antes de calcular xG local y `home_xg_multiplier` multiplica el xG local despues; como no se activaron clamps relevantes en esas configuraciones, ambos caminos terminaron multiplicando `expected_home` por el mismo factor. Es una equivalencia por diseno actual en ese rango, no evidencia de que ambos parametros sean siempre identicos si se llega a limites de clamp.
+
+Hipotesis: luego de corregir parcialmente el sesgo local con `home_xg_multiplier=0.90`, un aumento controlado de la diagonal de la matriz de marcador podria elevar la probabilidad de empate sin forzar decisiones por margen.
+
+Cambio aplicado: se agregaron `enable_draw_probability_adjustment: bool = False` y `draw_probability_multiplier: float = 1.0` a `V2Config`. El rango permitido del multiplicador es `0.70` a `1.50`. Se eligio la opcion A: si el flag esta activo, se multiplican las probabilidades de marcadores empatados en la matriz Poisson/Dixon-Coles y luego se renormaliza la matriz. Con defaults, el comportamiento no cambia.
+
+Reporte analizado: `reports/backtest_v1_v2_20260709T221905Z.json`.
+
+Comparadores:
+
+| Configuracion | Accuracy | Brier | Log-loss | Local | Empate | Visitante | xG total |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| V1 baseline | 0.510526 | 0.612233 | 1.019543 | 255 | 0 | 125 | 3.106345 |
+| V2 baseline | 0.471053 | 0.614925 | 1.025598 | 294 | 0 | 86 | 3.763979 |
+| Exp. 5 home_xg=0.90 | 0.500000 | 0.613012 | 1.023032 | 247 | 0 | 133 | 3.556887 |
+
+Sweep Experimento 6, usando `enable_home_bias_adjustment=True`, `home_xg_multiplier=0.90`, `home_bias_multiplier=1.0`, `away_xg_multiplier=1.0`:
+
+| Draw multiplier | Accuracy | Brier | Log-loss | Local | Empate | Visitante | Empates acertados | Falsos empates | Precision empate | Recall empate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1.00 | 0.500000 | 0.613012 | 1.023032 | 247 | 0 | 133 | 0 | 0 | n/a | 0.000000 |
+| 1.05 | 0.500000 | 0.613342 | 1.023236 | 247 | 0 | 133 | 0 | 0 | n/a | 0.000000 |
+| 1.10 | 0.500000 | 0.613865 | 1.023775 | 247 | 0 | 133 | 0 | 0 | n/a | 0.000000 |
+| 1.15 | 0.500000 | 0.614568 | 1.024611 | 247 | 0 | 133 | 0 | 0 | n/a | 0.000000 |
+| 1.20 | 0.500000 | 0.615437 | 1.025715 | 247 | 0 | 133 | 0 | 0 | n/a | 0.000000 |
+| 1.30 | 0.497368 | 0.617631 | 1.028617 | 241 | 8 | 131 | 3 | 5 | 0.375000 | 0.032258 |
+
+Diagnostico xG del sweep: el ajuste de empate no toca xG. Todas las configuraciones del Experimento 6 mantuvieron xG local medio `1.864068`, xG visitante medio `1.692818`, xG total medio `3.556887`, error medio xG local `0.350911`, error medio xG visitante `0.271766` y error medio xG total `0.622676`.
+
+Interpretacion: el boost diagonal suave aumenta probabilidades de empate, pero no alcanza para cambiar la clase final hasta `1.30`. En `1.30` aparecen `8` empates predichos, con `3` aciertos y `5` falsos empates, pero empeoran Brier y log-loss frente a Exp. 5 `home_xg=0.90` y tambien frente al baseline V2. No hay evidencia para adoptar este ajuste como default.
+
+Que NO se concluye: V2 no supera a V1. Tampoco se concluye que la solucion sea forzar empates; el problema sigue pareciendo de calibracion conjunta de probabilidades y xG, no solo de decision final.
+
+Recomendacion neutral: no promocionar `draw_probability_multiplier` por ahora. Si se continua, priorizar Exp. 5 `home_xg_multiplier=0.90` como candidato conservador y explorar calibracion 1X2 mas estructurada, idealmente validada en mas temporadas/ligas. Mantener defaults neutrales.
+
+Limitaciones: el sweep usa solo Premier League 2024. El multiplicador de empate se evaluo como diagnostico, no como optimizacion validada. No se tocaron V1, backend, contratos publicos, Supabase/RLS ni importacion CSV.

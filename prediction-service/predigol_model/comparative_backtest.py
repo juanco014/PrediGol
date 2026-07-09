@@ -211,6 +211,34 @@ def _experiment_5_configs(base_config: V2Config) -> list[dict[str, Any]]:
     return configs
 
 
+def _experiment_6_configs(base_config: V2Config) -> list[dict[str, Any]]:
+    configs: list[dict[str, Any]] = []
+    for value in [1.00, 1.05, 1.10, 1.15, 1.20, 1.30]:
+        configs.append(
+            {
+                "label": f"home_xg=0.90_draw_multiplier={value:.2f}",
+                "config": replace(
+                    base_config,
+                    enable_home_bias_adjustment=True,
+                    home_bias_multiplier=1.0,
+                    home_xg_multiplier=0.90,
+                    away_xg_multiplier=1.0,
+                    enable_draw_probability_adjustment=True,
+                    draw_probability_multiplier=value,
+                ),
+                "parameters": {
+                    "enable_home_bias_adjustment": True,
+                    "home_bias_multiplier": 1.0,
+                    "home_xg_multiplier": 0.90,
+                    "away_xg_multiplier": 1.0,
+                    "enable_draw_probability_adjustment": True,
+                    "draw_probability_multiplier": value,
+                },
+            }
+        )
+    return configs
+
+
 def _experiment_5_summary(rows: list[dict[str, Any]], config: dict[str, Any], baseline: dict[str, Any]) -> dict[str, Any]:
     summary = _aggregate(rows)
     matches = len(rows)
@@ -256,7 +284,31 @@ def _experiment_5_summary(rows: list[dict[str, Any]], config: dict[str, Any], ba
     }
 
 
-def _v2_diagnostics(rows: list[dict[str, Any]], experiment_5_rows: dict[str, list[dict[str, Any]]] | None = None, experiment_5_configs: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+def _experiment_6_summary(rows: list[dict[str, Any]], config: dict[str, Any], baseline: dict[str, Any]) -> dict[str, Any]:
+    result = _experiment_5_summary(rows, config, baseline)
+    predicted_draws = sum(1 for row in rows if row["predicted_outcome"] == "draw")
+    actual_draws = sum(1 for row in rows if row["actual_outcome"] == "draw")
+    draw_hits = sum(1 for row in rows if row["predicted_outcome"] == "draw" and row["actual_outcome"] == "draw")
+    false_draws = sum(1 for row in rows if row["predicted_outcome"] == "draw" and row["actual_outcome"] != "draw")
+    result.update(
+        {
+            "predicted_draws": predicted_draws,
+            "draw_hits": draw_hits,
+            "false_draws": false_draws,
+            "precision_when_predicting_draw": _safe_rate(draw_hits, predicted_draws),
+            "recall_real_draws": _safe_rate(draw_hits, actual_draws),
+        }
+    )
+    return result
+
+
+def _v2_diagnostics(
+    rows: list[dict[str, Any]],
+    experiment_5_rows: dict[str, list[dict[str, Any]]] | None = None,
+    experiment_5_configs: list[dict[str, Any]] | None = None,
+    experiment_6_rows: dict[str, list[dict[str, Any]]] | None = None,
+    experiment_6_configs: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     if not rows:
         return {"matches": 0}
 
@@ -353,6 +405,12 @@ def _v2_diagnostics(rows: list[dict[str, Any]], experiment_5_rows: dict[str, lis
             _experiment_5_summary(experiment_5_rows[item["label"]], item, baseline_summary)
             for item in experiment_5_configs
         ]
+    if experiment_6_rows is not None and experiment_6_configs is not None:
+        baseline_summary = _aggregate(rows)
+        diagnostics["experiment_6"] = [
+            _experiment_6_summary(experiment_6_rows[item["label"]], item, baseline_summary)
+            for item in experiment_6_configs
+        ]
     return diagnostics
 
 
@@ -384,6 +442,8 @@ def compare_v1_v2(
     base_v2_config = v2_config or V2Config()
     experiment_5_configs = _experiment_5_configs(base_v2_config)
     experiment_5_rows: dict[str, list[dict[str, Any]]] = {item["label"]: [] for item in experiment_5_configs}
+    experiment_6_configs = _experiment_6_configs(base_v2_config)
+    experiment_6_rows: dict[str, list[dict[str, Any]]] = {item["label"]: [] for item in experiment_6_configs}
 
     for index, match in enumerate(ordered):
         match_date = parse_date(match.get("fecha_orden"))
@@ -417,6 +477,12 @@ def compare_v1_v2(
             row = _score_prediction(MODEL_VERSION_V2, prediction, match, (time.perf_counter() - started) * 1000, len(training))
             row["experiment_5_label"] = item["label"]
             experiment_5_rows[item["label"]].append(row)
+        for item in experiment_6_configs:
+            started = time.perf_counter()
+            prediction = PoissonEloFormModel(training, item["config"]).predict(match)
+            row = _score_prediction(MODEL_VERSION_V2, prediction, match, (time.perf_counter() - started) * 1000, len(training))
+            row["experiment_6_label"] = item["label"]
+            experiment_6_rows[item["label"]].append(row)
 
     by_model = defaultdict(list)
     for row in rows:
@@ -464,7 +530,7 @@ def compare_v1_v2(
         "evaluated_matches": len(paired),
         "same_evaluation_set": same_evaluation_set,
         "summaries": {MODEL_VERSION: v1_summary, MODEL_VERSION_V2: v2_summary},
-        "diagnostics": {"v2": _v2_diagnostics(v2_rows, experiment_5_rows, experiment_5_configs)},
+        "diagnostics": {"v2": _v2_diagnostics(v2_rows, experiment_5_rows, experiment_5_configs, experiment_6_rows, experiment_6_configs)},
         "data_quality": data_quality,
         "by_tournament": {
             tournament: {

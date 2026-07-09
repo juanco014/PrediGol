@@ -38,6 +38,8 @@ class V2Config:
     home_bias_multiplier: float = 1.0
     home_xg_multiplier: float = 1.0
     away_xg_multiplier: float = 1.0
+    enable_draw_probability_adjustment: bool = False
+    draw_probability_multiplier: float = 1.0
 
     def __post_init__(self) -> None:
         if self.half_life_matches <= 0:
@@ -60,6 +62,8 @@ class V2Config:
             raise ValueError("home_xg_multiplier debe estar entre 0.70 y 1.30.")
         if not 0.70 <= self.away_xg_multiplier <= 1.30:
             raise ValueError("away_xg_multiplier debe estar entre 0.70 y 1.30.")
+        if not 0.70 <= self.draw_probability_multiplier <= 1.50:
+            raise ValueError("draw_probability_multiplier debe estar entre 0.70 y 1.50.")
 
 
 @dataclass
@@ -124,6 +128,8 @@ class V2Prediction(Prediction):
             "home_bias_multiplier": self.metadata.get("home_bias_multiplier"),
             "home_xg_multiplier": self.metadata.get("home_xg_multiplier"),
             "away_xg_multiplier": self.metadata.get("away_xg_multiplier"),
+            "enable_draw_probability_adjustment": self.metadata.get("enable_draw_probability_adjustment"),
+            "draw_probability_multiplier": self.metadata.get("draw_probability_multiplier"),
         }
         return payload
 
@@ -362,7 +368,10 @@ class PoissonEloFormModel:
         for home_goals in range(9):
             for away_goals in range(9):
                 probability = poisson_pmf(expected_home, home_goals) * poisson_pmf(expected_away, away_goals)
-                matrix.append((home_goals, away_goals, self._apply_dixon_coles(home_goals, away_goals, probability)))
+                probability = self._apply_dixon_coles(home_goals, away_goals, probability)
+                if self.config.enable_draw_probability_adjustment and home_goals == away_goals:
+                    probability *= self.config.draw_probability_multiplier
+                matrix.append((home_goals, away_goals, probability))
 
         total_probability = sum(item[2] for item in matrix) or 1.0
         normalized = [(hg, ag, probability / total_probability) for hg, ag, probability in matrix]
@@ -417,6 +426,9 @@ class PoissonEloFormModel:
                 "home_bias_multiplier": self.config.home_bias_multiplier,
                 "home_xg_multiplier": self.config.home_xg_multiplier,
                 "away_xg_multiplier": self.config.away_xg_multiplier,
+                "enable_draw_probability_adjustment": self.config.enable_draw_probability_adjustment,
+                "draw_probability_multiplier": self.config.draw_probability_multiplier,
+                "score_matrix_total_probability": round(total_probability, 6),
                 "expected_home_goals_before_home_bias_adjustment": round(expected_home_before_adjustment, 6),
                 "expected_away_goals_before_home_bias_adjustment": round(expected_away_before_adjustment, 6),
                 "predicted_outcome": predicted_outcome,

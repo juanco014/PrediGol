@@ -58,6 +58,7 @@ class ComparativeBacktestTests(unittest.TestCase):
         self.assertEqual(sum(diagnostics["argmax_distribution"].values()), len(v2_rows))
         self.assertEqual(len(diagnostics["draw_decision_margin_sweep"]), 7)
         self.assertEqual(len(diagnostics["experiment_5"]), 8)
+        self.assertEqual(len(diagnostics["experiment_6"]), 6)
         self.assertIn("0.03", diagnostics["draw_within_max_margin_counts"])
         self.assertIn("0.10", diagnostics["draw_within_max_margin_counts"])
         self.assertIn("home_bias", diagnostics)
@@ -77,6 +78,14 @@ class ComparativeBacktestTests(unittest.TestCase):
         self.assertIn("predicted_outcome_distribution", neutral_home_xg)
         self.assertIn("expected_home_goals_mean", neutral_home_xg)
         self.assertEqual(sum(neutral_home_xg["predicted_outcome_distribution"].values()), len(v2_rows))
+
+        neutral_draw = diagnostics["experiment_6"][0]
+        self.assertEqual(neutral_draw["label"], "home_xg=0.90_draw_multiplier=1.00")
+        self.assertIn("predicted_draws", neutral_draw)
+        self.assertIn("draw_hits", neutral_draw)
+        self.assertIn("false_draws", neutral_draw)
+        self.assertIn("precision_when_predicting_draw", neutral_draw)
+        self.assertEqual(sum(neutral_draw["predicted_outcome_distribution"].values()), len(v2_rows))
 
         for row in v2_rows:
             self.assertIn(row["predicted_outcome"], {"home", "draw", "away"})
