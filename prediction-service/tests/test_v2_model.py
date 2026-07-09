@@ -38,6 +38,14 @@ class V2ModelTests(unittest.TestCase):
         prediction = model.predict({"id": 999, "api_football_fixture_id": 999, "torneo": "Liga de prueba", "local_nombre": "Equipo 1", "visitante_nombre": "Equipo 2"})
         self.assertFalse(prediction.metadata["dixon_coles_enabled"])
 
+    def test_dixon_coles_rho_is_configurable(self) -> None:
+        match = {"id": 999, "api_football_fixture_id": 999, "torneo": "Liga de prueba", "local_nombre": "Equipo 1", "visitante_nombre": "Equipo 2"}
+        default = PoissonEloFormModel(build_history(90)).predict(match)
+        conservative = PoissonEloFormModel(build_history(90), V2Config(dixon_coles_rho=-0.05)).predict(match)
+
+        self.assertEqual(default.metadata["dixon_coles_rho"], -0.2)
+        self.assertNotEqual(default.draw_probability, conservative.draw_probability)
+
 
 if __name__ == "__main__":
     unittest.main()

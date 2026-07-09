@@ -29,7 +29,7 @@ class V2Config:
     league_min_matches: int = 20
     calibration_min_matches: int = 80
     dixon_coles_enabled: bool = True
-    dixon_coles_rho: float = -0.08
+    dixon_coles_rho: float = -0.2
     calibration_shrink: float = 0.08
 
     def __post_init__(self) -> None:
