@@ -34,7 +34,9 @@ def _score_prediction(model_version: str, prediction: Any, match: dict[str, Any]
     away_goals = int(match["goles_visitante_final"])
     actual_outcome = match_outcome(home_goals, away_goals)
     probabilities = _probs(prediction)
-    predicted_outcome = max(OUTCOMES, key=probabilities.get)
+    predicted_outcome = prediction.metadata.get("predicted_outcome") or max(OUTCOMES, key=probabilities.get)
+    if predicted_outcome not in OUTCOMES:
+        predicted_outcome = max(OUTCOMES, key=probabilities.get)
     brier = sum((probabilities[outcome] - (1.0 if outcome == actual_outcome else 0.0)) ** 2 for outcome in OUTCOMES)
     return {
         "match_id": match.get("id"),

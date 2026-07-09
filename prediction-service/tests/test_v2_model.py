@@ -32,6 +32,10 @@ class V2ModelTests(unittest.TestCase):
             V2Config(expected_goals_shrink=0)
         with self.assertRaises(ValueError):
             V2Config(expected_goals_shrink=1.1)
+        with self.assertRaises(ValueError):
+            V2Config(draw_decision_margin=-0.01)
+        with self.assertRaises(ValueError):
+            V2Config(draw_decision_margin=0.30)
 
     def test_tournament_fallback_warning_when_few_records(self) -> None:
         model = PoissonEloFormModel(build_history(40))
@@ -79,11 +83,57 @@ class V2ModelTests(unittest.TestCase):
         self.assertTrue(0 <= prediction.predicted_away_goals <= 8)
         self.assertTrue(0 <= prediction.metadata["score_probability"] <= 1)
 
+    def test_draw_decision_adjustment_is_configurable(self) -> None:
+        config = V2Config()
+
+        self.assertTrue(config.enable_draw_decision_adjustment)
+        self.assertEqual(config.draw_decision_margin, 0.03)
+
+    def test_draw_decision_adjustment_can_select_draw_within_margin(self) -> None:
+        model = PoissonEloFormModel(build_history(90), V2Config(draw_decision_margin=0.03))
+        predicted, base, adjusted = model._select_predicted_outcome(0.30, 0.34, 0.36)
+
+        self.assertEqual(predicted, "draw")
+        self.assertEqual(base, "away")
+        self.assertTrue(adjusted)
+
+    def test_draw_decision_adjustment_can_be_disabled(self) -> None:
+        model = PoissonEloFormModel(
+            build_history(90),
+            V2Config(enable_draw_decision_adjustment=False, draw_decision_margin=0.03),
+        )
+        predicted, base, adjusted = model._select_predicted_outcome(0.30, 0.34, 0.36)
+
+        self.assertEqual(predicted, "away")
+        self.assertEqual(base, "away")
+        self.assertFalse(adjusted)
+
+    def test_draw_decision_adjustment_does_not_force_draw_when_far(self) -> None:
+        model = PoissonEloFormModel(build_history(90), V2Config(draw_decision_margin=0.03))
+        predicted, base, adjusted = model._select_predicted_outcome(0.50, 0.30, 0.20)
+
+        self.assertEqual(predicted, "home")
+        self.assertEqual(base, "home")
+        self.assertFalse(adjusted)
+
+    def test_draw_decision_adjustment_does_not_change_probabilities(self) -> None:
+        match = {"id": 999, "api_football_fixture_id": 999, "torneo": "Liga de prueba", "local_nombre": "Equipo 1", "visitante_nombre": "Equipo 2"}
+        enabled = PoissonEloFormModel(build_history(90), V2Config(enable_draw_decision_adjustment=True)).predict(match)
+        disabled = PoissonEloFormModel(build_history(90), V2Config(enable_draw_decision_adjustment=False)).predict(match)
+
+        self.assertAlmostEqual(enabled.home_win_probability, disabled.home_win_probability, places=12)
+        self.assertAlmostEqual(enabled.draw_probability, disabled.draw_probability, places=12)
+        self.assertAlmostEqual(enabled.away_win_probability, disabled.away_win_probability, places=12)
+        total = enabled.home_win_probability + enabled.draw_probability + enabled.away_win_probability
+        self.assertAlmostEqual(total, 1.0, places=6)
+
     def test_v1_does_not_use_expected_goals_shrink(self) -> None:
         match = {"id": 999, "api_football_fixture_id": 999, "torneo": "Liga de prueba", "local_nombre": "Equipo 1", "visitante_nombre": "Equipo 2"}
         v1_prediction = PoissonEloModel(build_history(90)).predict(match)
 
         self.assertNotIn("expected_goals_shrink", v1_prediction.metadata)
+        self.assertNotIn("enable_draw_decision_adjustment", v1_prediction.metadata)
+        self.assertNotIn("draw_decision_margin", v1_prediction.metadata)
         self.assertEqual(v1_prediction.to_payload()["model_version"], "poisson-elo-v1")
 
 

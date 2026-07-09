@@ -113,3 +113,49 @@ Backtest con default neutral: `reports/backtest_v1_v2_20260709T210107Z.json`. Es
 Recomendacion: conservar el parametro solo como experimento configurable y reversible, no como evidencia de superioridad de V2. Para promocionarlo haria falta ajustar el sesgo de clase final y la probabilidad de empate sin volver a inflar goles. Si el criterio principal es Brier/log-loss, no usar `0.90` como default.
 
 Limitaciones: la evaluacion usa una sola liga y una temporada holdout 2024 con 380 partidos evaluados. El valor `0.90` no debe tratarse como verdad futura; es un ajuste conservador motivado por diagnostico de inflacion de xG que queda disponible para pruebas futuras. No se tocaron datos persistidos ni reglas Supabase/RLS.
+
+## Experimento 3 V2: decision configurable de empate
+
+Motivo: V2 seguia prediciendo `0` empates como clase final en el holdout Premier League 2024, aunque los resultados reales tuvieron `93` empates. La distribucion previa de V2 era `294` locales, `0` empates y `86` visitantes.
+
+Cambio aplicado: se agregaron `enable_draw_decision_adjustment: bool = True` y `draw_decision_margin: float = 0.03` a `V2Config`. La regla no cambia probabilidades 1X2, xG, matriz de marcador ni V1. Solo expone una decision final interna de V2: si la probabilidad de empate queda dentro de `draw_decision_margin` del maximo entre local/empate/visitante, la clase final puede ser `draw`. El margen se valida en `0 <= draw_decision_margin <= 0.25` y el ajuste se puede apagar.
+
+Baseline usado: `reports/backtest_v1_v2_20260709T210107Z.json`.
+
+Backtest posterior: `reports/backtest_v1_v2_20260709T215852Z.json`.
+
+Metricas antes/despues para V2:
+
+| Metrica V2 | Antes | Despues | Cambio |
+| --- | ---: | ---: | ---: |
+| Brier | 0.614925 | 0.614925 | Igual |
+| Log-loss | 1.025598 | 1.025598 | Igual |
+| Accuracy 1X2 | 0.471053 | 0.471053 | Igual |
+| Exact score | 0.136842 | 0.136842 | Igual |
+| Goals MAE | 1.040328 | 1.040328 | Igual |
+| xG total medio | 3.763979 | 3.763979 | Igual |
+| Empates reales acertados | 0 | 0 | Igual |
+| Falsos empates introducidos | 0 | 0 | Igual |
+
+Distribucion de predicciones V2:
+
+| Clase | Antes | Despues | Real |
+| --- | ---: | ---: | ---: |
+| Local | 294 | 294 | 155 |
+| Empate | 0 | 0 | 93 |
+| Visitante | 86 | 86 | 132 |
+
+Comparacion contra V1 en el reporte posterior:
+
+| Modelo | Brier | Log-loss | Accuracy 1X2 | Exact score | Goals MAE | xG total medio |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| V1 | 0.612233 | 1.019543 | 0.510526 | 0.110526 | 0.949025 | 3.106345 |
+| V2 Exp. 3 | 0.614925 | 1.025598 | 0.471053 | 0.136842 | 1.040328 | 3.763979 |
+
+Conclusion neutral: con margen `0.03`, el Experimento 3 no logra que V2 prediga empates en este holdout. Brier, log-loss, exact score, goals MAE y xG total medio no cambian porque el ajuste no altera probabilidades ni xG. Accuracy 1X2 tampoco mejora. V2 sigue sin superar a V1 en Brier, log-loss, accuracy 1X2 ni goals MAE, aunque mantiene mejor exact score.
+
+Analisis de margen: en este holdout, `0.03` queda por debajo de las brechas observadas entre la probabilidad maxima y la probabilidad de empate. Margenes mayores empiezan a introducir empates, pero en una simulacion sobre el reporte empeoran accuracy 1X2 al introducir mas falsos empates que empates reales acertados. Por ejemplo, `0.12` produciria `5` empates predichos con `1` empate real acertado y `4` falsos empates; `0.15` produciria `50` empates predichos con `9` aciertos y `41` falsos empates.
+
+Recomendacion: conservar el parametro como mecanismo experimental y reversible, pero no considerar resuelto el problema de empates con `draw_decision_margin=0.03`. Antes de adoptarlo como default estable conviene probar una regla mas informada o ajustar el margen con validacion fuera de esta unica temporada. Si el objetivo inmediato es mejorar accuracy 1X2, no hay evidencia para promocionar este ajuste.
+
+Limitaciones: la evaluacion sigue limitada a Premier League 2024 como holdout, con 380 partidos evaluados. El analisis de margenes usa el mismo reporte y no debe tratarse como optimizacion futura. No se tocaron datos persistidos, backend, contratos publicos ni Supabase/RLS.

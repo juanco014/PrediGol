@@ -32,6 +32,8 @@ class V2Config:
     dixon_coles_rho: float = -0.2
     calibration_shrink: float = 0.08
     expected_goals_shrink: float = 1.0
+    enable_draw_decision_adjustment: bool = True
+    draw_decision_margin: float = 0.03
 
     def __post_init__(self) -> None:
         if self.half_life_matches <= 0:
@@ -46,6 +48,8 @@ class V2Config:
             raise ValueError("dixon_coles_rho debe estar entre -0.5 y 0.5.")
         if not 0 < self.expected_goals_shrink <= 1:
             raise ValueError("expected_goals_shrink debe ser mayor que 0 y menor o igual que 1.")
+        if not 0 <= self.draw_decision_margin <= 0.25:
+            raise ValueError("draw_decision_margin debe estar entre 0 y 0.25.")
 
 
 @dataclass
@@ -104,6 +108,8 @@ class V2Prediction(Prediction):
             "dixon_coles_enabled": self.metadata.get("dixon_coles_enabled"),
             "dixon_coles_rho": self.metadata.get("dixon_coles_rho"),
             "expected_goals_shrink": self.metadata.get("expected_goals_shrink"),
+            "enable_draw_decision_adjustment": self.metadata.get("enable_draw_decision_adjustment"),
+            "draw_decision_margin": self.metadata.get("draw_decision_margin"),
         }
         return payload
 
@@ -281,6 +287,17 @@ class PoissonEloFormModel:
         total = sum(calibrated) or 1.0
         return calibrated[0] / total, calibrated[1] / total, calibrated[2] / total
 
+    def _select_predicted_outcome(self, home_win: float, draw: float, away_win: float) -> tuple[str, str, bool]:
+        probabilities = {"home": home_win, "draw": draw, "away": away_win}
+        base_outcome = max(("home", "draw", "away"), key=probabilities.get)
+        if not self.config.enable_draw_decision_adjustment:
+            return base_outcome, base_outcome, False
+
+        max_probability = probabilities[base_outcome]
+        if draw >= max_probability - self.config.draw_decision_margin:
+            return "draw", base_outcome, base_outcome != "draw"
+        return base_outcome, base_outcome, False
+
     def predict(self, match: dict[str, Any]) -> V2Prediction:
         home = team_key(match.get("local_nombre"))
         away = team_key(match.get("visitante_nombre"))
@@ -333,6 +350,11 @@ class PoissonEloFormModel:
         raw_away_win = sum(probability for hg, ag, probability in normalized if hg < ag)
         home_win, draw, away_win = self._calibrate(raw_home_win, raw_draw, raw_away_win)
         predicted_home, predicted_away, score_probability = max(normalized, key=lambda item: item[2])
+        predicted_outcome, base_predicted_outcome, draw_decision_adjusted = self._select_predicted_outcome(
+            home_win,
+            draw,
+            away_win,
+        )
         confidence = max(home_win, draw, away_win)
 
         if home_form["matches"] < 3 or away_form["matches"] < 3:
@@ -368,6 +390,11 @@ class PoissonEloFormModel:
                 "dixon_coles_enabled": self.config.dixon_coles_enabled,
                 "dixon_coles_rho": self.config.dixon_coles_rho,
                 "expected_goals_shrink": self.config.expected_goals_shrink,
+                "enable_draw_decision_adjustment": self.config.enable_draw_decision_adjustment,
+                "draw_decision_margin": self.config.draw_decision_margin,
+                "predicted_outcome": predicted_outcome,
+                "predicted_outcome_base": base_predicted_outcome,
+                "draw_decision_adjusted": draw_decision_adjusted,
                 "time_decay": {
                     "half_life_matches": self.config.half_life_matches,
                     "min_old_match_weight": self.config.min_old_match_weight,

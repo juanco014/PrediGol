@@ -115,7 +115,9 @@ def evaluate_temporal_holdout(
         baseline_choice = max(OUTCOMES, key=baseline_probabilities.get)
         prediction = model.predict(match)
         probabilities = _prediction_probabilities(prediction)
-        predicted_outcome = max(OUTCOMES, key=probabilities.get)
+        predicted_outcome = prediction.metadata.get("predicted_outcome") or max(OUTCOMES, key=probabilities.get)
+        if predicted_outcome not in OUTCOMES:
+            predicted_outcome = max(OUTCOMES, key=probabilities.get)
         home_goals = int(match["goles_local_final"])
         away_goals = int(match["goles_visitante_final"])
         actual_outcome = match_outcome(home_goals, away_goals)
