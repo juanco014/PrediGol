@@ -159,3 +159,99 @@ Analisis de margen: en este holdout, `0.03` queda por debajo de las brechas obse
 Recomendacion: conservar el parametro como mecanismo experimental y reversible, pero no considerar resuelto el problema de empates con `draw_decision_margin=0.03`. Antes de adoptarlo como default estable conviene probar una regla mas informada o ajustar el margen con validacion fuera de esta unica temporada. Si el objetivo inmediato es mejorar accuracy 1X2, no hay evidencia para promocionar este ajuste.
 
 Limitaciones: la evaluacion sigue limitada a Premier League 2024 como holdout, con 380 partidos evaluados. El analisis de margenes usa el mismo reporte y no debe tratarse como optimizacion futura. No se tocaron datos persistidos, backend, contratos publicos ni Supabase/RLS.
+
+## Experimento 4 V2: diagnostico de sesgo y sensibilidad
+
+Objetivo: agregar diagnostico al backtest sin cambiar defaults ni comportamiento del modelo. V1, backend, contratos publicos, Supabase/RLS e importacion CSV quedan intactos.
+
+Cambio aplicado: el JSON de backtest ahora incluye `diagnostics.v2` con distribucion de probabilidades, distribucion de argmax, distribucion de decision ajustada, sensibilidad de `draw_decision_margin`, diagnostico de sesgo de localia y diagnostico de xG. Este bloque se calcula desde las filas ya evaluadas; no reentrena modelos ni modifica probabilidades.
+
+Reporte analizado: `reports/backtest_v1_v2_20260709T220537Z.json`.
+
+Probabilidades medias V2:
+
+| Probabilidad media | Valor |
+| --- | ---: |
+| Local | 0.447617 |
+| Empate | 0.233768 |
+| Visitante | 0.318614 |
+
+Probabilidades medias por clase real:
+
+| Clase real | p_local | p_empate | p_visitante |
+| --- | ---: | ---: | ---: |
+| Local | 0.487154 | 0.227580 | 0.285266 |
+| Empate | 0.442297 | 0.235647 | 0.322056 |
+| Visitante | 0.404940 | 0.239710 | 0.355349 |
+
+Distribucion V2:
+
+| Distribucion | Local | Empate | Visitante |
+| --- | ---: | ---: | ---: |
+| Argmax | 294 | 0 | 86 |
+| Decision ajustada | 294 | 0 | 86 |
+| Real | 155 | 93 | 132 |
+
+Margenes frente al empate:
+
+| Metrica | Valor |
+| --- | ---: |
+| Promedio p_local - p_empate | 0.213849 |
+| Promedio p_visitante - p_empate | 0.084846 |
+
+Partidos donde el empate estuvo cerca del maximo:
+
+| Margen al maximo | Partidos |
+| --- | ---: |
+| <= 0.01 | 0 |
+| <= 0.03 | 0 |
+| <= 0.05 | 0 |
+| <= 0.08 | 0 |
+| <= 0.10 | 0 |
+| <= 0.15 | 50 |
+
+Sweep simulado de `draw_decision_margin`:
+
+| Margen | Accuracy 1X2 | Delta | Empates predichos | Empates acertados | Falsos empates | Locales | Visitantes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.00 | 0.471053 | 0.000000 | 0 | 0 | 0 | 294 | 86 |
+| 0.03 | 0.471053 | 0.000000 | 0 | 0 | 0 | 294 | 86 |
+| 0.05 | 0.471053 | 0.000000 | 0 | 0 | 0 | 294 | 86 |
+| 0.08 | 0.471053 | 0.000000 | 0 | 0 | 0 | 294 | 86 |
+| 0.10 | 0.471053 | 0.000000 | 0 | 0 | 0 | 294 | 86 |
+| 0.12 | 0.468421 | -0.002632 | 5 | 1 | 4 | 291 | 84 |
+| 0.15 | 0.455263 | -0.015789 | 50 | 9 | 41 | 260 | 70 |
+
+Diagnostico de sesgo de localia:
+
+| Metrica | Valor |
+| --- | ---: |
+| Victorias locales reales | 155 |
+| Predicciones local | 294 |
+| Precision al predecir local | 0.455782 |
+| Recall de victorias locales | 0.864516 |
+| Falsos locales | 160 |
+| p_local domina por > 0.05 | 261 |
+| p_local domina por > 0.10 | 225 |
+| p_local domina por > 0.15 | 192 |
+| p_local domina por > 0.20 | 146 |
+
+Diagnostico de xG:
+
+| Metrica | Valor |
+| --- | ---: |
+| xG local medio | 2.071161 |
+| xG visitante medio | 1.692818 |
+| xG total medio | 3.763979 |
+| Goles reales local medio | 1.513158 |
+| Goles reales visitante medio | 1.421053 |
+| Goles reales total medio | 2.934211 |
+| Error medio xG local | 0.558003 |
+| Error medio xG visitante | 0.271766 |
+| Error medio xG total | 0.829768 |
+
+Conclusion neutral: el problema de empates no parece resolverse con un margen pequeno de decision, porque la probabilidad de empate queda sistematicamente lejos del maximo. El sesgo de localia es fuerte: V2 recupera muchas victorias locales reales, pero produce demasiados falsos locales. Ademas, V2 sigue sobreestimando goles, especialmente del local.
+
+Recomendacion para Experimento 5: no ajustar solo `draw_decision_margin`. Probar primero una reduccion configurable del sesgo de localia o del factor de ventaja local/form/elo en V2, y medir si baja p_local y xG local sin degradar Brier/log-loss. Otra opcion es una calibracion especifica de probabilidades 1X2 basada en bins, pero debe validarse fuera de esta unica temporada antes de adoptarse.
+
+Limitaciones: este diagnostico usa Premier League 2024 como holdout con 380 partidos. El sweep es simulacion sobre predicciones ya generadas, no entrenamiento ni busqueda validada de hiperparametros. No declara superioridad de V2.

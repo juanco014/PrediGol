@@ -44,6 +44,33 @@ class ComparativeBacktestTests(unittest.TestCase):
         self.assertTrue(result["data_quality"]["preliminary"])
         self.assertIn("No existe evidencia suficiente", result["interpretation"])
 
+    def test_v2_diagnostics_are_reported_without_changing_base_rows(self) -> None:
+        result = compare_v1_v2(build_history(55), min_training_matches=30)
+        versions = result["models"]
+        v2_version = versions[1]
+        v2_rows = [row for row in result["rows"] if row["model_version"] == v2_version]
+        diagnostics = result["diagnostics"]["v2"]
+
+        self.assertEqual(diagnostics["matches"], len(v2_rows))
+        self.assertNotIn("v1", result["diagnostics"])
+        self.assertEqual(sum(diagnostics["predicted_outcome_distribution"].values()), len(v2_rows))
+        self.assertEqual(sum(diagnostics["actual_outcome_distribution"].values()), len(v2_rows))
+        self.assertEqual(sum(diagnostics["argmax_distribution"].values()), len(v2_rows))
+        self.assertEqual(len(diagnostics["draw_decision_margin_sweep"]), 7)
+        self.assertIn("0.03", diagnostics["draw_within_max_margin_counts"])
+        self.assertIn("0.10", diagnostics["draw_within_max_margin_counts"])
+        self.assertIn("home_bias", diagnostics)
+        self.assertIn("xg", diagnostics)
+
+        baseline_accuracy = result["summaries"][v2_version]["outcome_accuracy"]
+        zero_margin = diagnostics["draw_decision_margin_sweep"][0]
+        self.assertEqual(zero_margin["margin"], 0.0)
+        self.assertAlmostEqual(zero_margin["accuracy"], baseline_accuracy, places=6)
+        self.assertEqual(zero_margin["accuracy_delta_vs_baseline"], 0.0)
+
+        for row in v2_rows:
+            self.assertIn(row["predicted_outcome"], {"home", "draw", "away"})
+
 
 if __name__ == "__main__":
     unittest.main()

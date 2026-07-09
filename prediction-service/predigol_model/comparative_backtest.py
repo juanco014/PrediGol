@@ -121,6 +121,146 @@ def _calibration_bins(rows: list[dict[str, Any]], bins: int = 5) -> list[dict[st
     return result
 
 
+def _outcome_counts(rows: list[dict[str, Any]], key: str) -> dict[str, int]:
+    return {outcome: sum(1 for row in rows if row.get(key) == outcome) for outcome in OUTCOMES}
+
+
+def _safe_rate(numerator: int | float, denominator: int | float) -> float | None:
+    if denominator == 0:
+        return None
+    return round(numerator / denominator, 6)
+
+
+def _score_from_text(value: str) -> tuple[int, int]:
+    home, away = str(value).split("-", 1)
+    return int(home), int(away)
+
+
+def _simulate_draw_margin(rows: list[dict[str, Any]], margin: float, baseline_accuracy: float) -> dict[str, Any]:
+    predicted_counts = {outcome: 0 for outcome in OUTCOMES}
+    hits = 0
+    draw_hits = 0
+    false_draws = 0
+
+    for row in rows:
+        probabilities = row["probabilities"]
+        base_outcome = max(OUTCOMES, key=probabilities.get)
+        max_probability = probabilities[base_outcome]
+        predicted = "draw" if probabilities["draw"] >= max_probability - margin else base_outcome
+        actual = row["actual_outcome"]
+
+        predicted_counts[predicted] += 1
+        hits += int(predicted == actual)
+        draw_hits += int(predicted == "draw" and actual == "draw")
+        false_draws += int(predicted == "draw" and actual != "draw")
+
+    accuracy = hits / len(rows) if rows else 0.0
+    return {
+        "margin": margin,
+        "accuracy": round(accuracy, 6),
+        "accuracy_delta_vs_baseline": round(accuracy - baseline_accuracy, 6),
+        "predicted_draws": predicted_counts["draw"],
+        "draw_hits": draw_hits,
+        "false_draws": false_draws,
+        "predicted_home": predicted_counts["home"],
+        "predicted_away": predicted_counts["away"],
+    }
+
+
+def _v2_diagnostics(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    if not rows:
+        return {"matches": 0}
+
+    matches = len(rows)
+    probabilities_by_actual = {
+        outcome: [row["probabilities"] for row in rows if row["actual_outcome"] == outcome]
+        for outcome in OUTCOMES
+    }
+    draw_gap_thresholds = [0.01, 0.03, 0.05, 0.08, 0.10, 0.15]
+    home_dominance_thresholds = [0.05, 0.10, 0.15, 0.20]
+    baseline_accuracy = sum(1 for row in rows if row["outcome_hit"]) / matches
+    actual_home_wins = sum(1 for row in rows if row["actual_outcome"] == "home")
+    predicted_home = sum(1 for row in rows if row["predicted_outcome"] == "home")
+    true_predicted_home = sum(1 for row in rows if row["predicted_outcome"] == "home" and row["actual_outcome"] == "home")
+
+    actual_home_goals = []
+    actual_away_goals = []
+    expected_home_goals = []
+    expected_away_goals = []
+    for row in rows:
+        home_goals, away_goals = _score_from_text(row["actual_score"])
+        actual_home_goals.append(home_goals)
+        actual_away_goals.append(away_goals)
+        expected_home_goals.append(row["expected_home_goals"])
+        expected_away_goals.append(row["expected_away_goals"])
+
+    draw_margin_sweep = [0.00, 0.03, 0.05, 0.08, 0.10, 0.12, 0.15]
+    diagnostics = {
+        "matches": matches,
+        "average_probabilities": {
+            outcome: round(sum(row["probabilities"][outcome] for row in rows) / matches, 6)
+            for outcome in OUTCOMES
+        },
+        "average_probabilities_by_actual_outcome": {
+            actual: {
+                outcome: round(sum(item[outcome] for item in probabilities) / len(probabilities), 6)
+                for outcome in OUTCOMES
+            }
+            for actual, probabilities in probabilities_by_actual.items()
+            if probabilities
+        },
+        "argmax_distribution": {
+            outcome: sum(1 for row in rows if max(OUTCOMES, key=row["probabilities"].get) == outcome)
+            for outcome in OUTCOMES
+        },
+        "predicted_outcome_distribution": _outcome_counts(rows, "predicted_outcome"),
+        "actual_outcome_distribution": _outcome_counts(rows, "actual_outcome"),
+        "average_margins_vs_draw": {
+            "home_minus_draw": round(sum(row["probabilities"]["home"] - row["probabilities"]["draw"] for row in rows) / matches, 6),
+            "away_minus_draw": round(sum(row["probabilities"]["away"] - row["probabilities"]["draw"] for row in rows) / matches, 6),
+        },
+        "draw_within_max_margin_counts": {
+            f"{threshold:.2f}": sum(
+                1 for row in rows if max(row["probabilities"].values()) - row["probabilities"]["draw"] <= threshold
+            )
+            for threshold in draw_gap_thresholds
+        },
+        "draw_decision_margin_sweep": [
+            _simulate_draw_margin(rows, margin, baseline_accuracy) for margin in draw_margin_sweep
+        ],
+        "home_bias": {
+            "actual_home_wins": actual_home_wins,
+            "predicted_home": predicted_home,
+            "precision_when_predicting_home": _safe_rate(true_predicted_home, predicted_home),
+            "recall_home_wins": _safe_rate(true_predicted_home, actual_home_wins),
+            "false_home_predictions": predicted_home - true_predicted_home,
+            "home_dominance_counts": {
+                f"{threshold:.2f}": sum(
+                    1
+                    for row in rows
+                    if row["probabilities"]["home"] - max(row["probabilities"]["draw"], row["probabilities"]["away"]) > threshold
+                )
+                for threshold in home_dominance_thresholds
+            },
+        },
+        "xg": {
+            "expected_home_goals_mean": round(sum(expected_home_goals) / matches, 6),
+            "expected_away_goals_mean": round(sum(expected_away_goals) / matches, 6),
+            "expected_total_goals_mean": round(sum(h + a for h, a in zip(expected_home_goals, expected_away_goals)) / matches, 6),
+            "actual_home_goals_mean": round(sum(actual_home_goals) / matches, 6),
+            "actual_away_goals_mean": round(sum(actual_away_goals) / matches, 6),
+            "actual_total_goals_mean": round(sum(h + a for h, a in zip(actual_home_goals, actual_away_goals)) / matches, 6),
+            "home_xg_error_mean": round(sum(xg - actual for xg, actual in zip(expected_home_goals, actual_home_goals)) / matches, 6),
+            "away_xg_error_mean": round(sum(xg - actual for xg, actual in zip(expected_away_goals, actual_away_goals)) / matches, 6),
+            "total_xg_error_mean": round(
+                sum((eh + ea) - (ah + aa) for eh, ea, ah, aa in zip(expected_home_goals, expected_away_goals, actual_home_goals, actual_away_goals)) / matches,
+                6,
+            ),
+        },
+    }
+    return diagnostics
+
+
 def _interpret(v1: dict[str, Any], v2: dict[str, Any], evaluated: int) -> str:
     if evaluated < 30:
         return "No existe evidencia suficiente para concluir que V2 supera a V1; la muestra evaluada es pequena."
@@ -220,6 +360,7 @@ def compare_v1_v2(
         "evaluated_matches": len(paired),
         "same_evaluation_set": same_evaluation_set,
         "summaries": {MODEL_VERSION: v1_summary, MODEL_VERSION_V2: v2_summary},
+        "diagnostics": {"v2": _v2_diagnostics(v2_rows)},
         "data_quality": data_quality,
         "by_tournament": {
             tournament: {
