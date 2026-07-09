@@ -66,3 +66,50 @@ Metricas posteriores:
 | V2 rho=-0.20 | 0.614925 | 1.025598 | 0.471053 | 0.136842 | 1.040328 |
 
 Conclusion: el ajuste mejora levemente V2 contra su base en Brier, log-loss y exact score, pero no mejora accuracy 1X2 ni MAE de goles, y V2 sigue sin superar a V1. La conclusion debe permanecer neutral: no existe evidencia suficiente para concluir que V2 sea superior. La muestra de 380 partidos es util como holdout real inicial, pero sigue limitada a una liga y una temporada de evaluacion.
+
+## Experimento 2 V2: shrink de goles esperados
+
+Motivo: luego del Experimento 1, V2 seguia sobreestimando goles. El total medio de goles esperados de V2 era `3.763979` frente a `2.934` goles reales medios, con peor MAE de goles que V1 y sin empates predichos como clase final.
+
+Cambio probado: se agrego `expected_goals_shrink` a `V2Config` y se evaluo `expected_goals_shrink=0.90`. El parametro se valida en el rango `0 < expected_goals_shrink <= 1` y se aplica solo en V2, despues del calculo base de `expected_home` y `expected_away` y antes de construir la matriz Poisson/Dixon-Coles. No cambia V1, backend, contratos publicos, Supabase/RLS ni importacion CSV.
+
+Baseline usado: el reporte esperado `reports/backtest_v1_v2_20260709T202955Z.json` no estaba disponible en este monorepo. Se uso el reporte mas reciente anterior al cambio: `reports/backtest_v1_v2_20260709T203757Z.json`.
+
+Backtest posterior: `reports/backtest_v1_v2_20260709T205457Z.json`.
+
+Metricas antes/despues para V2:
+
+| Metrica V2 | Antes | Despues | Cambio |
+| --- | ---: | ---: | ---: |
+| Brier | 0.614925 | 0.615534 | Empeora |
+| Log-loss | 1.025598 | 1.026143 | Empeora |
+| Accuracy 1X2 | 0.471053 | 0.471053 | Igual |
+| Exact score | 0.136842 | 0.123684 | Empeora |
+| Goals MAE | 1.040328 | 0.985319 | Mejora |
+| xG total medio | 3.763979 | 3.387571 | Mejora |
+| Empates predichos | 0 | 0 | Igual |
+
+Distribucion de predicciones V2:
+
+| Clase | Antes | Despues | Real |
+| --- | ---: | ---: | ---: |
+| Local | 294 | 294 | 155 |
+| Empate | 0 | 0 | 93 |
+| Visitante | 86 | 86 | 132 |
+
+Comparacion contra V1 en el reporte posterior:
+
+| Modelo | Brier | Log-loss | Accuracy 1X2 | Exact score | Goals MAE | xG total medio |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| V1 | 0.612233 | 1.019543 | 0.510526 | 0.110526 | 0.949025 | 3.106345 |
+| V2 shrink=0.90 | 0.615534 | 1.026143 | 0.471053 | 0.123684 | 0.985319 | 3.387571 |
+
+Conclusion neutral: el Experimento 2 mejora el problema especifico de inflacion de goles esperados y reduce el MAE de goles de V2 contra su version anterior. Sin embargo, V2 empeora Brier, log-loss y exact score frente al Experimento 1, mantiene la misma accuracy 1X2, sigue prediciendo 0 empates y no supera a V1 en Brier, log-loss, accuracy 1X2 ni goals MAE. Solo mantiene ventaja frente a V1 en exact score.
+
+Decision posterior: `expected_goals_shrink=0.90` no se adopta como default estable porque empeora Brier, log-loss y exact score aunque mejore goals MAE y xG total medio. El parametro se conserva como experimento configurable, pero el default vuelve a `expected_goals_shrink=1.0`, que significa comportamiento neutral y preserva el comportamiento posterior al Experimento 1.
+
+Backtest con default neutral: `reports/backtest_v1_v2_20260709T210107Z.json`. Este reporte confirma que `expected_goals_shrink=1.0` devuelve V2 al comportamiento posterior al Experimento 1: Brier `0.614925`, log-loss `1.025598`, accuracy 1X2 `0.471053`, exact score `0.136842`, goals MAE `1.040328`, xG total medio `3.763979` y distribucion de predicciones `294` locales, `0` empates, `86` visitantes.
+
+Recomendacion: conservar el parametro solo como experimento configurable y reversible, no como evidencia de superioridad de V2. Para promocionarlo haria falta ajustar el sesgo de clase final y la probabilidad de empate sin volver a inflar goles. Si el criterio principal es Brier/log-loss, no usar `0.90` como default.
+
+Limitaciones: la evaluacion usa una sola liga y una temporada holdout 2024 con 380 partidos evaluados. El valor `0.90` no debe tratarse como verdad futura; es un ajuste conservador motivado por diagnostico de inflacion de xG que queda disponible para pruebas futuras. No se tocaron datos persistidos ni reglas Supabase/RLS.

@@ -31,6 +31,7 @@ class V2Config:
     dixon_coles_enabled: bool = True
     dixon_coles_rho: float = -0.2
     calibration_shrink: float = 0.08
+    expected_goals_shrink: float = 1.0
 
     def __post_init__(self) -> None:
         if self.half_life_matches <= 0:
@@ -43,6 +44,8 @@ class V2Config:
             raise ValueError("recent_form_window debe ser mayor que cero.")
         if not -0.5 <= self.dixon_coles_rho <= 0.5:
             raise ValueError("dixon_coles_rho debe estar entre -0.5 y 0.5.")
+        if not 0 < self.expected_goals_shrink <= 1:
+            raise ValueError("expected_goals_shrink debe ser mayor que 0 y menor o igual que 1.")
 
 
 @dataclass
@@ -100,6 +103,7 @@ class V2Prediction(Prediction):
             "time_decay": self.metadata.get("time_decay"),
             "dixon_coles_enabled": self.metadata.get("dixon_coles_enabled"),
             "dixon_coles_rho": self.metadata.get("dixon_coles_rho"),
+            "expected_goals_shrink": self.metadata.get("expected_goals_shrink"),
         }
         return payload
 
@@ -313,6 +317,8 @@ class PoissonEloFormModel:
             0.15,
             4.8,
         )
+        expected_home = max(0.15, expected_home * self.config.expected_goals_shrink)
+        expected_away = max(0.15, expected_away * self.config.expected_goals_shrink)
 
         matrix = []
         for home_goals in range(9):
@@ -361,6 +367,7 @@ class PoissonEloFormModel:
                 "calibration_active": self.calibration_active,
                 "dixon_coles_enabled": self.config.dixon_coles_enabled,
                 "dixon_coles_rho": self.config.dixon_coles_rho,
+                "expected_goals_shrink": self.config.expected_goals_shrink,
                 "time_decay": {
                     "half_life_matches": self.config.half_life_matches,
                     "min_old_match_weight": self.config.min_old_match_weight,
