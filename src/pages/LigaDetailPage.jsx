@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Copy, Crown, Trophy, Users } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
-import { supabase } from "../lib/supabase";
+import {
+  obtenerDetalleLiga,
+  obtenerMensajeErrorLiga,
+} from "../services/privateLeaguesApi";
 
 function obtenerInicial(nombre) {
   return nombre?.trim().charAt(0).toUpperCase() || "J";
@@ -27,32 +30,11 @@ function LigaDetailPage({ session }) {
       return undefined;
     }
 
-    Promise.all([
-      supabase.rpc("obtener_detalle_liga", {
-        p_liga_id: ligaId,
-      }),
-      supabase.rpc("obtener_ranking_liga", {
-        p_liga_id: ligaId,
-      }),
-    ])
-      .then(([respuestaDetalle, respuestaRanking]) => {
-        if (respuestaDetalle.error) {
-          throw respuestaDetalle.error;
-        }
-
-        if (respuestaRanking.error) {
-          throw respuestaRanking.error;
-        }
-
-        const detalleLiga = respuestaDetalle.data?.[0];
-
-        if (!detalleLiga) {
-          throw new Error("No encontramos esta liga.");
-        }
-
+    obtenerDetalleLiga(ligaId, usuarioId)
+      .then((datos) => {
         if (!respuestaCancelada) {
-          setDetalle(detalleLiga);
-          setRanking(respuestaRanking.data || []);
+          setDetalle(datos.liga);
+          setRanking(datos.ranking);
         }
       })
       .catch((errorActual) => {
@@ -60,7 +42,7 @@ function LigaDetailPage({ session }) {
 
         if (!respuestaCancelada) {
           setError(
-            errorActual.message ||
+            obtenerMensajeErrorLiga(errorActual) ||
               "No fue posible cargar la información de esta liga."
           );
         }
@@ -122,7 +104,7 @@ function LigaDetailPage({ session }) {
 
         <section className="empty-league-card">
           <p>No pudimos abrir esta liga.</p>
-          <span>{error || "La liga no existe o no haces parte de ella."}</span>
+          <span>{error || "No tienes permisos para ver esta liga."}</span>
         </section>
 
         <BottomNavigation activePage="ligas" />
@@ -189,7 +171,12 @@ function LigaDetailPage({ session }) {
       </section>
 
       <section className="league-ranking-list">
-        {ranking.map((jugador) => {
+        {ranking.length === 0 ? (
+          <article className="empty-league-card">
+            <p>No hay ranking disponible todavía.</p>
+            <span>Cuando haya pronósticos puntuados, aparecerán las posiciones.</span>
+          </article>
+        ) : ranking.map((jugador) => {
           const esUsuarioActual = jugador.usuario_id === usuarioId;
           const esLider = jugador.posicion === 1;
 

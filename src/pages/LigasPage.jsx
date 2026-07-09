@@ -2,39 +2,12 @@ import { useEffect, useState } from "react";
 import { Plus, Share2, Users, X } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
-import { supabase } from "../lib/supabase";
+import {
+  crearLigaPrivada,
+  obtenerLigasUsuario,
+  unirseALigaPorCodigo,
+} from "../services/privateLeaguesApi";
 import { compartirContenido } from "../utils/shareContent";
-
-function generarCodigoLiga() {
-  const caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let codigo = "PREDI";
-  const valoresAleatorios = new Uint32Array(5);
-
-  if (window.crypto?.getRandomValues) {
-    window.crypto.getRandomValues(valoresAleatorios);
-  } else {
-    for (let index = 0; index < valoresAleatorios.length; index += 1) {
-      valoresAleatorios[index] = Math.floor(Math.random() * 100000);
-    }
-  }
-
-  for (const valor of valoresAleatorios) {
-    const posicion = valor % caracteres.length;
-    codigo += caracteres[posicion];
-  }
-
-  return codigo;
-}
-
-async function consultarMisLigas() {
-  const { data, error } = await supabase.rpc("obtener_mis_ligas");
-
-  if (error) {
-    throw error;
-  }
-
-  return data || [];
-}
 
 function LigasPage({ session }) {
   const navigate = useNavigate();
@@ -59,7 +32,7 @@ function LigasPage({ session }) {
       return undefined;
     }
 
-    consultarMisLigas()
+    obtenerLigasUsuario(usuarioId)
       .then((ligasCargadas) => {
         if (!respuestaCancelada) {
           setLigas(ligasCargadas);
@@ -70,7 +43,7 @@ function LigasPage({ session }) {
 
         if (!respuestaCancelada) {
           setNotificacion(
-            "No fue posible cargar tus ligas. Intenta recargar la página."
+            "No se pudieron cargar tus ligas. Intenta recargar la página."
           );
         }
       })
@@ -93,14 +66,12 @@ function LigasPage({ session }) {
     setCargando(true);
 
     try {
-      const ligasCargadas = await consultarMisLigas();
+      const ligasCargadas = await obtenerLigasUsuario(usuarioId);
       setLigas(ligasCargadas);
     } catch (error) {
       console.error("Error al cargar las ligas:", error);
 
-      setNotificacion(
-        "No fue posible actualizar tus ligas. Intenta nuevamente."
-      );
+      setNotificacion("No se pudieron cargar tus ligas. Intenta nuevamente.");
     } finally {
       setCargando(false);
     }
@@ -144,53 +115,10 @@ function LigasPage({ session }) {
     setMensaje("");
 
     try {
-      let ligaCreada = null;
-
-      for (let intento = 0; intento < 5; intento += 1) {
-        const codigo = generarCodigoLiga();
-
-        const { data, error } = await supabase
-          .from("ligas")
-          .insert({
-            nombre: nombreNormalizado,
-            codigo,
-            creador_id: usuarioId,
-          })
-          .select("id, nombre, codigo")
-          .single();
-
-        if (!error) {
-          ligaCreada = data;
-          break;
-        }
-
-        if (error.code !== "23505") {
-          throw error;
-        }
-      }
-
-      if (!ligaCreada) {
-        throw new Error(
-          "No fue posible generar un código único. Intenta nuevamente."
-        );
-      }
-
-      const { error: errorMiembroCreador } = await supabase
-        .from("liga_miembros")
-        .upsert(
-          {
-            liga_id: ligaCreada.id,
-            usuario_id: usuarioId,
-          },
-          {
-            onConflict: "liga_id,usuario_id",
-            ignoreDuplicates: true,
-          }
-        );
-
-      if (errorMiembroCreador) {
-        throw errorMiembroCreador;
-      }
+      const ligaCreada = await crearLigaPrivada({
+        nombre: nombreNormalizado,
+        usuarioId,
+      });
 
       cerrarModal(true);
       await cargarLigas();
@@ -228,36 +156,7 @@ function LigasPage({ session }) {
     setMensaje("");
 
     try {
-      const { data: liga, error: errorLiga } = await supabase
-        .from("ligas")
-        .select("id, nombre, codigo")
-        .eq("codigo", codigoNormalizado)
-        .maybeSingle();
-
-      if (errorLiga) {
-        throw errorLiga;
-      }
-
-      if (!liga) {
-        setMensaje("No encontramos una liga con ese código.");
-        return;
-      }
-
-      const { error: errorUnion } = await supabase
-        .from("liga_miembros")
-        .insert({
-          liga_id: liga.id,
-          usuario_id: usuarioId,
-        });
-
-      if (errorUnion?.code === "23505") {
-        setMensaje("Ya haces parte de esta liga.");
-        return;
-      }
-
-      if (errorUnion) {
-        throw errorUnion;
-      }
+      const liga = await unirseALigaPorCodigo(codigoNormalizado, usuarioId);
 
       cerrarModal(true);
       await cargarLigas();
@@ -292,10 +191,10 @@ function LigasPage({ session }) {
     try {
       const result = await compartirContenido({
         title: `Liga ${liga.nombre} en PrediGol`,
-        text: `Unete a mi liga "${liga.nombre}" con el codigo ${liga.codigo}.`,
+        text: `Únete a mi liga "${liga.nombre}" con el código ${liga.codigo}.`,
         url,
       });
-      setNotificacion(result === "copied" ? "Invitacion copiada al portapapeles." : "Invitacion compartida.");
+      setNotificacion(result === "copied" ? "Invitación copiada al portapapeles." : "Invitación compartida.");
     } catch (shareError) {
       if (shareError.name !== "AbortError") {
         setNotificacion(shareError.message || "No fue posible compartir la liga.");
@@ -352,14 +251,14 @@ function LigasPage({ session }) {
 
       {cargando ? (
         <section className="empty-league-card">
-          <p>Cargando tus competencias...</p>
+          <p>Cargando tus ligas...</p>
           <span>Estamos preparando tu cancha.</span>
         </section>
       ) : ligas.length === 0 ? (
         <section className="empty-league-card">
-          <p>Aún no haces parte de ninguna liga.</p>
+          <p>Todavía no perteneces a ninguna liga.</p>
           <span>
-            Crea una liga privada o usa el código que te compartió un amigo.
+            Crea una liga privada o únete con un código.
           </span>
         </section>
       ) : (
