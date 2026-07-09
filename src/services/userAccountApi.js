@@ -1,7 +1,7 @@
+import { supabase } from "../lib/supabase.js";
+
 async function obtenerClienteSupabase(client) {
-  if (client) return client;
-  const modulo = await import("../lib/supabase.js");
-  return modulo.supabase;
+  return client || supabase;
 }
 
 export function obtenerMensajeErrorAuth(error, fallback = "No fue posible continuar. Inténtalo nuevamente.") {

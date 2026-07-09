@@ -4,13 +4,12 @@ import {
   mapRankingLiga,
   normalizarCodigoLiga,
 } from "./privateLeaguesMappers.js";
+import { supabase } from "../lib/supabase.js";
 
 const CARACTERES_CODIGO_LIGA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 async function obtenerClienteSupabase(client) {
-  if (client) return client;
-  const modulo = await import("../lib/supabase.js");
-  return modulo.supabase;
+  return client || supabase;
 }
 
 export function generarCodigoLiga() {
