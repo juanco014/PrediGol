@@ -40,6 +40,10 @@ class V2Config:
     away_xg_multiplier: float = 1.0
     enable_draw_probability_adjustment: bool = False
     draw_probability_multiplier: float = 1.0
+    enable_selective_draw_policy: bool = False
+    selective_draw_min_probability: float = 0.25
+    selective_draw_max_home_away_gap: float = 0.05
+    selective_draw_max_gap_to_winner: float = 0.10
 
     def __post_init__(self) -> None:
         if self.half_life_matches <= 0:
@@ -64,6 +68,12 @@ class V2Config:
             raise ValueError("away_xg_multiplier debe estar entre 0.70 y 1.30.")
         if not 0.70 <= self.draw_probability_multiplier <= 1.50:
             raise ValueError("draw_probability_multiplier debe estar entre 0.70 y 1.50.")
+        if not 0.15 <= self.selective_draw_min_probability <= 0.40:
+            raise ValueError("selective_draw_min_probability debe estar entre 0.15 y 0.40.")
+        if not 0.00 <= self.selective_draw_max_home_away_gap <= 0.25:
+            raise ValueError("selective_draw_max_home_away_gap debe estar entre 0.00 y 0.25.")
+        if not 0.00 <= self.selective_draw_max_gap_to_winner <= 0.25:
+            raise ValueError("selective_draw_max_gap_to_winner debe estar entre 0.00 y 0.25.")
 
 
 @dataclass
@@ -130,6 +140,10 @@ class V2Prediction(Prediction):
             "away_xg_multiplier": self.metadata.get("away_xg_multiplier"),
             "enable_draw_probability_adjustment": self.metadata.get("enable_draw_probability_adjustment"),
             "draw_probability_multiplier": self.metadata.get("draw_probability_multiplier"),
+            "enable_selective_draw_policy": self.metadata.get("enable_selective_draw_policy"),
+            "selective_draw_min_probability": self.metadata.get("selective_draw_min_probability"),
+            "selective_draw_max_home_away_gap": self.metadata.get("selective_draw_max_home_away_gap"),
+            "selective_draw_max_gap_to_winner": self.metadata.get("selective_draw_max_gap_to_winner"),
         }
         return payload
 
@@ -318,6 +332,24 @@ class PoissonEloFormModel:
             return "draw", base_outcome, base_outcome != "draw"
         return base_outcome, base_outcome, False
 
+    def _apply_selective_draw_policy(self, predicted_outcome: str, home_win: float, draw: float, away_win: float) -> tuple[str, bool, dict[str, Any]]:
+        home_away_gap = abs(home_win - away_win)
+        draw_gap_to_winner = max(home_win, away_win) - draw
+        details = {
+            "p_draw": round(draw, 6),
+            "home_away_gap": round(home_away_gap, 6),
+            "draw_gap_to_winner": round(draw_gap_to_winner, 6),
+        }
+        if not self.config.enable_selective_draw_policy:
+            return predicted_outcome, False, details
+
+        activated = (
+            draw >= self.config.selective_draw_min_probability
+            and home_away_gap <= self.config.selective_draw_max_home_away_gap
+            and draw_gap_to_winner <= self.config.selective_draw_max_gap_to_winner
+        )
+        return ("draw" if activated else predicted_outcome), activated, details
+
     def predict(self, match: dict[str, Any]) -> V2Prediction:
         home = team_key(match.get("local_nombre"))
         away = team_key(match.get("visitante_nombre"))
@@ -385,6 +417,13 @@ class PoissonEloFormModel:
             draw,
             away_win,
         )
+        outcome_before_selective_draw = predicted_outcome
+        predicted_outcome, selective_draw_activated, selective_draw_metrics = self._apply_selective_draw_policy(
+            predicted_outcome,
+            home_win,
+            draw,
+            away_win,
+        )
         confidence = max(home_win, draw, away_win)
 
         if home_form["matches"] < 3 or away_form["matches"] < 3:
@@ -428,6 +467,14 @@ class PoissonEloFormModel:
                 "away_xg_multiplier": self.config.away_xg_multiplier,
                 "enable_draw_probability_adjustment": self.config.enable_draw_probability_adjustment,
                 "draw_probability_multiplier": self.config.draw_probability_multiplier,
+                "enable_selective_draw_policy": self.config.enable_selective_draw_policy,
+                "selective_draw_min_probability": self.config.selective_draw_min_probability,
+                "selective_draw_max_home_away_gap": self.config.selective_draw_max_home_away_gap,
+                "selective_draw_max_gap_to_winner": self.config.selective_draw_max_gap_to_winner,
+                "selective_draw_policy_activated": selective_draw_activated,
+                "selective_draw_policy_metrics": selective_draw_metrics,
+                "predicted_outcome_before_selective_draw_policy": outcome_before_selective_draw,
+                "predicted_outcome_after_selective_draw_policy": predicted_outcome,
                 "score_matrix_total_probability": round(total_probability, 6),
                 "expected_home_goals_before_home_bias_adjustment": round(expected_home_before_adjustment, 6),
                 "expected_away_goals_before_home_bias_adjustment": round(expected_away_before_adjustment, 6),

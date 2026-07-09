@@ -505,3 +505,48 @@ Conclusion neutral: este diagnostico confirma que una politica de decision final
 Recomendacion: si se continua, disenar una politica de decision de empate mas selectiva y validarla fuera de Premier League 2022-2024. Cualquier regla debe evaluarse junto con Brier/log-loss, dejando claro que si no modifica probabilidades esos indicadores quedan sin cambios.
 
 Limitaciones: las reglas son simulaciones diagnosticas sobre predicciones ya generadas. No se modifican probabilidades ni xG, y no se declara superioridad de V2.
+
+## Experimento 10 V2: politica selectiva de decision final para empates
+
+Hipotesis: una politica muy selectiva podria cambiar solo la decision final a empate en partidos equilibrados, sin modificar probabilidades, xG ni matriz de marcador. El objetivo es diagnostico y prueba reversible, no promocion de defaults.
+
+Cambio aplicado: se agregaron parametros a `V2Config`, todos apagados/neutrales por defecto: `enable_selective_draw_policy: bool = False`, `selective_draw_min_probability: float = 0.25`, `selective_draw_max_home_away_gap: float = 0.05`, `selective_draw_max_gap_to_winner: float = 0.10`. Si el flag esta apagado, V2 se comporta igual que antes. Si esta encendido, solo puede cambiar `predicted_outcome` a `draw` cuando se cumplen simultaneamente `p_draw >= min_probability`, `abs(p_home - p_away) <= max_home_away_gap` y `max(p_home, p_away) - p_draw <= max_gap_to_winner`.
+
+Importante: la politica no cambia probabilidades, xG ni matriz. Por eso Brier y log-loss permanecen iguales al candidato probabilistico base. El reporte usa etiquetas internas `home`, `draw`, `away`.
+
+Reporte analizado: `reports/backtest_v1_v2_20260709T225334Z.json`, Premier League 2022-2024, `1110` partidos evaluados.
+
+Comparadores:
+
+| Configuracion | Accuracy | Brier | Log-loss | Local | Empate | Visitante | Falsos locales | Precision local | Recall local | xG total |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| V1 baseline | 0.519820 | 0.594105 | 0.995172 | 815 | 0 | 295 | 388 | 0.523926 | 0.854000 | 3.000214 |
+| V2 baseline | 0.513514 | 0.602736 | 1.008483 | 930 | 0 | 180 | 466 | 0.498925 | 0.928000 | 3.538014 |
+| V2 home_xg=0.90 sin politica | 0.527928 | 0.602531 | 1.008291 | 834 | 0 | 276 | 394 | 0.527578 | 0.880000 | 3.335135 |
+
+Mejores configuraciones por accuracy agregada:
+
+| Regla | Accuracy | Delta vs home_xg=0.90 | Local | Empate | Visitante | Empates OK | Falsos empates | Precision empate | Recall empate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| p_draw>=0.22, home_away_gap<=0.08, winner_gap<=0.05 | 0.529730 | 0.001802 | 832 | 4 | 274 | 3 | 1 | 0.750000 | 0.011858 |
+| p_draw>=0.22, home_away_gap<=0.10, winner_gap<=0.05 | 0.529730 | 0.001802 | 832 | 4 | 274 | 3 | 1 | 0.750000 | 0.011858 |
+| p_draw>=0.24, home_away_gap<=0.08, winner_gap<=0.05 | 0.529730 | 0.001802 | 832 | 4 | 274 | 3 | 1 | 0.750000 | 0.011858 |
+| p_draw>=0.25, home_away_gap<=0.08, winner_gap<=0.05 | 0.529730 | 0.001802 | 832 | 4 | 274 | 3 | 1 | 0.750000 | 0.011858 |
+
+Resultado por temporada para una de las reglas con mejor accuracy (`p_draw>=0.22`, `home_away_gap<=0.08`, `winner_gap<=0.05`):
+
+| Temporada | Accuracy | Local | Empate | Visitante | Empates OK | Falsos empates | Precision empate | Recall empate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 2022 | 0.531429 | 300 | 4 | 46 | 3 | 1 | 0.750000 | 0.038462 |
+| 2023 | 0.557895 | 285 | 0 | 95 | 0 | 0 | n/a | 0.000000 |
+| 2024 | 0.500000 | 247 | 0 | 133 | 0 | 0 | n/a | 0.000000 |
+
+Interpretacion: la politica selectiva puede introducir pocos empates con alta precision en agregado, pero la mejora de accuracy es minima (`+0.001802`) y no es estable entre temporadas: los empates agregados aparecen solo en 2022 en esta validacion. En 2023 y 2024 la regla no cambia la distribucion. Brier/log-loss siguen siendo los de `home_xg=0.90`, por lo que V1 continua mejor en esas metricas.
+
+Mejor configuracion por accuracy: cualquiera de las reglas con `winner_gap<=0.05` listadas arriba empata en `0.529730`. Mejor configuracion por estabilidad: no hay una candidata convincente; la mejor por accuracy no produce efecto en 2023/2024, por lo que debe considerarse no concluyente.
+
+Conclusion neutral: Experimento 10 muestra que una politica de empate muy selectiva puede recuperar algunos empates sin muchos falsos positivos, pero el efecto es pequeno y no estable. No hay evidencia suficiente para cambiar defaults ni para declarar V2 superior.
+
+Recomendacion: mantener la politica apagada por defecto. Si se continua, validar esta familia de reglas en mas ligas antes de considerar cualquier adopcion, y no usarla para justificar superioridad mientras Brier/log-loss sigan peores que V1.
+
+Limitaciones: la politica modifica solo la decision final simulada o metadata cuando se habilita; no mejora probabilidades. La validacion sigue limitada a Premier League 2022-2024.

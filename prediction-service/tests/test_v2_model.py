@@ -46,6 +46,12 @@ class V2ModelTests(unittest.TestCase):
             V2Config(draw_probability_multiplier=0.69)
         with self.assertRaises(ValueError):
             V2Config(draw_probability_multiplier=1.51)
+        with self.assertRaises(ValueError):
+            V2Config(selective_draw_min_probability=0.14)
+        with self.assertRaises(ValueError):
+            V2Config(selective_draw_max_home_away_gap=0.26)
+        with self.assertRaises(ValueError):
+            V2Config(selective_draw_max_gap_to_winner=-0.01)
 
     def test_tournament_fallback_warning_when_few_records(self) -> None:
         model = PoissonEloFormModel(build_history(40))
@@ -207,6 +213,46 @@ class V2ModelTests(unittest.TestCase):
         self.assertEqual(adjusted.metadata["draw_probability_multiplier"], 1.30)
         self.assertGreater(adjusted.metadata["score_matrix_total_probability"], 0)
 
+    def test_selective_draw_policy_defaults_are_neutral(self) -> None:
+        config = V2Config()
+        self.assertFalse(config.enable_selective_draw_policy)
+        self.assertEqual(config.selective_draw_min_probability, 0.25)
+        self.assertEqual(config.selective_draw_max_home_away_gap, 0.05)
+        self.assertEqual(config.selective_draw_max_gap_to_winner, 0.10)
+
+        model = PoissonEloFormModel(build_history(90))
+        predicted, activated, _metrics = model._apply_selective_draw_policy("home", 0.36, 0.34, 0.33)
+        self.assertEqual(predicted, "home")
+        self.assertFalse(activated)
+
+    def test_selective_draw_policy_changes_only_predicted_outcome_when_enabled(self) -> None:
+        model = PoissonEloFormModel(
+            build_history(90),
+            V2Config(enable_selective_draw_policy=True, selective_draw_min_probability=0.25, selective_draw_max_home_away_gap=0.05, selective_draw_max_gap_to_winner=0.10),
+        )
+        predicted, activated, metrics = model._apply_selective_draw_policy("home", 0.36, 0.34, 0.33)
+
+        self.assertEqual(predicted, "draw")
+        self.assertTrue(activated)
+        self.assertEqual(metrics["p_draw"], 0.34)
+        self.assertEqual(metrics["home_away_gap"], 0.03)
+        self.assertEqual(metrics["draw_gap_to_winner"], 0.02)
+
+    def test_selective_draw_policy_does_not_change_probabilities_or_xg(self) -> None:
+        match = {"id": 999, "api_football_fixture_id": 999, "torneo": "Liga de prueba", "local_nombre": "Equipo 1", "visitante_nombre": "Equipo 2"}
+        default = PoissonEloFormModel(build_history(90)).predict(match)
+        adjusted = PoissonEloFormModel(
+            build_history(90),
+            V2Config(enable_selective_draw_policy=True, selective_draw_min_probability=0.15, selective_draw_max_home_away_gap=0.25, selective_draw_max_gap_to_winner=0.25),
+        ).predict(match)
+
+        self.assertAlmostEqual(default.home_win_probability, adjusted.home_win_probability, places=12)
+        self.assertAlmostEqual(default.draw_probability, adjusted.draw_probability, places=12)
+        self.assertAlmostEqual(default.away_win_probability, adjusted.away_win_probability, places=12)
+        self.assertAlmostEqual(default.expected_home_goals, adjusted.expected_home_goals, places=12)
+        self.assertAlmostEqual(default.expected_away_goals, adjusted.expected_away_goals, places=12)
+        self.assertTrue(adjusted.metadata["enable_selective_draw_policy"])
+
     def test_v1_does_not_use_expected_goals_shrink(self) -> None:
         match = {"id": 999, "api_football_fixture_id": 999, "torneo": "Liga de prueba", "local_nombre": "Equipo 1", "visitante_nombre": "Equipo 2"}
         v1_prediction = PoissonEloModel(build_history(90)).predict(match)
@@ -218,6 +264,7 @@ class V2ModelTests(unittest.TestCase):
         self.assertNotIn("home_bias_multiplier", v1_prediction.metadata)
         self.assertNotIn("enable_draw_probability_adjustment", v1_prediction.metadata)
         self.assertNotIn("draw_probability_multiplier", v1_prediction.metadata)
+        self.assertNotIn("enable_selective_draw_policy", v1_prediction.metadata)
         self.assertEqual(v1_prediction.to_payload()["model_version"], "poisson-elo-v1")
 
 

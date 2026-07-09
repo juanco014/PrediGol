@@ -177,6 +177,33 @@ class ComparativeBacktestTests(unittest.TestCase):
         adjusted = next(item for item in experiment["candidates"] if item["label"] == "V2 home_xg=0.90")
         self.assertEqual(adjusted["parameters"]["home_xg_multiplier"], 0.90)
 
+    def test_experiment_10_reports_selective_draw_policy_sweep(self) -> None:
+        history = build_history(60)
+        for match in history:
+            match["temporada"] = 2024
+        result = compare_v1_v2(history, min_training_matches=30)
+        experiment = result["diagnostics"]["experiment_10"]
+
+        self.assertEqual(len(experiment["baseline_comparisons"]), 3)
+        self.assertEqual(len(experiment["aggregate"]), 80)
+        self.assertEqual(len(experiment["by_season"]), 1)
+        self.assertEqual(len(experiment["by_league"]), 1)
+        self.assertEqual(len(experiment["by_dataset"]), 1)
+
+        first = experiment["aggregate"][0]
+        self.assertTrue(first["parameters"]["enable_selective_draw_policy"])
+        self.assertFalse(first["parameters"]["probabilities_changed"])
+        self.assertFalse(first["parameters"]["xg_changed"])
+        self.assertFalse(first["parameters"]["score_matrix_changed"])
+        self.assertIn("draw_hits", first)
+        self.assertIn("false_draws", first)
+        self.assertIn("draw_precision", first)
+        self.assertIn("draw_recall", first)
+        self.assertEqual(first["brier_log_loss_note"], "unchanged; policy only changes predicted_outcome")
+
+        base = next(item for item in experiment["baseline_comparisons"] if item["label"] == "V2 home_xg=0.90 without selective draw policy")
+        self.assertEqual(base["parameters"]["enable_selective_draw_policy"], False)
+
 
 if __name__ == "__main__":
     unittest.main()

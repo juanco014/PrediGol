@@ -734,6 +734,152 @@ def _experiment_9_diagnostics(v1_rows: list[dict[str, Any]], v2_rows: list[dict[
     }
 
 
+def _experiment_10_configs() -> list[dict[str, Any]]:
+    configs = []
+    for min_draw in [0.22, 0.24, 0.25, 0.26, 0.28]:
+        for max_home_away_gap in [0.03, 0.05, 0.08, 0.10]:
+            for max_gap_to_winner in [0.05, 0.08, 0.10, 0.12]:
+                configs.append(
+                    {
+                        "label": f"p_draw>={min_draw:.2f}_ha_gap<={max_home_away_gap:.2f}_winner_gap<={max_gap_to_winner:.2f}",
+                        "parameters": {
+                            "enable_selective_draw_policy": True,
+                            "selective_draw_min_probability": min_draw,
+                            "selective_draw_max_home_away_gap": max_home_away_gap,
+                            "selective_draw_max_gap_to_winner": max_gap_to_winner,
+                            "probabilities_changed": False,
+                            "xg_changed": False,
+                            "score_matrix_changed": False,
+                        },
+                    }
+                )
+    return configs
+
+
+def _simulate_selective_draw_policy_rows(rows: list[dict[str, Any]], parameters: dict[str, Any]) -> list[dict[str, Any]]:
+    simulated = []
+    for row in rows:
+        probabilities = row["probabilities"]
+        home_away_gap = abs(probabilities["home"] - probabilities["away"])
+        draw_gap_to_winner = max(probabilities["home"], probabilities["away"]) - probabilities["draw"]
+        use_draw = (
+            probabilities["draw"] >= parameters["selective_draw_min_probability"]
+            and home_away_gap <= parameters["selective_draw_max_home_away_gap"]
+            and draw_gap_to_winner <= parameters["selective_draw_max_gap_to_winner"]
+        )
+        item = dict(row)
+        item["predicted_outcome_original"] = row["predicted_outcome"]
+        item["predicted_outcome"] = "draw" if use_draw else row["predicted_outcome"]
+        item["outcome_hit"] = item["predicted_outcome"] == item["actual_outcome"]
+        simulated.append(item)
+    return simulated
+
+
+def _experiment_10_summary(rows: list[dict[str, Any]], label: str, parameters: dict[str, Any], baseline_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    summary = _model_diagnostic_summary(rows)
+    baseline_summary = _aggregate(baseline_rows)
+    draw_hits = sum(1 for row in rows if row["predicted_outcome"] == "draw" and row["actual_outcome"] == "draw")
+    predicted_draws = sum(1 for row in rows if row["predicted_outcome"] == "draw")
+    actual_draws = sum(1 for row in rows if row["actual_outcome"] == "draw")
+    summary.update(
+        {
+            "label": label,
+            "model": MODEL_VERSION_V2,
+            "parameters": parameters,
+            "accuracy_delta_vs_home_xg_0_90": round(summary.get("accuracy", 0.0) - baseline_summary.get("outcome_accuracy", 0.0), 6),
+            "brier_score": baseline_summary.get("brier_score"),
+            "log_loss": baseline_summary.get("log_loss"),
+            "brier_log_loss_note": "unchanged; policy only changes predicted_outcome",
+            "draw_hits": draw_hits,
+            "false_draws": predicted_draws - draw_hits,
+            "draw_precision": _safe_rate(draw_hits, predicted_draws),
+            "draw_recall": _safe_rate(draw_hits, actual_draws),
+        }
+    )
+    return summary
+
+
+def _experiment_10_group(rows: list[dict[str, Any]], configs: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
+    values = sorted({row.get(key) for row in rows if row.get(key) is not None})
+    groups = []
+    for value in values:
+        base_rows = [row for row in rows if row.get(key) == value]
+        groups.append(
+            {
+                key: str(value),
+                "matches": len(base_rows),
+                "candidates": [
+                    _experiment_10_summary(
+                        _simulate_selective_draw_policy_rows(base_rows, config["parameters"]),
+                        config["label"],
+                        config["parameters"],
+                        base_rows,
+                    )
+                    for config in configs
+                ],
+            }
+        )
+    return groups
+
+
+def _experiment_10_dataset_groups(rows: list[dict[str, Any]], configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    keys = sorted({(row.get("torneo"), row.get("temporada")) for row in rows})
+    groups = []
+    for torneo, temporada in keys:
+        base_rows = [row for row in rows if row.get("torneo") == torneo and row.get("temporada") == temporada]
+        groups.append(
+            {
+                "dataset": f"{torneo} {temporada}",
+                "league": torneo,
+                "season": temporada,
+                "matches": len(base_rows),
+                "date_from": min((row["fecha_orden"] for row in base_rows if row.get("fecha_orden")), default=None),
+                "date_to": max((row["fecha_orden"] for row in base_rows if row.get("fecha_orden")), default=None),
+                "candidates": [
+                    _experiment_10_summary(
+                        _simulate_selective_draw_policy_rows(base_rows, config["parameters"]),
+                        config["label"],
+                        config["parameters"],
+                        base_rows,
+                    )
+                    for config in configs
+                ],
+            }
+        )
+    return groups
+
+
+def _experiment_10_diagnostics(v1_rows: list[dict[str, Any]], v2_rows: list[dict[str, Any]], experiment_5_rows: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+    base_rows = experiment_5_rows.get("home_xg_multiplier=0.90", [])
+    configs = _experiment_10_configs()
+    baseline_comparisons = [
+        _experiment_7_candidate("V1 baseline", MODEL_VERSION, v1_rows, {}),
+        _experiment_7_candidate("V2 baseline", MODEL_VERSION_V2, v2_rows, {}),
+        _experiment_7_candidate(
+            "V2 home_xg=0.90 without selective draw policy",
+            MODEL_VERSION_V2,
+            base_rows,
+            {"enable_home_bias_adjustment": True, "home_xg_multiplier": 0.90, "enable_selective_draw_policy": False},
+        ),
+    ]
+    aggregate = [
+        _experiment_10_summary(
+            _simulate_selective_draw_policy_rows(base_rows, config["parameters"]),
+            config["label"],
+            config["parameters"],
+            base_rows,
+        )
+        for config in configs
+    ]
+    return {
+        "baseline_comparisons": baseline_comparisons,
+        "aggregate": aggregate,
+        "by_season": _experiment_10_group(base_rows, configs, "temporada"),
+        "by_league": _experiment_10_group(base_rows, configs, "torneo"),
+        "by_dataset": _experiment_10_dataset_groups(base_rows, configs),
+    }
+
+
 def _v2_diagnostics(
     rows: list[dict[str, Any]],
     experiment_5_rows: dict[str, list[dict[str, Any]]] | None = None,
@@ -967,6 +1113,7 @@ def compare_v1_v2(
             "experiment_7": _experiment_7_diagnostics(v1_rows, v2_rows, experiment_5_rows),
             "experiment_8": _experiment_8_diagnostics(v1_rows, v2_rows, experiment_5_rows),
             "experiment_9": _experiment_9_diagnostics(v1_rows, v2_rows, experiment_5_rows),
+            "experiment_10": _experiment_10_diagnostics(v1_rows, v2_rows, experiment_5_rows),
         },
         "data_quality": data_quality,
         "by_tournament": {
