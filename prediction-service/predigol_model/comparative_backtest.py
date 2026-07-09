@@ -558,6 +558,182 @@ def _experiment_8_diagnostics(v1_rows: list[dict[str, Any]], v2_rows: list[dict[
     }
 
 
+def _percentile(values: list[float], percentile: float) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    index = (len(ordered) - 1) * percentile
+    lower = math.floor(index)
+    upper = math.ceil(index)
+    if lower == upper:
+        return round(ordered[int(index)], 6)
+    weight = index - lower
+    return round((ordered[lower] * (1 - weight)) + (ordered[upper] * weight), 6)
+
+
+def _most_common_outcome(rows: list[dict[str, Any]]) -> str | None:
+    if not rows:
+        return None
+    counts = _outcome_counts(rows, "predicted_outcome")
+    return max(OUTCOMES, key=counts.get)
+
+
+def _p_draw_bin(rows: list[dict[str, Any]], lower: float, upper: float) -> dict[str, Any]:
+    selected = [row for row in rows if lower <= row["probabilities"]["draw"] < upper]
+    if upper >= 1.0:
+        selected = [row for row in rows if lower <= row["probabilities"]["draw"] <= upper]
+    draw_count = sum(1 for row in selected if row["actual_outcome"] == "draw")
+    return {
+        "bin": f"{lower:.2f}-{upper:.2f}",
+        "matches": len(selected),
+        "real_draws": draw_count,
+        "real_draw_rate": _safe_rate(draw_count, len(selected)),
+        "argmax_accuracy": _safe_rate(sum(1 for row in selected if row["outcome_hit"]), len(selected)),
+        "most_predicted_class": _most_common_outcome(selected),
+        "avg_home_probability": round(sum(row["probabilities"]["home"] for row in selected) / len(selected), 6) if selected else None,
+        "avg_draw_probability": round(sum(row["probabilities"]["draw"] for row in selected) / len(selected), 6) if selected else None,
+        "avg_away_probability": round(sum(row["probabilities"]["away"] for row in selected) / len(selected), 6) if selected else None,
+    }
+
+
+def _threshold_gap_bin(rows: list[dict[str, Any]], threshold: float) -> dict[str, Any]:
+    selected = [
+        row for row in rows
+        if max(row["probabilities"]["home"], row["probabilities"]["away"]) - row["probabilities"]["draw"] <= threshold
+    ]
+    actual_draws = sum(1 for row in rows if row["actual_outcome"] == "draw")
+    draw_hits = sum(1 for row in selected if row["actual_outcome"] == "draw")
+    false_draws = len(selected) - draw_hits
+    return {
+        "threshold": threshold,
+        "matches": len(selected),
+        "real_draws": draw_hits,
+        "real_draw_rate": _safe_rate(draw_hits, len(selected)),
+        "would_mark_as_draw": len(selected),
+        "draw_hits": draw_hits,
+        "false_draws": false_draws,
+        "draw_precision": _safe_rate(draw_hits, len(selected)),
+        "draw_recall": _safe_rate(draw_hits, actual_draws),
+    }
+
+
+def _above_gap_bin(rows: list[dict[str, Any]], threshold: float) -> dict[str, Any]:
+    selected = [
+        row for row in rows
+        if max(row["probabilities"]["home"], row["probabilities"]["away"]) - row["probabilities"]["draw"] > threshold
+    ]
+    draw_count = sum(1 for row in selected if row["actual_outcome"] == "draw")
+    return {
+        "threshold": f"> {threshold:.2f}",
+        "matches": len(selected),
+        "real_draws": draw_count,
+        "real_draw_rate": _safe_rate(draw_count, len(selected)),
+    }
+
+
+def _home_away_gap_bin(rows: list[dict[str, Any]], threshold: float) -> dict[str, Any]:
+    selected = [row for row in rows if abs(row["probabilities"]["home"] - row["probabilities"]["away"]) <= threshold]
+    draw_count = sum(1 for row in selected if row["actual_outcome"] == "draw")
+    return {
+        "threshold": threshold,
+        "matches": len(selected),
+        "real_draws": draw_count,
+        "real_draw_rate": _safe_rate(draw_count, len(selected)),
+        "avg_draw_probability": round(sum(row["probabilities"]["draw"] for row in selected) / len(selected), 6) if selected else None,
+        "most_predicted_class": _most_common_outcome(selected),
+    }
+
+
+def _home_away_gap_above_bin(rows: list[dict[str, Any]], threshold: float) -> dict[str, Any]:
+    selected = [row for row in rows if abs(row["probabilities"]["home"] - row["probabilities"]["away"]) > threshold]
+    draw_count = sum(1 for row in selected if row["actual_outcome"] == "draw")
+    return {
+        "threshold": f"> {threshold:.2f}",
+        "matches": len(selected),
+        "real_draws": draw_count,
+        "real_draw_rate": _safe_rate(draw_count, len(selected)),
+        "avg_draw_probability": round(sum(row["probabilities"]["draw"] for row in selected) / len(selected), 6) if selected else None,
+        "most_predicted_class": _most_common_outcome(selected),
+    }
+
+
+def _combined_draw_rule(rows: list[dict[str, Any]], min_draw_probability: float, max_home_away_gap: float) -> dict[str, Any]:
+    selected = [
+        row for row in rows
+        if row["probabilities"]["draw"] >= min_draw_probability
+        and abs(row["probabilities"]["home"] - row["probabilities"]["away"]) <= max_home_away_gap
+    ]
+    actual_draws = sum(1 for row in rows if row["actual_outcome"] == "draw")
+    draw_hits = sum(1 for row in selected if row["actual_outcome"] == "draw")
+    false_draws = len(selected) - draw_hits
+    simulated_hits = 0
+    selected_ids = {row["match_id"] for row in selected}
+    for row in rows:
+        simulated_outcome = "draw" if row["match_id"] in selected_ids else row["predicted_outcome"]
+        simulated_hits += int(simulated_outcome == row["actual_outcome"])
+    summary = _aggregate(rows)
+    return {
+        "rule": f"p_draw>={min_draw_probability:.2f} and home_away_gap<={max_home_away_gap:.2f}",
+        "min_draw_probability": min_draw_probability,
+        "max_home_away_gap": max_home_away_gap,
+        "captured_matches": len(selected),
+        "captured_real_draws": draw_hits,
+        "false_draws": false_draws,
+        "draw_precision": _safe_rate(draw_hits, len(selected)),
+        "draw_recall": _safe_rate(draw_hits, actual_draws),
+        "simulated_accuracy": round(simulated_hits / len(rows), 6) if rows else 0.0,
+        "brier_score_unchanged": summary.get("brier_score"),
+        "log_loss_unchanged": summary.get("log_loss"),
+    }
+
+
+def _experiment_9_candidate(label: str, model: str, rows: list[dict[str, Any]], parameters: dict[str, Any]) -> dict[str, Any]:
+    draw_values = [row["probabilities"]["draw"] for row in rows]
+    by_actual = {
+        outcome: [row["probabilities"]["draw"] for row in rows if row["actual_outcome"] == outcome]
+        for outcome in OUTCOMES
+    }
+    p_draw_bins = [(0.00, 0.15), (0.15, 0.20), (0.20, 0.25), (0.25, 0.30), (0.30, 0.35), (0.35, 0.40), (0.40, 1.00)]
+    draw_gap_thresholds = [0.03, 0.05, 0.08, 0.10, 0.12, 0.15]
+    home_away_thresholds = [0.03, 0.05, 0.08, 0.10, 0.15, 0.20]
+    combined_rules = [(0.22, 0.05), (0.24, 0.08), (0.25, 0.10), (0.26, 0.12), (0.28, 0.15)]
+    return {
+        "label": label,
+        "model": model,
+        "parameters": parameters,
+        "matches": len(rows),
+        "p_draw_distribution": {
+            "mean": round(sum(draw_values) / len(draw_values), 6) if draw_values else None,
+            "median": _percentile(draw_values, 0.50),
+            "p10": _percentile(draw_values, 0.10),
+            "p25": _percentile(draw_values, 0.25),
+            "p50": _percentile(draw_values, 0.50),
+            "p75": _percentile(draw_values, 0.75),
+            "p90": _percentile(draw_values, 0.90),
+            "mean_when_actual_home": round(sum(by_actual["home"]) / len(by_actual["home"]), 6) if by_actual["home"] else None,
+            "mean_when_actual_draw": round(sum(by_actual["draw"]) / len(by_actual["draw"]), 6) if by_actual["draw"] else None,
+            "mean_when_actual_away": round(sum(by_actual["away"]) / len(by_actual["away"]), 6) if by_actual["away"] else None,
+        },
+        "p_draw_bins": [_p_draw_bin(rows, lower, upper) for lower, upper in p_draw_bins],
+        "draw_gap_to_max_bins": [_threshold_gap_bin(rows, threshold) for threshold in draw_gap_thresholds] + [_above_gap_bin(rows, draw_gap_thresholds[-1])],
+        "home_away_gap_bins": [_home_away_gap_bin(rows, threshold) for threshold in home_away_thresholds] + [_home_away_gap_above_bin(rows, home_away_thresholds[-1])],
+        "combined_diagnostic_rules": [_combined_draw_rule(rows, min_draw, max_gap) for min_draw, max_gap in combined_rules],
+    }
+
+
+def _experiment_9_diagnostics(v1_rows: list[dict[str, Any]], v2_rows: list[dict[str, Any]], experiment_5_rows: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+    candidates = [
+        ("V1 baseline", MODEL_VERSION, {}, v1_rows),
+        ("V2 baseline", MODEL_VERSION_V2, {}, v2_rows),
+        ("V2 home_xg=0.95", MODEL_VERSION_V2, {"enable_home_bias_adjustment": True, "home_xg_multiplier": 0.95}, experiment_5_rows.get("home_xg_multiplier=0.95", [])),
+        ("V2 home_xg=0.90", MODEL_VERSION_V2, {"enable_home_bias_adjustment": True, "home_xg_multiplier": 0.90}, experiment_5_rows.get("home_xg_multiplier=0.90", [])),
+        ("V2 home_xg=0.85", MODEL_VERSION_V2, {"enable_home_bias_adjustment": True, "home_xg_multiplier": 0.85}, experiment_5_rows.get("home_xg_multiplier=0.85", [])),
+    ]
+    return {
+        "candidates": [_experiment_9_candidate(label, model, rows, parameters) for label, model, parameters, rows in candidates]
+    }
+
+
 def _v2_diagnostics(
     rows: list[dict[str, Any]],
     experiment_5_rows: dict[str, list[dict[str, Any]]] | None = None,
@@ -790,6 +966,7 @@ def compare_v1_v2(
             "v2": _v2_diagnostics(v2_rows, experiment_5_rows, experiment_5_configs, experiment_6_rows, experiment_6_configs),
             "experiment_7": _experiment_7_diagnostics(v1_rows, v2_rows, experiment_5_rows),
             "experiment_8": _experiment_8_diagnostics(v1_rows, v2_rows, experiment_5_rows),
+            "experiment_9": _experiment_9_diagnostics(v1_rows, v2_rows, experiment_5_rows),
         },
         "data_quality": data_quality,
         "by_tournament": {

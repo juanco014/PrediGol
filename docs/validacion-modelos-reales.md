@@ -423,3 +423,85 @@ Interpretacion neutral: `home_xg=0.90` mejora accuracy y reduce sesgo local, per
 Conclusion: no hay evidencia para cambiar defaults ni promocionar un candidato. El siguiente paso deberia separar calibracion probabilistica de seleccion de clase final: revisar calibracion 1X2 con validacion externa y no optimizar solo accuracy.
 
 Limitaciones: ECE es aproximada y depende de bins. La validacion sigue limitada a Premier League 2022-2024. No se declara superioridad de V2.
+
+## Experimento 9 V2: diagnostico de decision final para empates
+
+Hipotesis: el empate puede requerir una politica de decision final separada de las probabilidades, porque `p_draw` agregada no parece extremadamente baja pero casi nunca queda como argmax. Este experimento no cambia probabilidades, xG, matriz de marcador, defaults ni comportamiento normal del modelo.
+
+Cambio aplicado: el reporte comparativo incluye `diagnostics.experiment_9`, calculado sobre filas ya evaluadas. Se diagnostican `p_draw`, `draw_gap_to_max = max(p_home, p_away) - p_draw`, `home_away_gap = abs(p_home - p_away)` y reglas combinadas simuladas que marcarian empate solo para analisis.
+
+Reporte analizado: `reports/backtest_v1_v2_20260709T224403Z.json`, con Premier League 2022-2024 y `1110` partidos evaluados.
+
+Distribucion de `p_draw`:
+
+| Candidato | p_draw media | p10 | p25 | mediana | p75 | p90 | p_draw si real empate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| V1 baseline | 0.220412 | 0.153745 | 0.197130 | 0.229714 | 0.253486 | 0.272691 | 0.224478 |
+| V2 baseline | 0.240709 | 0.207847 | 0.226261 | 0.242879 | 0.257257 | 0.270625 | 0.242554 |
+| V2 home_xg=0.90 | 0.254036 | 0.224466 | 0.238635 | 0.253976 | 0.268474 | 0.284492 | 0.255687 |
+
+Bins de `p_draw` para V2 baseline:
+
+| Bin p_draw | Partidos | Empates reales | Tasa empate | Accuracy argmax | Clase mas predicha |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 0.00-0.15 | 3 | 0 | 0.000000 | 1.000000 | local |
+| 0.15-0.20 | 75 | 8 | 0.106667 | 0.786667 | local |
+| 0.20-0.25 | 630 | 156 | 0.247619 | 0.514286 | local |
+| 0.25-0.30 | 391 | 85 | 0.217391 | 0.457801 | local |
+| 0.30-0.35 | 11 | 4 | 0.363636 | 0.454545 | local |
+| 0.35-0.40 | 0 | 0 | n/a | n/a | n/a |
+| 0.40-1.00 | 0 | 0 | n/a | n/a | n/a |
+
+Bins de `p_draw` para V2 home_xg=0.90:
+
+| Bin p_draw | Partidos | Empates reales | Tasa empate | Accuracy argmax | Clase mas predicha |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 0.00-0.15 | 0 | 0 | n/a | n/a | n/a |
+| 0.15-0.20 | 25 | 1 | 0.040000 | 0.880000 | local |
+| 0.20-0.25 | 445 | 104 | 0.233708 | 0.570787 | local |
+| 0.25-0.30 | 594 | 137 | 0.230640 | 0.479798 | local |
+| 0.30-0.35 | 46 | 11 | 0.239130 | 0.543478 | local |
+| 0.35-0.40 | 0 | 0 | n/a | n/a | n/a |
+| 0.40-1.00 | 0 | 0 | n/a | n/a | n/a |
+
+`draw_gap_to_max` para V2 home_xg=0.90:
+
+| Umbral | Partidos | Empates reales | Precision si empate | Recall empate | Falsos empates |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| <= 0.03 | 0 | 0 | n/a | 0.000000 | 0 |
+| <= 0.05 | 4 | 3 | 0.750000 | 0.011858 | 1 |
+| <= 0.08 | 33 | 9 | 0.272727 | 0.035573 | 24 |
+| <= 0.10 | 74 | 21 | 0.283784 | 0.083004 | 53 |
+| <= 0.12 | 152 | 38 | 0.250000 | 0.150198 | 114 |
+| <= 0.15 | 307 | 72 | 0.234528 | 0.284585 | 235 |
+| > 0.15 | 803 | 181 | n/a | n/a | n/a |
+
+`home_away_gap` para V2 home_xg=0.90:
+
+| Umbral | Partidos | Empates reales | Tasa empate | p_draw media | Argmax mas frecuente |
+| --- | ---: | ---: | ---: | ---: | --- |
+| <= 0.03 | 94 | 29 | 0.308511 | 0.266985 | local |
+| <= 0.05 | 161 | 47 | 0.291925 | 0.266731 | local |
+| <= 0.08 | 276 | 70 | 0.253623 | 0.265579 | local |
+| <= 0.10 | 342 | 79 | 0.230994 | 0.265647 | local |
+| <= 0.15 | 526 | 120 | 0.228137 | 0.264497 | local |
+| <= 0.20 | 670 | 154 | 0.229851 | 0.263249 | local |
+| > 0.20 | 440 | 99 | 0.225000 | 0.240009 | local |
+
+Reglas combinadas simuladas para V2 home_xg=0.90:
+
+| Regla | Capturados | Empates capturados | Falsos empates | Precision empate | Recall empate | Accuracy simulada | Brier/log-loss |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| p_draw>=0.22 y gap<=0.05 | 161 | 47 | 114 | 0.291925 | 0.185771 | 0.519820 | sin cambios |
+| p_draw>=0.24 y gap<=0.08 | 266 | 65 | 201 | 0.244361 | 0.256917 | 0.483784 | sin cambios |
+| p_draw>=0.25 y gap<=0.10 | 283 | 62 | 221 | 0.219081 | 0.245059 | 0.472072 | sin cambios |
+| p_draw>=0.26 y gap<=0.12 | 233 | 52 | 181 | 0.223176 | 0.205534 | 0.482883 | sin cambios |
+| p_draw>=0.28 y gap<=0.15 | 91 | 23 | 68 | 0.252747 | 0.090909 | 0.510811 | sin cambios |
+
+Interpretacion: hay una zona de partidos equilibrados (`home_away_gap <= 0.05`) donde la tasa real de empate sube a cerca de `29%` para `home_xg=0.90`, pero incluso ahi los falsos empates superan ampliamente a los aciertos. La mejor regla combinada probada iguala la accuracy agregada de V1 (`0.519820`) pero mantiene Brier/log-loss originales del candidato porque no modifica probabilidades (`0.602531` / `1.008291`), peores que V1.
+
+Conclusion neutral: este diagnostico confirma que una politica de decision final para empates podria recuperar algunos empates, pero las reglas simples no son suficientemente precisas y pueden degradar accuracy. No hay evidencia para cambiar defaults ni para adoptar una regla de empate todavia.
+
+Recomendacion: si se continua, disenar una politica de decision de empate mas selectiva y validarla fuera de Premier League 2022-2024. Cualquier regla debe evaluarse junto con Brier/log-loss, dejando claro que si no modifica probabilidades esos indicadores quedan sin cambios.
+
+Limitaciones: las reglas son simulaciones diagnosticas sobre predicciones ya generadas. No se modifican probabilidades ni xG, y no se declara superioridad de V2.

@@ -147,6 +147,36 @@ class ComparativeBacktestTests(unittest.TestCase):
         self.assertEqual(candidate["parameters"]["home_xg_multiplier"], 0.90)
         self.assertEqual(sum(bin_row["matches"] for bin_row in candidate["confidence_bins"]), len(v2_rows))
 
+    def test_experiment_9_reports_draw_decision_diagnostics(self) -> None:
+        result = compare_v1_v2(build_history(55), min_training_matches=30)
+        experiment = result["diagnostics"]["experiment_9"]
+        v2_rows = [row for row in result["rows"] if row["model_version"] == result["models"][1]]
+
+        self.assertEqual(len(experiment["candidates"]), 5)
+        candidate = next(item for item in experiment["candidates"] if item["label"] == "V2 baseline")
+        self.assertEqual(candidate["matches"], len(v2_rows))
+        self.assertIn("mean", candidate["p_draw_distribution"])
+        self.assertIn("p90", candidate["p_draw_distribution"])
+        self.assertEqual(len(candidate["p_draw_bins"]), 7)
+        self.assertEqual(sum(item["matches"] for item in candidate["p_draw_bins"]), len(v2_rows))
+        self.assertTrue(any(item["matches"] == 0 for item in candidate["p_draw_bins"]))
+        self.assertEqual(len(candidate["draw_gap_to_max_bins"]), 7)
+        self.assertEqual(len(candidate["home_away_gap_bins"]), 7)
+        self.assertEqual(len(candidate["combined_diagnostic_rules"]), 5)
+
+        first_gap = candidate["draw_gap_to_max_bins"][0]
+        self.assertIn("would_mark_as_draw", first_gap)
+        self.assertIn("draw_precision", first_gap)
+        self.assertIn("draw_recall", first_gap)
+
+        first_rule = candidate["combined_diagnostic_rules"][0]
+        self.assertIn("simulated_accuracy", first_rule)
+        self.assertEqual(first_rule["brier_score_unchanged"], result["summaries"][result["models"][1]]["brier_score"])
+        self.assertEqual(first_rule["log_loss_unchanged"], result["summaries"][result["models"][1]]["log_loss"])
+
+        adjusted = next(item for item in experiment["candidates"] if item["label"] == "V2 home_xg=0.90")
+        self.assertEqual(adjusted["parameters"]["home_xg_multiplier"], 0.90)
+
 
 if __name__ == "__main__":
     unittest.main()
