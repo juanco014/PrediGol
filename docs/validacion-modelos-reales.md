@@ -381,3 +381,45 @@ Conclusion neutral: el candidato `home_xg=0.90` se sostiene parcialmente como aj
 Recomendacion: no cambiar defaults todavia. Si se continua, validar `home_xg=0.90` en mas ligas o temporadas y priorizar Brier/log-loss/calibracion sobre accuracy. Tambien conviene investigar por que ambos modelos siguen prediciendo casi ningun empate como clase final.
 
 Limitaciones: los datasets disponibles siguen siendo una sola liga. La validacion es multi-temporada, no multi-liga. El backtest es cronologico y usa partidos anteriores como entrenamiento, pero no reemplaza una validacion externa mas amplia.
+
+## Experimento 8 V2: diagnostico de calibracion probabilistica
+
+Hipotesis: V2 puede mejorar accuracy al cambiar decisiones, pero seguir peor calibrado probabilisticamente. Brier y log-loss penalizan la calidad de las probabilidades completas, no solo si la clase final acierta. Por eso una configuracion con mejor accuracy no debe promocionarse si empeora calibracion o no mejora Brier/log-loss de forma estable.
+
+Cambio aplicado: el reporte comparativo incluye `diagnostics.experiment_8` con diagnostico de calibracion para V1 baseline, V2 baseline y candidatos V2 `home_xg=0.95`, `home_xg=0.90`, `home_xg=0.85`. No se agrego ningun ajuste nuevo ni se cambiaron defaults.
+
+Metodo: se usan 10 bins de confianza (`0.00-0.10` ... `0.90-1.00`) sobre la probabilidad ganadora para calcular una ECE aproximada. Tambien se calcula calibracion por clase usando bins de `p_home`, `p_draw` y `p_away`, comparando probabilidad media contra frecuencia real de esa clase.
+
+Reporte analizado: `reports/backtest_v1_v2_20260709T223652Z.json`, con Premier League 2022-2024 y `1110` partidos evaluados.
+
+Resumen agregado de calibracion:
+
+| Candidato | Accuracy | Brier | Log-loss | ECE | Confianza media | p_home media | p_draw media | p_away media | ECE home | ECE draw | ECE away |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| V1 baseline | 0.519820 | 0.594105 | 0.995172 | 0.036297 | 0.554752 | 0.487216 | 0.220412 | 0.292372 | 0.044799 | 0.023322 | 0.035493 |
+| V2 baseline | 0.513514 | 0.602736 | 1.008483 | 0.022865 | 0.490649 | 0.471919 | 0.240709 | 0.287372 | 0.045016 | 0.013886 | 0.041799 |
+| V2 home_xg=0.95 | 0.521622 | 0.601952 | 1.007487 | 0.045364 | 0.476258 | 0.451892 | 0.247394 | 0.300714 | 0.054215 | 0.019466 | 0.057387 |
+| V2 home_xg=0.90 | 0.527928 | 0.602531 | 1.008291 | 0.065157 | 0.462771 | 0.431298 | 0.254036 | 0.314666 | 0.060146 | 0.026109 | 0.053630 |
+| V2 home_xg=0.85 | 0.536036 | 0.604603 | 1.011079 | 0.085377 | 0.450659 | 0.410157 | 0.260598 | 0.329245 | 0.066555 | 0.032670 | 0.052146 |
+
+Bins principales de confianza:
+
+| Candidato | Bin | Partidos | Confianza media | Accuracy | Error |
+| --- | --- | ---: | ---: | ---: | ---: |
+| V1 baseline | 0.40-0.50 | 334 | 0.448333 | 0.428144 | 0.020189 |
+| V1 baseline | 0.50-0.60 | 300 | 0.547888 | 0.536667 | 0.011221 |
+| V1 baseline | 0.60-0.70 | 210 | 0.649356 | 0.566667 | 0.082689 |
+| V2 baseline | 0.40-0.50 | 518 | 0.451023 | 0.465251 | 0.014228 |
+| V2 baseline | 0.50-0.60 | 346 | 0.545089 | 0.560694 | 0.015605 |
+| V2 baseline | 0.60-0.70 | 100 | 0.641864 | 0.730000 | 0.088136 |
+| V2 home_xg=0.90 | 0.40-0.50 | 588 | 0.445029 | 0.513605 | 0.068576 |
+| V2 home_xg=0.90 | 0.50-0.60 | 257 | 0.537936 | 0.595331 | 0.057395 |
+| V2 home_xg=0.90 | 0.60-0.70 | 48 | 0.629013 | 0.833333 | 0.204320 |
+
+Calibracion del empate: V2 baseline tiene `p_draw` media `0.240709`, cercana a la frecuencia real agregada de empates, pero no predice empates como argmax. En `home_xg=0.90`, `p_draw` media sube a `0.254036` y la ECE de empate empeora de `0.013886` a `0.026109`. En bins de `p_draw`, el bin `0.20-0.30` concentra la mayoria de partidos: V2 baseline tiene probabilidad media `0.244333` y frecuencia real `0.236043`; `home_xg=0.90` tiene probabilidad media `0.253123` y frecuencia real `0.231954`. Esto sugiere que el empate no esta claramente subestimado como probabilidad agregada; el problema principal es que rara vez queda como probabilidad maxima.
+
+Interpretacion neutral: `home_xg=0.90` mejora accuracy y reduce sesgo local, pero empeora ECE frente a V2 baseline y sigue peor que V1 en Brier/log-loss. `home_xg=0.85` maximiza accuracy, pero empeora aun mas Brier/log-loss y ECE. V2 baseline tiene mejor ECE global que V1 en este diagnostico, pero sus Brier/log-loss son peores, lo que indica que ECE por si sola no alcanza para elegir modelo.
+
+Conclusion: no hay evidencia para cambiar defaults ni promocionar un candidato. El siguiente paso deberia separar calibracion probabilistica de seleccion de clase final: revisar calibracion 1X2 con validacion externa y no optimizar solo accuracy.
+
+Limitaciones: ECE es aproximada y depende de bins. La validacion sigue limitada a Premier League 2022-2024. No se declara superioridad de V2.

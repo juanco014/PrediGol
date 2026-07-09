@@ -432,6 +432,132 @@ def _experiment_7_diagnostics(v1_rows: list[dict[str, Any]], v2_rows: list[dict[
     }
 
 
+def _calibration_bin_label(index: int, bins: int) -> str:
+    return f"{index / bins:.2f}-{(index + 1) / bins:.2f}"
+
+
+def _confidence_calibration(rows: list[dict[str, Any]], bins: int = 10) -> tuple[list[dict[str, Any]], float]:
+    buckets: list[list[dict[str, Any]]] = [[] for _ in range(bins)]
+    for row in rows:
+        confidence = max(float(value) for value in row["probabilities"].values())
+        index = min(bins - 1, int(confidence * bins))
+        buckets[index].append(row)
+
+    result = []
+    weighted_error = 0.0
+    total = len(rows) or 1
+    for index, bucket in enumerate(buckets):
+        if not bucket:
+            result.append({"bin": _calibration_bin_label(index, bins), "matches": 0})
+            continue
+
+        avg_confidence = sum(max(float(value) for value in row["probabilities"].values()) for row in bucket) / len(bucket)
+        accuracy = sum(1 for row in bucket if row["outcome_hit"]) / len(bucket)
+        calibration_error = abs(avg_confidence - accuracy)
+        weighted_error += calibration_error * len(bucket) / total
+        result.append(
+            {
+                "bin": _calibration_bin_label(index, bins),
+                "matches": len(bucket),
+                "avg_confidence": round(avg_confidence, 6),
+                "accuracy": round(accuracy, 6),
+                "calibration_error": round(calibration_error, 6),
+            }
+        )
+    return result, round(weighted_error, 6)
+
+
+def _class_calibration(rows: list[dict[str, Any]], outcome: str, bins: int = 10) -> tuple[list[dict[str, Any]], float]:
+    buckets: list[list[dict[str, Any]]] = [[] for _ in range(bins)]
+    for row in rows:
+        probability = float(row["probabilities"][outcome])
+        index = min(bins - 1, int(probability * bins))
+        buckets[index].append(row)
+
+    result = []
+    weighted_error = 0.0
+    total = len(rows) or 1
+    for index, bucket in enumerate(buckets):
+        if not bucket:
+            result.append({"bin": _calibration_bin_label(index, bins), "matches": 0})
+            continue
+
+        avg_probability = sum(float(row["probabilities"][outcome]) for row in bucket) / len(bucket)
+        frequency = sum(1 for row in bucket if row["actual_outcome"] == outcome) / len(bucket)
+        calibration_error = abs(avg_probability - frequency)
+        weighted_error += calibration_error * len(bucket) / total
+        result.append(
+            {
+                "bin": _calibration_bin_label(index, bins),
+                "matches": len(bucket),
+                "avg_probability": round(avg_probability, 6),
+                "actual_frequency": round(frequency, 6),
+                "calibration_error": round(calibration_error, 6),
+            }
+        )
+    return result, round(weighted_error, 6)
+
+
+def _calibration_candidate(label: str, model: str, rows: list[dict[str, Any]], parameters: dict[str, Any]) -> dict[str, Any]:
+    summary = _aggregate(rows)
+    confidence_bins, ece = _confidence_calibration(rows)
+    class_bins = {}
+    class_ece = {}
+    for outcome in OUTCOMES:
+        bins, outcome_ece = _class_calibration(rows, outcome)
+        class_bins[outcome] = bins
+        class_ece[outcome] = outcome_ece
+
+    matches = len(rows) or 1
+    probabilities_by_actual = {
+        outcome: [row["probabilities"] for row in rows if row["actual_outcome"] == outcome]
+        for outcome in OUTCOMES
+    }
+    return {
+        "label": label,
+        "model": model,
+        "parameters": parameters,
+        "matches": len(rows),
+        "accuracy": summary.get("outcome_accuracy"),
+        "brier_score": summary.get("brier_score"),
+        "log_loss": summary.get("log_loss"),
+        "ece": ece,
+        "mean_winning_confidence": round(sum(max(float(value) for value in row["probabilities"].values()) for row in rows) / matches, 6),
+        "confidence_bins": confidence_bins,
+        "average_probabilities": {
+            outcome: round(sum(row["probabilities"][outcome] for row in rows) / matches, 6)
+            for outcome in OUTCOMES
+        },
+        "average_probabilities_by_actual_outcome": {
+            actual: {
+                outcome: round(sum(item[outcome] for item in probabilities) / len(probabilities), 6)
+                for outcome in OUTCOMES
+            }
+            for actual, probabilities in probabilities_by_actual.items()
+            if probabilities
+        },
+        "class_calibration": class_bins,
+        "class_ece": class_ece,
+    }
+
+
+def _experiment_8_diagnostics(v1_rows: list[dict[str, Any]], v2_rows: list[dict[str, Any]], experiment_5_rows: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+    candidates = [
+        ("V1 baseline", MODEL_VERSION, {}, v1_rows),
+        ("V2 baseline", MODEL_VERSION_V2, {}, v2_rows),
+        ("V2 home_xg=0.95", MODEL_VERSION_V2, {"enable_home_bias_adjustment": True, "home_xg_multiplier": 0.95, "home_bias_multiplier": 1.0, "away_xg_multiplier": 1.0}, experiment_5_rows.get("home_xg_multiplier=0.95", [])),
+        ("V2 home_xg=0.90", MODEL_VERSION_V2, {"enable_home_bias_adjustment": True, "home_xg_multiplier": 0.90, "home_bias_multiplier": 1.0, "away_xg_multiplier": 1.0}, experiment_5_rows.get("home_xg_multiplier=0.90", [])),
+        ("V2 home_xg=0.85", MODEL_VERSION_V2, {"enable_home_bias_adjustment": True, "home_xg_multiplier": 0.85, "home_bias_multiplier": 1.0, "away_xg_multiplier": 1.0}, experiment_5_rows.get("home_xg_multiplier=0.85", [])),
+    ]
+    return {
+        "bins": [_calibration_bin_label(index, 10) for index in range(10)],
+        "candidates": [
+            _calibration_candidate(label, model, rows, parameters)
+            for label, model, parameters, rows in candidates
+        ],
+    }
+
+
 def _v2_diagnostics(
     rows: list[dict[str, Any]],
     experiment_5_rows: dict[str, list[dict[str, Any]]] | None = None,
@@ -663,6 +789,7 @@ def compare_v1_v2(
         "diagnostics": {
             "v2": _v2_diagnostics(v2_rows, experiment_5_rows, experiment_5_configs, experiment_6_rows, experiment_6_configs),
             "experiment_7": _experiment_7_diagnostics(v1_rows, v2_rows, experiment_5_rows),
+            "experiment_8": _experiment_8_diagnostics(v1_rows, v2_rows, experiment_5_rows),
         },
         "data_quality": data_quality,
         "by_tournament": {

@@ -118,6 +118,35 @@ class ComparativeBacktestTests(unittest.TestCase):
             self.assertIn("date_from", group)
             self.assertEqual(len(group["candidates"]), 5)
 
+    def test_experiment_8_reports_calibration_bins_and_ece(self) -> None:
+        result = compare_v1_v2(build_history(55), min_training_matches=30)
+        experiment = result["diagnostics"]["experiment_8"]
+        v2_version = result["models"][1]
+        v2_rows = [row for row in result["rows"] if row["model_version"] == v2_version]
+
+        self.assertEqual(len(experiment["bins"]), 10)
+        self.assertEqual(len(experiment["candidates"]), 5)
+        labels = [item["label"] for item in experiment["candidates"]]
+        self.assertIn("V1 baseline", labels)
+        self.assertIn("V2 home_xg=0.90", labels)
+
+        v2_baseline = next(item for item in experiment["candidates"] if item["label"] == "V2 baseline")
+        self.assertEqual(v2_baseline["matches"], len(v2_rows))
+        self.assertAlmostEqual(v2_baseline["accuracy"], result["summaries"][v2_version]["outcome_accuracy"], places=6)
+        self.assertGreaterEqual(v2_baseline["ece"], 0)
+        self.assertLessEqual(v2_baseline["ece"], 1)
+        self.assertEqual(len(v2_baseline["confidence_bins"]), 10)
+        self.assertTrue(any(bin_row["matches"] == 0 for bin_row in v2_baseline["confidence_bins"]))
+        self.assertEqual(sum(bin_row["matches"] for bin_row in v2_baseline["confidence_bins"]), len(v2_rows))
+        self.assertEqual(set(v2_baseline["class_calibration"].keys()), {"home", "draw", "away"})
+        self.assertEqual(len(v2_baseline["class_calibration"]["draw"]), 10)
+        self.assertIn("draw", v2_baseline["class_ece"])
+
+        candidate = next(item for item in experiment["candidates"] if item["label"] == "V2 home_xg=0.90")
+        self.assertTrue(candidate["parameters"]["enable_home_bias_adjustment"])
+        self.assertEqual(candidate["parameters"]["home_xg_multiplier"], 0.90)
+        self.assertEqual(sum(bin_row["matches"] for bin_row in candidate["confidence_bins"]), len(v2_rows))
+
 
 if __name__ == "__main__":
     unittest.main()
