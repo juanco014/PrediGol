@@ -3,10 +3,11 @@ import { ArrowLeft, Search, Target } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
 import LoadingState from "../components/LoadingState";
+import TeamLogo from "../components/TeamLogo";
 import {
   estadisticasVacias,
-  obtenerEstadisticasSupabase,
-} from "../utils/estadisticasSupabase";
+  obtenerEstadisticasUsuario,
+} from "../services/predictionStatsApi";
 
 const filtrosPronosticos = [
   {
@@ -103,7 +104,7 @@ function PronosticosPage({ session }) {
       };
     }
 
-    obtenerEstadisticasSupabase(usuarioId)
+    obtenerEstadisticasUsuario(usuarioId)
       .then((estadisticas) => {
         if (!respuestaCancelada) {
           setEstadisticasPrediGol(estadisticas);
@@ -111,12 +112,12 @@ function PronosticosPage({ session }) {
         }
       })
       .catch((errorCarga) => {
-        console.error("Error al cargar pronosticos:", errorCarga);
+        console.error("Error al cargar pronósticos:", errorCarga);
 
         if (!respuestaCancelada) {
           setError(
             errorCarga.message ||
-              "No fue posible cargar tus pronosticos. Intentalo de nuevo."
+              "No fue posible cargar tus pronósticos. Inténtalo de nuevo."
           );
         }
       })
@@ -168,7 +169,7 @@ function PronosticosPage({ session }) {
 
   const resumen = [
     {
-      label: "Pronosticos",
+      label: "Pronósticos",
       value: estadisticasPrediGol.totalPronosticos,
     },
     {
@@ -198,7 +199,7 @@ function PronosticosPage({ session }) {
         </button>
 
         <p className="brand">PREDIGOL</p>
-        <h1>Mis pronosticos</h1>
+        <h1>Mis pronósticos</h1>
         <p>
           Revisa tus marcadores guardados, filtra por resultado y abre el
           detalle de cualquier partido.
@@ -234,7 +235,7 @@ function PronosticosPage({ session }) {
           />
         </label>
 
-        <div className="predictions-filter-bar" aria-label="Filtrar pronosticos">
+        <div className="predictions-filter-bar" aria-label="Filtrar pronósticos">
           {filtrosPronosticos.map((filtro) => (
             <button
               key={filtro.id}
@@ -250,12 +251,12 @@ function PronosticosPage({ session }) {
         </div>
 
         {cargando ? (
-          <LoadingState cards={3} label="Cargando tus pronosticos" />
+          <LoadingState cards={3} label="Cargando tus pronósticos" />
         ) : error ? (
           <article className="no-predictions-card">{error}</article>
         ) : pronosticosFiltrados.length === 0 ? (
           <article className="no-predictions-card">
-            No hay pronosticos con este filtro. Ajusta la busqueda o vuelve a
+            Todavía no tienes pronósticos con este filtro. Ajusta la búsqueda o vuelve a
             Partidos para guardar uno nuevo.
           </article>
         ) : (
@@ -265,17 +266,21 @@ function PronosticosPage({ session }) {
 
               return (
                 <article className="saved-prediction-card" key={pronostico.id}>
-                  <div>
+                  <div className="saved-prediction-main">
                     <p className="saved-prediction-tournament">
                       {pronostico.torneo} - {formatearFecha(pronostico.fechaOrden)}
                     </p>
 
-                    <h3>
-                      {pronostico.local} vs {pronostico.visitante}
-                    </h3>
+                    <div className="saved-prediction-teams">
+                      <TeamLogo teamName={pronostico.local} size="small" />
+                      <h3>
+                        {pronostico.local} vs {pronostico.visitante}
+                      </h3>
+                      <TeamLogo teamName={pronostico.visitante} size="small" />
+                    </div>
 
                     <p className="saved-prediction-detail">
-                      Tu pronostico: {pronostico.marcador}
+                      Tu pronóstico: {pronostico.marcador}
                       {pronostico.resultadoFinal &&
                         ` - Resultado final: ${pronostico.resultadoFinal.local} - ${pronostico.resultadoFinal.visitante}`}
                     </p>
@@ -307,9 +312,9 @@ function PronosticosPage({ session }) {
 
         <div>
           <p className="section-label">TIP PREDIGOL</p>
-          <h3>Los pronosticos se bloquean cuando inicia el partido</h3>
+          <h3>Los pronósticos se bloquean cuando inicia el partido</h3>
           <p>
-            Revisa fecha y hora antes de guardar. Si el partido ya finalizo, el
+            Revisa fecha y hora antes de guardar. Si el partido ya finalizó, el
             sistema calcula puntos con el resultado real.
           </p>
         </div>

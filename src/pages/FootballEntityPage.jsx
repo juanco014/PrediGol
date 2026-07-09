@@ -4,53 +4,23 @@ import { useNavigate, useParams } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
 import LoadingState from "../components/LoadingState";
 import { useFavorites } from "../hooks/useFavorites";
-import { supabase } from "../lib/supabase";
+import { obtenerPartidosPorEquipo, obtenerPartidosPorTorneo } from "../services/footballApi";
 import {
   adaptarPartidoExplorador,
   crearRutaEntidad,
   formatearFechaPartido,
   leerNombreEntidad,
   normalizarTextoBusqueda,
-  PARTIDO_EXPLORADOR_SELECT,
 } from "../utils/footballEntities";
 
 async function consultarEntidad(tipo, nombre) {
   if (tipo === "torneo") {
-    const response = await supabase
-      .from("partidos")
-      .select(PARTIDO_EXPLORADOR_SELECT)
-      .eq("torneo", nombre)
-      .order("fecha_orden", { ascending: false })
-      .limit(100);
-    if (response.error) throw response.error;
-    return (response.data || []).map(adaptarPartidoExplorador);
+    const partidos = await obtenerPartidosPorTorneo(nombre);
+    return partidos.map(adaptarPartidoExplorador);
   }
 
-  const [localResponse, awayResponse] = await Promise.all([
-    supabase
-      .from("partidos")
-      .select(PARTIDO_EXPLORADOR_SELECT)
-      .eq("local_nombre", nombre)
-      .order("fecha_orden", { ascending: false })
-      .limit(60),
-    supabase
-      .from("partidos")
-      .select(PARTIDO_EXPLORADOR_SELECT)
-      .eq("visitante_nombre", nombre)
-      .order("fecha_orden", { ascending: false })
-      .limit(60),
-  ]);
-
-  if (localResponse.error) throw localResponse.error;
-  if (awayResponse.error) throw awayResponse.error;
-
-  const unique = new Map();
-  [...(localResponse.data || []), ...(awayResponse.data || [])]
-    .map(adaptarPartidoExplorador)
-    .forEach((partido) => unique.set(partido.id, partido));
-  return [...unique.values()].sort(
-    (a, b) => new Date(b.fechaOrden).getTime() - new Date(a.fechaOrden).getTime()
-  );
+  const partidos = await obtenerPartidosPorEquipo(nombre);
+  return partidos.map(adaptarPartidoExplorador);
 }
 
 function calcularResumenEquipo(partidos, nombre) {
@@ -95,8 +65,8 @@ function FootballEntityPage({ session, type }) {
         }
       })
       .catch((queryError) => {
-        console.error("Error al cargar entidad de futbol:", queryError);
-        if (active) setError(queryError.message || "No fue posible cargar esta pagina.");
+        console.error("Error al cargar entidad de fútbol:", queryError);
+        if (active) setError(queryError.message || "No fue posible cargar esta página.");
       })
       .finally(() => {
         if (active) setCargando(false);
@@ -169,9 +139,9 @@ function FootballEntityPage({ session, type }) {
       {error && <p className="prediction-message">{error}</p>}
 
       {cargando ? (
-        <LoadingState cards={3} label="Cargando estadisticas" />
+        <LoadingState cards={3} label="Cargando estadísticas" />
       ) : partidos.length === 0 ? (
-        <section className="empty-league-card"><p>Sin datos disponibles.</p><span>Esta pagina se llenara al sincronizar partidos.</span></section>
+        <section className="empty-league-card"><p>Sin datos disponibles.</p><span>Esta página se llenará al sincronizar partidos.</span></section>
       ) : (
         <>
           <section className="entity-stats-grid">
@@ -193,8 +163,8 @@ function FootballEntityPage({ session, type }) {
           )}
 
           <section className="entity-section">
-            <div className="entity-section-title"><CalendarDays size={18} /><h2>Proximos partidos</h2></div>
-            {proximos.length === 0 ? <p className="entity-empty">No hay partidos proximos cargados.</p> : (
+            <div className="entity-section-title"><CalendarDays size={18} /><h2>Próximos partidos</h2></div>
+            {proximos.length === 0 ? <p className="entity-empty">No hay partidos próximos cargados.</p> : (
               <div className="entity-match-list">{proximos.map((partido) => (
                 <button type="button" onClick={() => navigate(`/partidos/${partido.id}`)} key={partido.id}>
                   <span>{partido.torneo}</span><strong>{partido.local} vs {partido.visitante}</strong><small>{formatearFechaPartido(partido.fechaOrden)}</small>

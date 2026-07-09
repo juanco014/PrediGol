@@ -10,18 +10,17 @@ import { useNavigate } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
 import LoadingState from "../components/LoadingState";
 import { useFavorites } from "../hooks/useFavorites";
-import { supabase } from "../lib/supabase";
+import { obtenerPartidosExplorador } from "../services/footballApi";
 import {
   adaptarPartidoExplorador,
   crearRutaEntidad,
   formatearFechaPartido,
   normalizarTextoBusqueda,
-  PARTIDO_EXPLORADOR_SELECT,
 } from "../utils/footballEntities";
 
 const STATUS_FILTERS = [
   ["todos", "Todos"],
-  ["proximo", "Proximos"],
+  ["proximo", "Próximos"],
   ["en_vivo", "En vivo"],
   ["finalizado", "Finalizados"],
 ];
@@ -54,13 +53,8 @@ function ExplorarPage({ session }) {
   useEffect(() => {
     let active = true;
 
-    supabase
-      .from("partidos")
-      .select(PARTIDO_EXPLORADOR_SELECT)
-      .order("fecha_orden", { ascending: false })
-      .limit(200)
-      .then(({ data, error: queryError }) => {
-        if (queryError) throw queryError;
+    obtenerPartidosExplorador()
+      .then((data) => {
         if (active) {
           setPartidos((data || []).map(adaptarPartidoExplorador));
           setError("");
@@ -118,7 +112,7 @@ function ExplorarPage({ session }) {
       <header className="explore-header">
         <div>
           <p className="brand">PREDIGOL</p>
-          <h1>Explorar futbol</h1>
+          <h1>Explorar fútbol</h1>
           <p>Encuentra partidos, equipos y torneos desde un solo lugar.</p>
         </div>
         <Search size={30} />

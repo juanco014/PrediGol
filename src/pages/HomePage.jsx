@@ -4,9 +4,11 @@ import { useNavigate } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
 import LoadingState from "../components/LoadingState";
 import StatusMessage from "../components/StatusMessage";
+import TeamLogo from "../components/TeamLogo";
 import { useFavorites } from "../hooks/useFavorites";
 import { useProfile } from "../hooks/useProfile";
 import { supabase } from "../lib/supabase";
+import { obtenerPartidosInicio } from "../services/footballApi";
 import {
   calcularDetallePuntaje,
   partidoAceptaPronosticos,
@@ -18,7 +20,6 @@ import {
 import { obtenerCuentaRegresiva } from "../utils/fechasPartidos";
 
 const MAX_PARTIDOS_INICIO = 10;
-const MAX_PARTIDOS_CONSULTA = 40;
 
 function formatearPorcentaje(valor) {
   const numero = Number(valor);
@@ -30,127 +31,18 @@ function formatearPorcentaje(valor) {
   return `${Math.round(numero * 100)}%`;
 }
 
+function esMismoDia(fecha, referencia) {
+  const fechaPartido = new Date(fecha);
+
+  if (Number.isNaN(fechaPartido.getTime())) {
+    return false;
+  }
+
+  return fechaPartido.toDateString() === referencia.toDateString();
+}
+
 async function consultarDatosInicio(usuarioId) {
-  const [respuestaPartidos, respuestaPronosticos] = await Promise.all([
-    supabase
-      .from("partidos")
-      .select(
-        `
-          id,
-          torneo,
-          fecha_texto,
-          fecha_orden,
-          local_nombre,
-          visitante_nombre,
-          local_corto,
-          visitante_corto,
-          estado,
-          goles_local_final,
-          goles_visitante_final,
-          api_football_fixture_id,
-          minuto,
-          es_relevante,
-          prioridad_visual
-        `
-      )
-      .eq("es_relevante", true)
-      .order("prioridad_visual", { ascending: true })
-      .order("fecha_orden", { ascending: true })
-      .limit(MAX_PARTIDOS_CONSULTA),
-
-    supabase
-      .from("pronosticos")
-      .select("partido_id, goles_local, goles_visitante")
-      .eq("usuario_id", usuarioId),
-  ]);
-
-  if (respuestaPartidos.error) {
-    throw respuestaPartidos.error;
-  }
-
-  if (respuestaPronosticos.error) {
-    throw respuestaPronosticos.error;
-  }
-
-  const partidosAdaptados = (respuestaPartidos.data || []).map((partido) => ({
-    id: partido.id,
-    apiFootballFixtureId: partido.api_football_fixture_id,
-    torneo: partido.torneo,
-    fecha: partido.fecha_texto,
-    fechaOrden: partido.fecha_orden,
-    local: partido.local_nombre,
-    visitante: partido.visitante_nombre,
-    localShort: partido.local_corto,
-    visitanteShort: partido.visitante_corto,
-    estado: partido.estado,
-    esRelevante: partido.es_relevante,
-    prioridadVisual: partido.prioridad_visual,
-    resultadoFinal:
-      partido.estado === "finalizado"
-        ? {
-            local: partido.goles_local_final,
-            visitante: partido.goles_visitante_final,
-          }
-        : null,
-    minuto: partido.minuto,
-  }));
-
-  const pronosticosPorPartido = Object.fromEntries(
-    (respuestaPronosticos.data || []).map((pronostico) => [
-      pronostico.partido_id,
-      {
-        local: pronostico.goles_local,
-        visitante: pronostico.goles_visitante,
-      },
-    ])
-  );
-
-  const apiFootballFixtureIds = partidosAdaptados
-    .map((partido) => partido.apiFootballFixtureId)
-    .filter(Boolean);
-
-  let prediccionesModelo = {};
-
-  if (apiFootballFixtureIds.length > 0) {
-    const respuestaPredicciones = await supabase
-      .from("model_predictions")
-      .select(
-        `
-          api_football_fixture_id,
-          home_win_probability,
-          draw_probability,
-          away_win_probability,
-          expected_home_goals,
-          expected_away_goals,
-          predicted_home_goals,
-          predicted_away_goals,
-          confidence,
-          model_version,
-          generated_at
-        `
-      )
-      .in("api_football_fixture_id", apiFootballFixtureIds);
-
-    if (respuestaPredicciones.error) {
-      console.warn(
-        "No fue posible cargar predicciones del modelo:",
-        respuestaPredicciones.error
-      );
-    } else {
-      prediccionesModelo = Object.fromEntries(
-        (respuestaPredicciones.data || []).map((prediccion) => [
-          prediccion.api_football_fixture_id,
-          prediccion,
-        ])
-      );
-    }
-  }
-
-  return {
-    partidos: partidosAdaptados,
-    pronosticos: pronosticosPorPartido,
-    prediccionesModelo,
-  };
+  return obtenerPartidosInicio(usuarioId);
 }
 
 function HomePage({ session }) {
@@ -322,18 +214,42 @@ function HomePage({ session }) {
     const ordenados = [...partidos].sort(
       (a, b) => Number(esFavorito(b)) - Number(esFavorito(a))
     );
-    const filtrados =
-      filtroPartidos === "favoritos"
-        ? ordenados.filter(esFavorito)
-        : ordenados;
+    const filtrados = ordenados.filter((partido) => {
+      if (filtroPartidos === "favoritos") {
+        return esFavorito(partido);
+      }
+
+      if (filtroPartidos === "hoy") {
+        return esMismoDia(partido.fechaOrden, momentoActual);
+      }
+
+      if (filtroPartidos === "sin_pronostico") {
+        return !pronosticosGuardados[partido.id];
+      }
+
+      return true;
+    });
 
     return filtrados.slice(0, MAX_PARTIDOS_INICIO);
   }, [
     isCompetitionFavorite,
     isTeamFavorite,
     filtroPartidos,
+    momentoActual,
     partidos,
+    pronosticosGuardados,
   ]);
+
+  const partidoDestacado =
+    partidosPersonalizados.find((partido) =>
+      partidoAceptaPronosticos(partido, momentoActual)
+    ) || partidosPersonalizados[0];
+  const prediccionDestacada = partidoDestacado
+    ? prediccionesModelo[partidoDestacado.apiFootballFixtureId]
+    : null;
+  const cuentaDestacada = partidoDestacado
+    ? obtenerCuentaRegresiva(partidoDestacado.fechaOrden, momentoActual)
+    : null;
 
   const usuarioActual = crearUsuarioRanking({
     puntosTotales: estadisticas.puntosTotales,
@@ -546,7 +462,7 @@ function HomePage({ session }) {
       <section className="home-quick-actions">
         <button type="button" onClick={() => navigate("/pronosticos")}>
           <Target size={17} />
-          <span>Mis pronosticos</span>
+          <span>Mis pronósticos</span>
         </button>
         <button type="button" onClick={() => navigate("/ranking")}>
           <Medal size={17} />
@@ -556,6 +472,78 @@ function HomePage({ session }) {
           <Users size={17} />
           <span>Ligas privadas</span>
         </button>
+      </section>
+
+      <section className="home-featured-match" aria-label="Partido destacado">
+        <div className="home-featured-kicker">
+          <div>
+            <p className="section-label">PARTIDO DESTACADO</p>
+            <h3>Tu foco de la jornada</h3>
+          </div>
+          {partidoDestacado && <span>{partidoDestacado.torneo}</span>}
+        </div>
+
+        {partidoDestacado ? (
+          <>
+            <div className="home-featured-scoreboard">
+              <div>
+                <TeamLogo
+                  teamName={partidoDestacado.local}
+                  logoUrl={partidoDestacado.localLogoUrl}
+                  size="large"
+                />
+                <strong>{partidoDestacado.local}</strong>
+              </div>
+              <span>VS</span>
+              <div>
+                <TeamLogo
+                  teamName={partidoDestacado.visitante}
+                  logoUrl={partidoDestacado.visitanteLogoUrl}
+                  size="large"
+                />
+                <strong>{partidoDestacado.visitante}</strong>
+              </div>
+            </div>
+
+            <div className="home-featured-meta">
+              <span>{partidoDestacado.fecha}</span>
+              {cuentaDestacada && <span>{cuentaDestacada.texto}</span>}
+              <span>
+                {pronosticosGuardados[partidoDestacado.id]
+                  ? "Pronóstico guardado"
+                  : "Pendiente por pronosticar"}
+              </span>
+            </div>
+
+            <div className="home-featured-model">
+              {prediccionDestacada ? (
+                <>
+                  <span>
+                    Modelo PrediGol {prediccionDestacada.model_version || ""}: Local {formatearPorcentaje(prediccionDestacada.home_win_probability)} · Empate {formatearPorcentaje(prediccionDestacada.draw_probability)} · Visitante {formatearPorcentaje(prediccionDestacada.away_win_probability)}
+                  </span>
+                  <strong>
+                    PrediGol estima {prediccionDestacada.predicted_home_goals} - {prediccionDestacada.predicted_away_goals}
+                  </strong>
+                </>
+              ) : (
+                <span>Predicción del modelo no disponible todavía.</span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="home-featured-action"
+              onClick={() => navigate(`/partidos/${partidoDestacado.id}`)}
+            >
+              Ver análisis del partido
+            </button>
+          </>
+        ) : (
+          <div className="home-featured-empty">
+            <p>No hay partido destacado disponible.</p>
+            <span>Cuando existan partidos relevantes, aparecerán aquí para priorizar tu jornada.</span>
+          </div>
+        )}
       </section>
 
       <section className="section-header">
@@ -591,6 +579,22 @@ function HomePage({ session }) {
           <Heart size={15} />
           Mis favoritos
         </button>
+        <button
+          type="button"
+          className={filtroPartidos === "hoy" ? "home-filter-active" : ""}
+          onClick={() => setFiltroPartidos("hoy")}
+        >
+          Hoy
+        </button>
+        <button
+          type="button"
+          className={
+            filtroPartidos === "sin_pronostico" ? "home-filter-active" : ""
+          }
+          onClick={() => setFiltroPartidos("sin_pronostico")}
+        >
+          Sin pronóstico
+        </button>
       </section>
 
       {cargando ? (
@@ -599,13 +603,13 @@ function HomePage({ session }) {
         <section className="empty-league-card">
           <p>
             {filtroPartidos === "favoritos"
-              ? "Aun no hay partidos de tus favoritos."
-              : "No hay partidos disponibles."}
+              ? "Aún no hay partidos de tus favoritos."
+                    : "No hay partidos disponibles todavía."}
           </p>
           <span>
             {filtroPartidos === "favoritos"
               ? "Abre el detalle de un partido y sigue un equipo o torneo."
-              : "Los partidos relevantes de la temporada apareceran aqui para pronosticar."}
+              : "Los partidos relevantes de la temporada aparecerán aquí para pronosticar."}
           </span>
         </section>
       ) : (
@@ -688,20 +692,30 @@ function HomePage({ session }) {
                   >
                     <Clock3 size={15} />
                     <strong>{cuentaRegresiva.texto}</strong>
-                    <span>para cerrar pronosticos</span>
+                    <span>para cerrar pronósticos</span>
                   </div>
                 )}
 
                 <div className="teams-row">
                   <div className="team">
-                    <div className="team-badge">{partido.localShort}</div>
+                    <TeamLogo
+                      teamName={partido.local}
+                      logoUrl={partido.localLogoUrl}
+                      size="medium"
+                      className="team-badge"
+                    />
                     <p>{partido.local}</p>
                   </div>
 
                   <div className="versus">VS</div>
 
                   <div className="team">
-                    <div className="team-badge">{partido.visitanteShort}</div>
+                    <TeamLogo
+                      teamName={partido.visitante}
+                      logoUrl={partido.visitanteLogoUrl}
+                      size="medium"
+                      className="team-badge"
+                    />
                     <p>{partido.visitante}</p>
                   </div>
                 </div>
@@ -751,7 +765,7 @@ function HomePage({ session }) {
                   {partidoBloqueado
                     ? partidoFinalizado
                       ? "Partido cerrado: ya puedes revisar tus puntos."
-                      : "Pronosticos cerrados para este partido."
+                      : "Pronósticos cerrados para este partido."
                     : pronosticoGuardado
                       ? "Puedes cambiar tu marcador mientras el partido siga abierto."
                       : "Guarda tu marcador antes de que inicie el partido."}

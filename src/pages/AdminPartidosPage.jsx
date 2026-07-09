@@ -11,8 +11,15 @@ import {
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import TeamLogo from "../components/TeamLogo";
 import { supabase } from "../lib/supabase";
 import { useProfile } from "../hooks/useProfile";
+import {
+  obtenerEstadoSincronizacionFootball,
+  obtenerPartidosAdminConFiltros,
+  obtenerResumenDatosMvp,
+  obtenerResumenYCalidadAdminPartidos,
+} from "../services/adminFootballApi";
 import { isAdminUser } from "../utils/admin";
 
 const formularioInicial = {
@@ -164,6 +171,8 @@ function AdminPartidosPage({ session }) {
   const [cargandoApiMonitor, setCargandoApiMonitor] = useState(false);
   const [guardandoApiCron, setGuardandoApiCron] = useState(false);
   const [resumenDatos, setResumenDatos] = useState(null);
+  const [resumenAdmin, setResumenAdmin] = useState(null);
+  const [calidadDatos, setCalidadDatos] = useState(null);
   const [cargandoResumenDatos, setCargandoResumenDatos] = useState(false);
   const [historicoBatch, setHistoricoBatch] = useState({ year: "2024", month: "8" });
   const [modelSettings, setModelSettings] = useState(null);
@@ -274,7 +283,7 @@ function AdminPartidosPage({ session }) {
     if (resumenDatos.listoModelo && resumenDatos.faltanPredicciones === 0) {
       return {
         className: "admin-data-health-ready",
-        texto: "Modelo listo: los partidos proximos relevantes ya tienen prediccion guardada.",
+      texto: "Modelo listo: los partidos próximos relevantes ya tienen predicción guardada.",
       };
     }
 
@@ -294,167 +303,50 @@ function AdminPartidosPage({ session }) {
 
     return {
       className: "admin-data-health-warning",
-      texto: "Falta al menos un partido proximo marcado como relevante para generar predicciones visibles.",
+      texto: "Falta al menos un partido próximo marcado como relevante para generar predicciones visibles.",
     };
   }, [resumenDatos]);
 
   const cargarPartidos = useCallback(async () => {
     setCargando(true);
 
-    const { data, error } = await supabase
-      .from("partidos")
-      .select(
-        `
-          id,
-          torneo,
-          fecha_texto,
-          fecha_orden,
-          local_nombre,
-          visitante_nombre,
-          local_corto,
-          visitante_corto,
-          estado,
-          goles_local_final,
-          goles_visitante_final,
-          temporada,
-          ronda,
-          origen_datos,
-          fuente_detalle,
-          es_relevante,
-          prioridad_visual
-        `
-      )
-      .order("fecha_orden", { ascending: false })
-      .limit(120);
-
-    if (error) {
-      setMensaje(error.message || "No fue posible cargar partidos.");
+    try {
+      const datos = await obtenerPartidosAdminConFiltros({ limit: 120 }, supabase);
+      setPartidos(datos || []);
+    } catch (errorCarga) {
+      console.error("Error al cargar partidos admin:", errorCarga);
+      setMensaje("No se pudo cargar el resumen admin.");
       setCargando(false);
       return;
     }
 
-    setPartidos(data || []);
     setCargando(false);
   }, []);
 
   const cargarResumenDatos = useCallback(async () => {
     setCargandoResumenDatos(true);
 
-    const [
-      respuestaPartidos,
-      respuestaPredicciones,
-      respuestaEvaluaciones,
-      respuestaErroresCliente,
-    ] = await Promise.all([
-      supabase
-        .from("partidos")
-        .select(
-          `
-            id,
-            estado,
-            origen_datos,
-            es_relevante,
-            goles_local_final,
-            goles_visitante_final,
-            api_football_fixture_id
-          `
-        )
-        .limit(3000),
-      supabase
-        .from("model_predictions")
-        .select("api_football_fixture_id,confidence,generated_at,model_version")
-        .order("generated_at", { ascending: false })
-        .limit(3000),
-      supabase
-        .from("model_evaluations")
-        .select(
-          "model_version,evaluated_at,split_date,training_matches,test_matches,outcome_accuracy,exact_score_accuracy,home_goals_mae,away_goals_mae,brier_score,log_loss,baseline_outcome_accuracy,baseline_brier_score,metadata"
-        )
-        .order("evaluated_at", { ascending: false })
-        .limit(8),
-      supabase
-        .from("app_error_logs")
-        .select("source,message,route,created_at")
-        .order("created_at", { ascending: false })
-        .limit(20),
-    ]);
+    try {
+      const [datosMvp, datosAdmin] = await Promise.all([
+        obtenerResumenDatosMvp(supabase, MINIMO_HISTORICOS_MODELO),
+        obtenerResumenYCalidadAdminPartidos(supabase),
+      ]);
 
-    if (respuestaPartidos.error) {
-      setResumenDatos({
-        error: respuestaPartidos.error.message || "No fue posible calcular la salud de datos.",
+      setResumenDatos(datosMvp);
+      setResumenAdmin(datosAdmin.resumen);
+      setCalidadDatos(datosAdmin.calidad);
+    } catch (errorCarga) {
+      console.error("Error al cargar resumen admin:", errorCarga);
+      setResumenDatos({ error: "No se pudo cargar el resumen admin." });
+      setCalidadDatos({
+        nivel: "error",
+        mensaje: "No se pudo cargar el resumen admin.",
+        total: 0,
+        detalles: [],
       });
+    } finally {
       setCargandoResumenDatos(false);
-      return;
     }
-
-    const filas = respuestaPartidos.data || [];
-    const predicciones = respuestaPredicciones.error ? [] : respuestaPredicciones.data || [];
-    const evaluaciones = respuestaEvaluaciones.error ? [] : respuestaEvaluaciones.data || [];
-    const ultimaEvaluacion = evaluaciones[0] ?? null;
-    const erroresCliente = respuestaErroresCliente.error
-      ? []
-      : respuestaErroresCliente.data || [];
-    const hace24Horas = Date.now() - 24 * 60 * 60 * 1000;
-    const fixturesConPrediccion = new Set(
-      predicciones
-        .map((prediccion) => prediccion.api_football_fixture_id)
-        .filter((fixtureId) => fixtureId !== null && fixtureId !== undefined)
-    );
-    const historicosEntrenables = filas.filter(
-      (partido) =>
-        partido.estado === "finalizado" &&
-        partido.goles_local_final !== null &&
-        partido.goles_visitante_final !== null
-    ).length;
-    const proximosRelevantesLista = filas.filter(
-      (partido) =>
-        partido.estado === "proximo" &&
-        partido.es_relevante &&
-        partido.api_football_fixture_id !== null
-    );
-    const proximosRelevantes = proximosRelevantesLista.length;
-    const proximosConPrediccion = proximosRelevantesLista.filter((partido) =>
-      fixturesConPrediccion.has(partido.api_football_fixture_id)
-    ).length;
-    const faltanHistoricos = Math.max(MINIMO_HISTORICOS_MODELO - historicosEntrenables, 0);
-    const confianzaPromedio =
-      predicciones.length > 0
-        ? predicciones.reduce((total, prediccion) => total + Number(prediccion.confidence || 0), 0) /
-          predicciones.length
-        : 0;
-
-    setResumenDatos({
-      total: filas.length,
-      finalizados: filas.filter((partido) => partido.estado === "finalizado").length,
-      historicosEntrenables,
-      proximosRelevantes,
-      apiFootball: filas.filter((partido) => partido.origen_datos === "api_football").length,
-      googleSheets: filas.filter((partido) => partido.origen_datos === "google_sheets").length,
-      manuales: filas.filter((partido) => !partido.origen_datos || partido.origen_datos === "manual")
-        .length,
-      prediccionesGuardadas: predicciones.length,
-      prediccionesPorModelo: predicciones.reduce((conteo, prediccion) => {
-        const version = prediccion.model_version || "sin version";
-        conteo[version] = (conteo[version] || 0) + 1;
-        return conteo;
-      }, {}),
-      proximosConPrediccion,
-      faltanPredicciones: Math.max(proximosRelevantes - proximosConPrediccion, 0),
-      ultimaPrediccion: predicciones[0]?.generated_at ?? null,
-      confianzaPromedio,
-      prediccionesError: respuestaPredicciones.error?.message ?? null,
-      ultimaEvaluacion,
-      evaluaciones,
-      evaluacionError: respuestaEvaluaciones.error?.message ?? null,
-      erroresCliente24h: erroresCliente.filter(
-        (errorCliente) => new Date(errorCliente.created_at).getTime() >= hace24Horas
-      ).length,
-      ultimoErrorCliente: erroresCliente[0] ?? null,
-      erroresClienteError: respuestaErroresCliente.error?.message ?? null,
-      faltanHistoricos,
-      listoModelo: faltanHistoricos === 0 && proximosRelevantes > 0,
-    });
-    setCargandoResumenDatos(false);
   }, []);
 
   const cargarModelSettings = useCallback(async () => {
@@ -476,7 +368,7 @@ function AdminPartidosPage({ session }) {
     const { data, error } = await supabase.rpc("obtener_google_sheet_sync_config");
 
     if (error) {
-      setMensaje(error.message || "No fue posible cargar la sincronizacion automatica.");
+      setMensaje(error.message || "No fue posible cargar la sincronización automática.");
       return;
     }
 
@@ -490,20 +382,19 @@ function AdminPartidosPage({ session }) {
   const cargarApiFootballMonitor = useCallback(async () => {
     setCargandoApiMonitor(true);
 
-    const { data, error } = await supabase.rpc("obtener_api_football_monitor");
+    const estadoSync = await obtenerEstadoSincronizacionFootball(supabase);
 
-    if (error) {
+    if (estadoSync.nivel === "error") {
       setApiMonitor({
-        error: error.message || "No fue posible cargar el monitor de API-Football.",
-        runs: [],
-        summary: {},
+        ...estadoSync,
+        error: "No fue posible cargar el monitor de API-Football.",
       });
       setCargandoApiMonitor(false);
       return;
     }
 
-    const config = data?.config ?? {};
-    setApiMonitor(data);
+    const config = estadoSync.config ?? {};
+    setApiMonitor(estadoSync);
     setApiCronConfig({
       enabled: Boolean(config.enabled),
       season: config.season ?? "",
@@ -541,7 +432,7 @@ function AdminPartidosPage({ session }) {
 
   const guardarModeloActivo = async (modelo) => {
     const confirmar = window.confirm(
-      `Vas a dejar ${modelo} como modelo activo administrativo. V1 seguira siendo seguro hasta que ejecutes predicciones explicitamente.`
+      `Vas a dejar ${modelo} como modelo activo administrativo. V1 seguirá siendo seguro hasta que ejecutes predicciones explícitamente.`
     );
 
     if (!confirmar) {
@@ -618,12 +509,12 @@ function AdminPartidosPage({ session }) {
     const golesVisitante = Number(resultado.visitante);
 
     if (!Number.isInteger(golesLocal) || !Number.isInteger(golesVisitante)) {
-      setMensaje("Ingresa un resultado valido antes de cerrar.");
+      setMensaje("Ingresa un resultado válido antes de cerrar.");
       return;
     }
 
     const confirmar = window.confirm(
-      `Vas a cerrar este partido con marcador ${golesLocal}-${golesVisitante}. Esta accion bloqueara nuevos pronosticos.`
+      `Vas a cerrar este partido con marcador ${golesLocal}-${golesVisitante}. Esta acción bloqueará nuevos pronósticos.`
     );
 
     if (!confirmar) {
@@ -652,7 +543,7 @@ function AdminPartidosPage({ session }) {
 
   const cancelarPartido = async (partidoId) => {
     const confirmar = window.confirm(
-      "Vas a cancelar este partido. Se ocultara como partido jugable y no aceptara nuevos pronosticos."
+      "Vas a cancelar este partido. Se ocultará como partido jugable y no aceptará nuevos pronósticos."
     );
 
     if (!confirmar) {
@@ -730,7 +621,7 @@ function AdminPartidosPage({ session }) {
       edicion.estado === "finalizado" &&
       (!Number.isInteger(golesLocal) || !Number.isInteger(golesVisitante))
     ) {
-      setMensaje("Para finalizar desde edicion debes ingresar ambos goles.");
+      setMensaje("Para finalizar desde edición debes ingresar ambos goles.");
       return;
     }
 
@@ -876,8 +767,8 @@ function AdminPartidosPage({ session }) {
 
     setMensaje(
       dryRun
-        ? `Previsualizacion lista: ${created} nuevos, ${updated} para actualizar, ${skipped} omitidos, ${errors} con error.`
-        : `Importacion lista: ${created} creados, ${updated} actualizados, ${skipped} omitidos, ${errors} con error.`
+        ? `Previsualización lista: ${created} nuevos, ${updated} para actualizar, ${skipped} omitidos, ${errors} con error.`
+        : `Importación lista: ${created} creados, ${updated} actualizados, ${skipped} omitidos, ${errors} con error.`
     );
 
     setImportandoSheet(false);
@@ -901,7 +792,7 @@ function AdminPartidosPage({ session }) {
     const urlActual = sheetUrl.trim() || syncConfig?.csv_url || "";
 
     if (enabled && !urlActual) {
-      setMensaje("Pega una URL antes de activar la sincronizacion automatica.");
+      setMensaje("Pega una URL antes de activar la sincronización automática.");
       return;
     }
 
@@ -914,7 +805,7 @@ function AdminPartidosPage({ session }) {
     });
 
     if (error) {
-      setMensaje(error.message || "No fue posible guardar la sincronizacion automatica.");
+      setMensaje(error.message || "No fue posible guardar la sincronización automática.");
       setGuardandoSync(false);
       return;
     }
@@ -922,8 +813,8 @@ function AdminPartidosPage({ session }) {
     setSyncConfig(data);
     setMensaje(
       enabled
-        ? "Sincronizacion automatica activada. Supabase revisara la hoja cada hora."
-        : "Sincronizacion automatica desactivada."
+        ? "Sincronización automática activada. Supabase revisará la hoja cada hora."
+        : "Sincronización automática desactivada."
     );
     setGuardandoSync(false);
   };
@@ -986,15 +877,15 @@ function AdminPartidosPage({ session }) {
     });
 
     if (error) {
-      setMensaje(error.message || "No fue posible guardar la automatizacion de API-Football.");
+      setMensaje(error.message || "No fue posible guardar la automatización de API-Football.");
       setGuardandoApiCron(false);
       return;
     }
 
     setMensaje(
       apiCronConfig.enabled
-        ? "Automatizacion API-Football activada."
-        : "Automatizacion API-Football guardada y desactivada."
+        ? "Automatización API-Football activada."
+        : "Automatización API-Football guardada y desactivada."
     );
     setGuardandoApiCron(false);
     await cargarApiFootballMonitor();
@@ -1011,7 +902,7 @@ function AdminPartidosPage({ session }) {
     const rango = obtenerRangoMesHistorico(historicoBatch.year, historicoBatch.month);
 
     if (!rango) {
-      setMensaje("Elige un ano y mes validos para preparar el rango historico.");
+      setMensaje("Elige un año y mes válidos para preparar el rango histórico.");
       return null;
     }
 
@@ -1095,7 +986,7 @@ function AdminPartidosPage({ session }) {
     const urlActual = sheetUrl.trim() || syncConfig?.csv_url || "";
 
     if (!urlActual) {
-      setMensaje("Pega una URL o activa una hoja automatica antes de sincronizar.");
+      setMensaje("Pega una URL o activa una hoja automática antes de sincronizar.");
       return;
     }
 
@@ -1123,7 +1014,7 @@ function AdminPartidosPage({ session }) {
     setPreviewSheet(data);
     setPreviewSheetUrl(urlActual);
     setMensaje(
-      `Sincronizacion ejecutada: ${data?.created ?? 0} creados, ${
+      `Sincronización ejecutada: ${data?.created ?? 0} creados, ${
         data?.updated ?? 0
       } actualizados, ${data?.skipped?.length ?? 0} omitidos, ${
         data?.errors?.length ?? 0
@@ -1180,10 +1071,10 @@ function AdminPartidosPage({ session }) {
       <section className="admin-demo-card">
         <div>
           <p className="section-label">FASE 5</p>
-          <h2>Demo MVP publico</h2>
+          <h2>Demo MVP público</h2>
           <span>
-            Inicio muestra maximo 10 partidos relevantes. Para una demo limpia, importa la
-            hoja de ejemplo, deja 5 a 10 visibles, guarda pronosticos y cierra un resultado.
+            Inicio muestra máximo 10 partidos relevantes. Para una demo limpia, importa la
+            hoja de ejemplo, deja 5 a 10 visibles, guarda pronósticos y cierra un resultado.
           </span>
         </div>
 
@@ -1200,7 +1091,7 @@ function AdminPartidosPage({ session }) {
             <p className="section-label">FASE 2</p>
             <h2>Salud de datos MVP</h2>
             <span>
-              Revisa si ya hay historicos suficientes para entrenar y partidos relevantes para
+              Revisa si ya hay históricos suficientes para entrenar y partidos relevantes para
               mostrar predicciones.
             </span>
           </div>
@@ -1215,13 +1106,13 @@ function AdminPartidosPage({ session }) {
           <span>Total: {resumenDatos?.total ?? "-"}</span>
           <span>Finalizados: {resumenDatos?.finalizados ?? "-"}</span>
           <span>Entrenables: {resumenDatos?.historicosEntrenables ?? "-"}</span>
-          <span>Proximos relevantes: {resumenDatos?.proximosRelevantes ?? "-"}</span>
+          <span>Próximos relevantes: {resumenDatos?.proximosRelevantes ?? "-"}</span>
           <span>API-Football: {resumenDatos?.apiFootball ?? "-"}</span>
           <span>Google Sheets: {resumenDatos?.googleSheets ?? "-"}</span>
           <span>Manuales: {resumenDatos?.manuales ?? "-"}</span>
           <span>Predicciones: {resumenDatos?.prediccionesGuardadas ?? "-"}</span>
           <span>Errores web 24 h: {resumenDatos?.erroresCliente24h ?? "-"}</span>
-          <span>Proximos con modelo: {resumenDatos?.proximosConPrediccion ?? "-"}</span>
+          <span>Próximos con modelo: {resumenDatos?.proximosConPrediccion ?? "-"}</span>
           <span>
             Confianza prom.:{" "}
             {resumenDatos?.prediccionesGuardadas
@@ -1229,11 +1120,29 @@ function AdminPartidosPage({ session }) {
               : "-"}
           </span>
           {resumenDatos?.ultimaPrediccion && (
-            <span>Ultima prediccion: {formatearFecha(resumenDatos.ultimaPrediccion)}</span>
+            <span>Última predicción: {formatearFecha(resumenDatos.ultimaPrediccion)}</span>
           )}
           <span>Modelo activo: {modelSettings?.active_model || "V1"}</span>
           <span>Python local: verificar con scripts/verificar_python.py</span>
         </div>
+
+        <div className="admin-data-health-grid">
+          <span>Partidos legacy: {resumenAdmin?.totalPartidosLegacy ?? "-"}</span>
+          <span>Fixtures: {resumenAdmin?.totalFixtures ?? "-"}</span>
+          <span>Fixtures vinculados: {resumenAdmin?.fixturesVinculados ?? "-"}</span>
+          <span>Fixtures sin vínculo: {resumenAdmin?.fixturesSinVinculo ?? "-"}</span>
+          <span>Partidos sin fixture: {resumenAdmin?.partidosSinFixture ?? "-"}</span>
+          <span>Equipos con logo: {resumenAdmin?.equiposConLogo ?? "-"}</span>
+          <span>Equipos sin logo: {resumenAdmin?.equiposSinLogo ?? "-"}</span>
+          <span>Errores sync: {resumenAdmin?.erroresSync ?? "-"}</span>
+        </div>
+
+        {calidadDatos && (
+          <p className={`admin-data-health-status admin-data-health-${calidadDatos.nivel}`}>
+            {calidadDatos.mensaje}
+            {calidadDatos.detalles.length > 0 ? ` ${calidadDatos.detalles.join(" ")}` : ""}
+          </p>
+        )}
 
         {resumenDatos?.prediccionesPorModelo && (
           <p className="admin-data-health-note">
@@ -1278,7 +1187,7 @@ function AdminPartidosPage({ session }) {
 
         {resumenDatos?.ultimoErrorCliente && (
           <p className="admin-client-error-summary">
-            <strong>Ultimo error web:</strong>{" "}
+            <strong>Último error web:</strong>{" "}
             {resumenDatos.ultimoErrorCliente.message} en{" "}
             {resumenDatos.ultimoErrorCliente.route} -{" "}
             {formatearFecha(resumenDatos.ultimoErrorCliente.created_at)}
@@ -1300,7 +1209,7 @@ function AdminPartidosPage({ session }) {
                 <p className="section-label">BACKTEST TEMPORAL</p>
                 <strong>{resumenDatos.ultimaEvaluacion.model_version}</strong>
                 <span>
-                  Entreno con {resumenDatos.ultimaEvaluacion.training_matches} y probo con{" "}
+                  Entrenó con {resumenDatos.ultimaEvaluacion.training_matches} y probó con{" "}
                   {resumenDatos.ultimaEvaluacion.test_matches} partidos desde{" "}
                   {formatearFecha(resumenDatos.ultimaEvaluacion.split_date)}.
                 </span>
@@ -1313,7 +1222,7 @@ function AdminPartidosPage({ session }) {
                 }
               >
                 {resumenDatos.ultimaEvaluacion.metadata?.beats_baseline_brier
-                  ? "Supera linea base"
+                  ? "Supera línea base"
                   : "Revisar modelo"}
               </b>
             </div>
@@ -1326,7 +1235,7 @@ function AdminPartidosPage({ session }) {
                 </strong>
               </span>
               <span>
-                Linea base
+                Línea base
                 <strong>
                   {Math.round(
                     resumenDatos.ultimaEvaluacion.baseline_outcome_accuracy * 100
@@ -1360,14 +1269,14 @@ function AdminPartidosPage({ session }) {
 
             {resumenDatos.ultimaEvaluacion.test_matches < 30 && (
               <small>
-                Muestra pequena: espera al menos 30 partidos de prueba antes de tomar
+                Muestra pequeña: espera al menos 30 partidos de prueba antes de tomar
                 decisiones fuertes sobre el modelo.
               </small>
             )}
           </section>
         ) : (
           <p className="admin-data-health-note">
-            Aun no hay backtest. Ejecuta el servicio con `--backtest` para medir el modelo.
+            Aún no hay backtest. Ejecuta el servicio con `--backtest` para medir el modelo.
           </p>
         )}
 
@@ -1375,8 +1284,8 @@ function AdminPartidosPage({ session }) {
           <section className="admin-model-evaluation">
             <div className="admin-model-evaluation-header">
               <div>
-                <p className="section-label">COMPARACION V1/V2</p>
-                <strong>Ultimas evaluaciones</strong>
+                <p className="section-label">COMPARACIÓN V1/V2</p>
+                <strong>Últimas evaluaciones</strong>
                 <span>Compara modelos solo con backtests temporales equivalentes.</span>
               </div>
             </div>
@@ -1471,16 +1380,16 @@ function AdminPartidosPage({ session }) {
 
       <form className="admin-import-panel" onSubmit={importarGoogleSheet}>
         <div>
-          <p className="section-label">IMPORTACION</p>
+            <p className="section-label">IMPORTACIÓN</p>
           <h2>Importar desde Google Sheets</h2>
           <span>
             Pega el enlace de una hoja publicada como CSV. La API crea partidos nuevos y
             actualiza los que ya tengan el mismo id externo.
           </span>
           <span className="admin-sync-status">
-            Sync automatico: {syncConfig?.enabled ? "activo cada hora" : "inactivo"}
+            Sync automático: {syncConfig?.enabled ? "activo cada hora" : "inactivo"}
             {syncConfig?.last_synced_at
-              ? ` - ultimo: ${formatearFecha(syncConfig.last_synced_at)}`
+              ? ` - último: ${formatearFecha(syncConfig.last_synced_at)}`
               : ""}
           </span>
         </div>
@@ -1570,9 +1479,9 @@ function AdminPartidosPage({ session }) {
         <div className="admin-api-monitor-header">
           <div>
             <p className="section-label">FASE 13</p>
-            <h2>Operacion API-Football</h2>
+          <h2>Operación API-Football</h2>
             <span>
-              Controla la automatizacion, la cuota disponible y el historial de
+              Controla la automatización, la cuota disponible y el historial de
               sincronizaciones antes de activar el plan pago.
             </span>
           </div>
@@ -1593,7 +1502,7 @@ function AdminPartidosPage({ session }) {
           <>
             <div className="admin-api-monitor-metrics">
               <article>
-                <span>Automatizacion</span>
+                <span>Automatización</span>
                 <strong>{apiMonitor?.config?.enabled ? "Activa" : "Inactiva"}</strong>
               </article>
               <article>
@@ -1636,7 +1545,7 @@ function AdminPartidosPage({ session }) {
               </label>
 
               <label>
-                Proximos por liga
+                Próximos por liga
                 <input
                   type="number"
                   min="1"
@@ -1665,7 +1574,7 @@ function AdminPartidosPage({ session }) {
                     actualizarApiCron("sync_upcoming", event.target.checked)
                   }
                 />
-                Proximos cada hora
+                Próximos cada hora
               </label>
 
               <label className="admin-api-cron-check">
@@ -1690,20 +1599,19 @@ function AdminPartidosPage({ session }) {
 
               <button type="submit" disabled={guardandoApiCron}>
                 <Save size={17} />
-                {guardandoApiCron ? "Guardando..." : "Guardar automatizacion"}
+                {guardandoApiCron ? "Guardando..." : "Guardar automatización"}
               </button>
             </form>
 
             <div className="admin-api-runs">
               <div className="admin-api-runs-title">
-                <strong>Ultimas ejecuciones</strong>
+                <strong>Últimas ejecuciones</strong>
                 <span>Se conservan resultados, tiempos y errores por llamada.</span>
               </div>
 
               {apiSyncRuns.length === 0 ? (
                 <p className="admin-api-runs-empty">
-                  Aun no hay ejecuciones registradas. Ejecuta una sincronizacion manual
-                  despues de aplicar la migracion.
+                  No hay registros de sincronización.
                 </p>
               ) : (
                 apiSyncRuns.map((run) => (
@@ -1732,21 +1640,21 @@ function AdminPartidosPage({ session }) {
       <form className="admin-api-football-panel" onSubmit={sincronizarApiFootball}>
         <div>
           <p className="section-label">API-FOOTBALL</p>
-          <h2>Sincronizar datos historicos</h2>
+          <h2>Sincronizar datos históricos</h2>
           <span>
-            Usa API-Football para cargar historicos gratuitos. En plan Free, lo mas estable
+            Usa API-Football para cargar históricos gratuitos. En plan Free, lo más estable
             es usar modo rango con temporadas 2022 a 2024.
           </span>
         </div>
 
         <div className="admin-history-helper">
           <div>
-            <strong>Importador rapido por mes</strong>
-            <span>Prepara o sincroniza un mes completo para poblar historicos gratis.</span>
+            <strong>Importador rápido por mes</strong>
+            <span>Prepara o sincroniza un mes completo para poblar históricos gratis.</span>
           </div>
 
           <label>
-            Ano
+            Año
             <input
               type="number"
               min="2022"
@@ -1862,8 +1770,8 @@ function AdminPartidosPage({ session }) {
 
       {syncConfig?.last_result && (
         <section className="admin-sync-last-result">
-          <strong>Ultima sincronizacion automatica</strong>
-          <span>{syncConfig.last_result.rows ?? 0} filas leidas</span>
+          <strong>Última sincronización automática</strong>
+          <span>{syncConfig.last_result.rows ?? 0} filas leídas</span>
           <span>{syncConfig.last_result.created ?? 0} creados</span>
           <span>{syncConfig.last_result.updated ?? 0} actualizados</span>
           <span>{syncConfig.last_result.skipped?.length ?? 0} omitidos</span>
@@ -1892,8 +1800,8 @@ function AdminPartidosPage({ session }) {
       {previewSheet && (
         <section className="admin-import-preview">
           <div className="admin-preview-summary">
-            <strong>Previsualizacion</strong>
-            <span>{previewSheet.rows ?? 0} filas leidas</span>
+          <strong>Previsualización</strong>
+          <span>{previewSheet.rows ?? 0} filas leídas</span>
             <span>{previewSheet.created ?? 0} nuevos</span>
             <span>{previewSheet.updated ?? 0} actualizaciones</span>
             <span>{previewSheet.skipped?.length ?? 0} omitidos</span>
@@ -1924,7 +1832,7 @@ function AdminPartidosPage({ session }) {
 
           {(previewSheet.preview?.length ?? 0) > 12 && (
             <p className="admin-preview-note">
-              Mostrando 12 de {previewSheet.preview.length} filas. Importar hoja procesara todas.
+              Mostrando 12 de {previewSheet.preview.length} filas. Importar hoja procesará todas.
             </p>
           )}
         </section>
@@ -1932,7 +1840,7 @@ function AdminPartidosPage({ session }) {
 
       <section className="admin-list-header">
         <div>
-          <p className="section-label">GESTION</p>
+          <p className="section-label">GESTIÓN</p>
           <h2>Partidos administrables</h2>
         </div>
 
@@ -1992,15 +1900,25 @@ function AdminPartidosPage({ session }) {
           <p>Cargando partidos...</p>
           <span>Un momento.</span>
         </section>
+      ) : partidos.length === 0 ? (
+        <section className="empty-league-card">
+          <p>No hay partidos cargados todavía.</p>
+          <span>
+            {resumenAdmin?.totalFixtures > 0
+              ? "Hay fixtures sincronizados, pero falta vincularlos a partidos legacy para administrarlos."
+              : "No hay fixtures sincronizados."}
+          </span>
+        </section>
       ) : partidosOrdenados.length === 0 ? (
         <section className="empty-league-card">
           <p>No hay partidos con estos filtros.</p>
-          <span>Cambia el filtro o limpia la busqueda para revisar la temporada completa.</span>
+          <span>Cambia el filtro o limpia la búsqueda para revisar la temporada completa.</span>
         </section>
       ) : (
         <section className="admin-match-list">
           {partidosOrdenados.map((partido) => {
             const bloqueado = partido.estado === "finalizado" || partido.estado === "cancelado";
+            const soloLectura = Boolean(partido.adminReadOnly);
             const edicion = ediciones[partido.id];
             const clasesPartido = [
               "admin-match-card",
@@ -2013,15 +1931,23 @@ function AdminPartidosPage({ session }) {
 
             return (
               <article className={clasesPartido} key={partido.id}>
-                <div>
+                <div className="admin-match-main">
                   <span>{partido.torneo}</span>
-                  <h3>
-                    {partido.local_nombre} vs {partido.visitante_nombre}
-                  </h3>
+                  <div className="admin-match-teams">
+                    <TeamLogo teamName={partido.local_nombre} logoUrl={partido.localLogoUrl} size="small" />
+                    <h3>
+                      {partido.local_nombre} vs {partido.visitante_nombre}
+                    </h3>
+                    <TeamLogo teamName={partido.visitante_nombre} logoUrl={partido.visitanteLogoUrl} size="small" />
+                  </div>
                   <p>
                     {formatearFecha(partido.fecha_orden)} - {partido.estado} -{" "}
                     {partido.origen_datos || "api"} -{" "}
-                    {partido.es_relevante ? "visible en Inicio" : "oculto"}
+                    {soloLectura
+                      ? "fixture sin vínculo legacy"
+                      : partido.es_relevante
+                        ? "visible en Inicio"
+                        : "oculto"}
                   </p>
                 </div>
 
@@ -2035,7 +1961,7 @@ function AdminPartidosPage({ session }) {
                   <button
                     type="button"
                     onClick={() => iniciarEdicion(partido)}
-                    disabled={procesando}
+                    disabled={procesando || soloLectura}
                     title="Editar partido"
                   >
                     <Pencil size={16} />
@@ -2045,7 +1971,7 @@ function AdminPartidosPage({ session }) {
                     type="button"
                     className={partido.es_relevante ? "admin-visible-button" : ""}
                     onClick={() => marcarRelevancia(partido)}
-                    disabled={procesando}
+                    disabled={procesando || soloLectura}
                   >
                     {partido.es_relevante ? "Ocultar" : "Mostrar"}
                   </button>
@@ -2057,9 +1983,10 @@ function AdminPartidosPage({ session }) {
                     title="Prioridad visual"
                     value={partido.prioridad_visual ?? 100}
                     onChange={(event) => cambiarPrioridad(partido, event.target.value)}
+                    disabled={soloLectura}
                   />
 
-                  {!bloqueado && (
+                  {!bloqueado && !soloLectura && (
                     <>
                       <input
                         type="number"
@@ -2140,7 +2067,7 @@ function AdminPartidosPage({ session }) {
                           actualizarEdicion(partido.id, "estado", event.target.value)
                         }
                       >
-                        <option value="proximo">Proximo</option>
+                        <option value="proximo">Próximo</option>
                         <option value="en_vivo">En vivo</option>
                         <option value="finalizado">Finalizado</option>
                         <option value="cancelado">Cancelado</option>

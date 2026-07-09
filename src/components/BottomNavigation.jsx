@@ -5,7 +5,7 @@ function BottomNavigation({ activePage }) {
   const navigate = useNavigate();
 
   return (
-    <nav className="bottom-nav" aria-label="Navegacion principal">
+    <nav className="bottom-nav" aria-label="Navegación principal">
       <div className="nav-brand" aria-hidden="true">
         PG
       </div>
@@ -22,7 +22,7 @@ function BottomNavigation({ activePage }) {
 
       <button
         type="button"
-        title="Explorar futbol"
+        title="Explorar fútbol"
         className={`nav-item ${activePage === "explorar" ? "active" : ""}`}
         aria-current={activePage === "explorar" ? "page" : undefined}
         onClick={() => navigate("/explorar")}
@@ -33,13 +33,13 @@ function BottomNavigation({ activePage }) {
 
       <button
         type="button"
-        title="Mis pronosticos"
+        title="Mis pronósticos"
         className={`nav-item ${activePage === "pronosticos" ? "active" : ""}`}
         aria-current={activePage === "pronosticos" ? "page" : undefined}
         onClick={() => navigate("/pronosticos")}
       >
         <Target size={20} />
-        <span>Pronosticos</span>
+        <span>Pronósticos</span>
       </button>
 
       <button

@@ -70,7 +70,7 @@ function ModelAdminPage({ session }) {
       setAliases(aliasesResp.error ? [] : aliasesResp.data || []);
       setApiMonitor(apiMonitorResp.error ? null : apiMonitorResp.data || null);
     } catch (error) {
-      setMensaje(error?.message || "No fue posible conectar con Supabase. Verifica configuracion y migraciones.");
+      setMensaje(error?.message || "No fue posible conectar con Supabase. Verifica configuración y migraciones.");
       setSummary(null);
       setRuns([]);
       setDatasets([]);
@@ -107,7 +107,7 @@ function ModelAdminPage({ session }) {
   const comandoApiBase = `python scripts/importar_desde_api.py --liga "${apiForm.liga || "ID_LIGA"}" --temporada "${apiForm.temporada || "TEMPORADA"}"`;
 
   const cambiarModeloActivo = async (modelo) => {
-    if (!window.confirm(`Confirmas seleccionar ${modelo} como modelo activo administrativo?`)) return;
+    if (!window.confirm(`¿Confirmas seleccionar ${modelo} como modelo activo administrativo?`)) return;
     setGuardando(true);
     const { data, error } = await supabase.rpc("guardar_model_prediction_settings", { p_active_model: modelo });
     if (error) setMensaje(error.message || "No fue posible cambiar el modelo activo.");
@@ -121,10 +121,10 @@ function ModelAdminPage({ session }) {
   const guardarAlias = async (event) => {
     event.preventDefault();
     if (!aliasForm.canonical || !aliasForm.alias) {
-      setMensaje("Nombre canonico y alias son obligatorios.");
+      setMensaje("Nombre canónico y alias son obligatorios.");
       return;
     }
-    if (!window.confirm("Confirmas guardar este alias de equipo?")) return;
+    if (!window.confirm("¿Confirmas guardar este alias de equipo?")) return;
     setGuardando(true);
     const { error } = await supabase.rpc("guardar_team_alias", {
       p_canonical_name: aliasForm.canonical,
@@ -148,7 +148,7 @@ function ModelAdminPage({ session }) {
   };
 
   const actualizarAlias = async (alias, status, active = true) => {
-    if (!window.confirm(`Confirmas cambiar el alias a ${status}?`)) return;
+    if (!window.confirm(`¿Confirmas cambiar el alias a ${status}?`)) return;
     const { error } = await supabase.rpc("actualizar_estado_team_alias", {
       p_alias_id: alias.id,
       p_status: status,
@@ -165,15 +165,15 @@ function ModelAdminPage({ session }) {
   };
 
   const mostrarComando = (comando) => {
-    setMensaje(`Ejecuta en la raiz del proyecto: ${comando}`);
+    setMensaje(`Ejecuta en la raíz del proyecto: ${comando}`);
   };
 
   if (!session?.user) {
-    return <main className="admin-page"><section className="empty-league-card"><p>Debes iniciar sesion como administrador para ver este panel.</p></section></main>;
+    return <main className="admin-page"><section className="empty-league-card"><p>Debes iniciar sesión como administrador para ver este panel.</p></section></main>;
   }
 
   if (loadingProfile) {
-    return <main className="admin-page"><section className="empty-league-card"><p>Cargando administracion del modelo...</p></section></main>;
+    return <main className="admin-page"><section className="empty-league-card"><p>Cargando administración del modelo...</p></section></main>;
   }
 
   if (!esAdmin) {
@@ -181,7 +181,7 @@ function ModelAdminPage({ session }) {
   }
 
   if (cargando) {
-    return <main className="admin-page"><section className="empty-league-card"><p>Cargando administracion del modelo...</p></section></main>;
+    return <main className="admin-page"><section className="empty-league-card"><p>Cargando administración del modelo...</p></section></main>;
   }
 
   return (
@@ -191,7 +191,7 @@ function ModelAdminPage({ session }) {
       </button>
       <header className="admin-header">
         <p className="brand">PREDIGOL ADMIN</p>
-        <h1>Modelo de prediccion</h1>
+        <h1>Modelo de predicción</h1>
         <p>Administra trazabilidad, datasets, alias y comparaciones sin cambiar V1 por defecto.</p>
       </header>
       {mensaje && <p className="prediction-message">{mensaje}</p>}
@@ -203,10 +203,10 @@ function ModelAdminPage({ session }) {
         </div>
         <div className="admin-data-health-grid">
           <span>Modelo activo: {summary?.settings?.active_model || "V1"}</span>
-          <span>Ultima ejecucion: {formatearFecha(summary?.last_successful_run?.finished_at || summary?.last_successful_run?.created_at)}</span>
-          <span>Ultimo backtest: {formatearFecha(summary?.last_backtest?.finished_at || summary?.last_backtest?.created_at)}</span>
-          <span>Ultima importacion: {summary?.last_import?.name || "Sin registro"}</span>
-          <span>Historicos validos: {summary?.history?.valid_matches ?? 0}</span>
+          <span>Última ejecución: {formatearFecha(summary?.last_successful_run?.finished_at || summary?.last_successful_run?.created_at)}</span>
+          <span>Último backtest: {formatearFecha(summary?.last_backtest?.finished_at || summary?.last_backtest?.created_at)}</span>
+          <span>Última importación: {summary?.last_import?.name || "Sin registro"}</span>
+          <span>Históricos válidos: {summary?.history?.valid_matches ?? 0}</span>
           <span>Rango: {formatearFecha(summary?.history?.date_from)} - {formatearFecha(summary?.history?.date_to)}</span>
           <span>Torneos: {summary?.history?.tournaments?.length ?? 0}</span>
           <span>Equipos normalizados: {summary?.aliases?.normalized_teams ?? 0}</span>
@@ -223,8 +223,8 @@ function ModelAdminPage({ session }) {
       <section className="admin-import-panel">
         <div><p className="section-label">ACCIONES</p><h2>Comandos del modelo</h2><span>El navegador no ejecuta Python directamente; usa estos comandos o conecta un worker/backend.</span></div>
         <div className="admin-import-actions">
-          <button type="button" onClick={() => mostrarComando("python scripts/diagnostico_modelo_v1.py")}>Diagnostico V1</button>
-          <button type="button" onClick={() => mostrarComando("python scripts/diagnostico_modelo_v2.py")}>Diagnostico V2</button>
+          <button type="button" onClick={() => mostrarComando("python scripts/diagnostico_modelo_v1.py")}>Diagnóstico V1</button>
+          <button type="button" onClick={() => mostrarComando("python scripts/diagnostico_modelo_v2.py")}>Diagnóstico V2</button>
           <button type="button" onClick={() => mostrarComando("python scripts/backtest_modelo_v1.py --model V1")}>Backtest V1</button>
           <button type="button" onClick={() => mostrarComando("python scripts/backtest_modelo_v1.py --model V2")}>Backtest V2</button>
           <button type="button" onClick={() => mostrarComando("python scripts/backtest_v1_v2.py --register")}>Comparativo V1/V2</button>
@@ -234,17 +234,17 @@ function ModelAdminPage({ session }) {
 
       <section className="admin-import-panel">
         <div>
-          <p className="section-label">IMPORTACION DESDE API</p>
-          <h2>API-Football historicos</h2>
+          <p className="section-label">IMPORTACIÓN DESDE API</p>
+          <h2>API-Football históricos</h2>
           <span>La clave privada vive en prediction-service/.env. El frontend no llama API-Football directamente.</span>
         </div>
         <div className="admin-data-health-grid">
           <span>API configurada: {apiMonitor ? "Backend/RPC disponible" : "No verificable desde frontend"}</span>
-          <span>Ultima sincronizacion: {formatearFecha(apiMonitor?.summary?.last_success_at)}</span>
+          <span>Última sincronización: {formatearFecha(apiMonitor?.summary?.last_success_at)}</span>
           <span>Requests 24h: {apiMonitor?.summary?.requests_24h ?? "N/D"}</span>
           <span>Errores 24h: {apiMonitor?.summary?.errors_24h ?? "N/D"}</span>
-          <span>Ultimo dataset API: {ultimoDatasetApi?.name || "Sin registro"}</span>
-          <span>Partidos validos ultimo API: {ultimoDatasetApi?.valid_matches ?? 0}</span>
+          <span>Último dataset API: {ultimoDatasetApi?.name || "Sin registro"}</span>
+          <span>Partidos válidos último API: {ultimoDatasetApi?.valid_matches ?? 0}</span>
         </div>
         <div className="admin-filter-panel">
           <label>Liga API-Football<input value={apiForm.liga} onChange={(event) => setApiForm((actual) => ({ ...actual, liga: event.target.value }))} /></label>
@@ -255,7 +255,7 @@ function ModelAdminPage({ session }) {
           <button type="button" onClick={() => mostrarComando(`python scripts/importar_desde_api.py --liga "${apiForm.liga || "ID_LIGA"}" --listar-temporadas`)}>Listar temporadas</button>
           <button type="button" onClick={() => mostrarComando(`${comandoApiBase} --dry-run`)}>Dry-run temporada</button>
           <button type="button" onClick={() => mostrarComando(`${comandoApiBase} --confirm`)}>Importar temporada</button>
-          <button type="button" onClick={() => mostrarComando(`python scripts/sincronizar_partidos_api.py --liga "${apiForm.liga || "ID_LIGA"}"`)}>Sincronizar proximos</button>
+          <button type="button" onClick={() => mostrarComando(`python scripts/sincronizar_partidos_api.py --liga "${apiForm.liga || "ID_LIGA"}"`)}>Sincronizar próximos</button>
         </div>
         <div className="admin-api-runs">
           {runsApi.length === 0 ? <p className="admin-data-health-note">No hay ejecuciones API registradas en model_runs.</p> : runsApi.map((run) => <article className="admin-api-run" key={run.id}><div><strong>{run.status}</strong><span>{formatearFecha(run.created_at)}</span></div><span>{run.used_matches} importados</span><span>{run.discarded_matches} descartados</span><span>{run.metrics?.provider || run.model_config?.provider || "api-football"}</span>{run.error_detail && <small>{run.error_detail}</small>}</article>)}
@@ -278,23 +278,23 @@ function ModelAdminPage({ session }) {
       <section className="admin-data-health-card">
         <div className="admin-data-health-header"><div><p className="section-label">DATASETS</p><h2>model_datasets</h2></div></div>
         <div className="admin-api-runs">
-          {datasets.length === 0 ? <p className="admin-data-health-note">No hay datasets registrados.</p> : datasets.map((dataset) => <article className="admin-api-run" key={dataset.id}><div><strong>{dataset.name}</strong><span>{dataset.source_type} - {dataset.source_name}</span></div><span>{dataset.competition || "Varios"}</span><span>{dataset.season || "N/D"}</span><span>{dataset.valid_matches} validos</span><span>{dataset.status}</span>{dataset.warnings?.length > 0 && <small>{dataset.warnings[0]}</small>}</article>)}
+          {datasets.length === 0 ? <p className="admin-data-health-note">No hay datasets registrados.</p> : datasets.map((dataset) => <article className="admin-api-run" key={dataset.id}><div><strong>{dataset.name}</strong><span>{dataset.source_type} - {dataset.source_name}</span></div><span>{dataset.competition || "Varios"}</span><span>{dataset.season || "N/D"}</span><span>{dataset.valid_matches} válidos</span><span>{dataset.status}</span>{dataset.warnings?.length > 0 && <small>{dataset.warnings[0]}</small>}</article>)}
         </div>
       </section>
 
       <form className="admin-form" onSubmit={guardarAlias}>
-        <label>Canonico<input value={aliasForm.canonical} onChange={(event) => setAliasForm((actual) => ({ ...actual, canonical: event.target.value }))} /></label>
+        <label>Canónico<input value={aliasForm.canonical} onChange={(event) => setAliasForm((actual) => ({ ...actual, canonical: event.target.value }))} /></label>
         <label>Alias<input value={aliasForm.alias} onChange={(event) => setAliasForm((actual) => ({ ...actual, alias: event.target.value }))} /></label>
         <label>Torneo<input value={aliasForm.tournament} onChange={(event) => setAliasForm((actual) => ({ ...actual, tournament: event.target.value }))} /></label>
-        <label>Pais<input value={aliasForm.country} onChange={(event) => setAliasForm((actual) => ({ ...actual, country: event.target.value }))} /></label>
+        <label>País<input value={aliasForm.country} onChange={(event) => setAliasForm((actual) => ({ ...actual, country: event.target.value }))} /></label>
         <label>Notas<input value={aliasForm.notes} onChange={(event) => setAliasForm((actual) => ({ ...actual, notes: event.target.value }))} /></label>
         <button type="submit" disabled={guardando}><Save size={17} />Guardar alias</button>
       </form>
 
       <section className="admin-data-health-card">
-        <div className="admin-data-health-header"><div><p className="section-label">NORMALIZACION</p><h2>Alias pendientes</h2></div></div>
+        <div className="admin-data-health-header"><div><p className="section-label">NORMALIZACIÓN</p><h2>Alias pendientes</h2></div></div>
         <div className="admin-api-runs">
-          {aliasesPendientes.length === 0 ? <p className="admin-data-health-note">No hay alias pendientes.</p> : aliasesPendientes.map((alias) => <article className="admin-api-run" key={alias.id}><div><strong>{alias.alias}</strong><span>Canonico sugerido: {alias.canonical_name}</span></div><span>{alias.tournament || "sin torneo"}</span><span>{Math.round(Number(alias.confidence || 0) * 100)}%</span><button type="button" onClick={() => actualizarAlias(alias, "approved", true)}>Aprobar</button><button type="button" onClick={() => actualizarAlias(alias, "rejected", false)}>Rechazar</button></article>)}
+          {aliasesPendientes.length === 0 ? <p className="admin-data-health-note">No hay alias pendientes.</p> : aliasesPendientes.map((alias) => <article className="admin-api-run" key={alias.id}><div><strong>{alias.alias}</strong><span>Canónico sugerido: {alias.canonical_name}</span></div><span>{alias.tournament || "sin torneo"}</span><span>{Math.round(Number(alias.confidence || 0) * 100)}%</span><button type="button" onClick={() => actualizarAlias(alias, "approved", true)}>Aprobar</button><button type="button" onClick={() => actualizarAlias(alias, "rejected", false)}>Rechazar</button></article>)}
         </div>
       </section>
     </main>

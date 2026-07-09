@@ -12,10 +12,11 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import BottomNavigation from "../components/BottomNavigation";
+import TeamLogo from "../components/TeamLogo";
 import {
   estadisticasVacias,
-  obtenerEstadisticasSupabase,
-} from "../utils/estadisticasSupabase";
+  obtenerResumenPerfil,
+} from "../services/predictionStatsApi";
 import {
   crearUsuarioRanking,
   obtenerRankingGlobal,
@@ -65,7 +66,7 @@ function ProfilePage({ session }) {
       };
     }
 
-    obtenerEstadisticasSupabase(usuarioId)
+    obtenerResumenPerfil(usuarioId)
       .then((estadisticas) => {
         if (!respuestaCancelada) {
           setEstadisticasPrediGol(estadisticas);
@@ -279,7 +280,7 @@ function ProfilePage({ session }) {
         <p className="section-label">MIS PRONÓSTICOS</p>
         <h2>Marcadores guardados</h2>
         <div className="profile-section-actions">
-          <p>Vista rapida de tus ultimos 3 pronosticos.</p>
+          <p>Vista rápida de tus últimos 3 pronósticos.</p>
           <button type="button" onClick={() => navigate("/pronosticos")}>
             Ver historial completo
           </button>
@@ -311,14 +312,18 @@ function ProfilePage({ session }) {
 
               return (
                 <article className="saved-prediction-card" key={pronostico.id}>
-                  <div>
+                  <div className="saved-prediction-main">
                     <p className="saved-prediction-tournament">
                       {pronostico.torneo}
                     </p>
 
-                    <h3>
-                      {pronostico.local} vs {pronostico.visitante}
-                    </h3>
+                    <div className="saved-prediction-teams">
+                      <TeamLogo teamName={pronostico.local} size="small" />
+                      <h3>
+                        {pronostico.local} vs {pronostico.visitante}
+                      </h3>
+                      <TeamLogo teamName={pronostico.visitante} size="small" />
+                    </div>
 
                     <p className="saved-prediction-detail">
                       Tu pronóstico: {pronostico.marcador}
@@ -368,7 +373,7 @@ function ProfilePage({ session }) {
         ) : favorites.teams.length === 0 &&
           favorites.competitions.length === 0 ? (
           <article className="no-predictions-card">
-            Aun no sigues equipos ni torneos. Puedes agregarlos desde el
+            Aún no sigues equipos ni torneos. Puedes agregarlos desde el
             detalle de cualquier partido.
           </article>
         ) : (
@@ -384,6 +389,7 @@ function ProfilePage({ session }) {
                     key={team.id}
                     title={`Dejar de seguir a ${team.team_name}`}
                   >
+                    <TeamLogo teamName={team.team_name} size="small" />
                     {team.team_name}
                     <X size={14} />
                   </button>
@@ -440,14 +446,14 @@ function ProfilePage({ session }) {
           onClick={() => navigate("/estadisticas")}
         >
           <BarChart3 size={17} />
-          Ver analitica completa
+          Ver analítica completa
         </button>
       </section>
 
       {esAdmin && (
         <section className="achievement-card admin-shortcut-card">
           <div>
-            <p className="section-label">ADMINISTRACION</p>
+            <p className="section-label">ADMINISTRACIÓN</p>
             <h3>Panel de partidos</h3>
             <span>Carga partidos actuales y cierra resultados sin tocar SQL.</span>
           </div>
@@ -461,9 +467,9 @@ function ProfilePage({ session }) {
       {profile && !esAdmin && (
         <section className="achievement-card admin-shortcut-card">
           <div>
-            <p className="section-label">CONFIGURACION INICIAL</p>
+            <p className="section-label">CONFIGURACIÓN INICIAL</p>
             <h3>Activar primer admin</h3>
-            <span>Solo funciona si aun no existe un administrador.</span>
+            <span>Solo funciona si aún no existe un administrador.</span>
           </div>
 
           <button
