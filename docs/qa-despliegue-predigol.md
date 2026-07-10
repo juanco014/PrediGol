@@ -438,3 +438,80 @@ El script usa `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` desde `prediction-ser
 3. Validar admin y usuarios en navegador real.
 4. Validar premium bloqueado/permitido por RLS/RPC.
 5. Cargar historicos/predicciones reales cuando schema este alineado.
+
+## Fase 7D - Verificacion Post-Migraciones Manuales - 2026-07-10
+
+### Estado General
+
+Se reejecuto la verificacion despues de aplicar migraciones manualmente desde Supabase SQL Editor. La conexion real a Supabase sigue funcionando, pero la API REST todavia no expone las tablas/RPC admin-freemium esperadas.
+
+### Seguridad Y Git
+
+| Revision | Resultado |
+| --- | --- |
+| `git status --short` inicial | Limpio. |
+| `predigol-web/.env.local` | Ignorado por Git. |
+| `prediction-service/.env` | Ignorado por Git. |
+| Secretos en archivos rastreados | No se encontraron secretos reales; solo placeholders documentales. |
+| Reportes/build | Ignorados por Git. |
+
+### Resultado Supabase MVP
+
+| Elemento | Resultado |
+| --- | --- |
+| `profiles` | OK. |
+| `model_predictions` | OK. |
+| `model_runs` | Faltante/no expuesto por REST. |
+| `model_datasets` | Faltante/no expuesto por REST. |
+| `team_aliases` | Faltante/no expuesto por REST. |
+| `subscription_plans` | Faltante/no expuesto por REST. |
+| `user_subscriptions` | Faltante/no expuesto por REST. |
+| `predigol_es_admin` | Existe o es visible, pero falla con `permission denied for function predigol_es_admin`. |
+| `obtener_plan_usuario` | Faltante/no expuesto por REST. |
+| `obtener_predicciones_visibles` | Faltante/no expuesto por REST. |
+| `obtener_prediccion_visible` | Faltante/no expuesto por REST. |
+| `predigol_usuario_tiene_premium` | Faltante/no expuesto por REST. |
+
+### Migracion Correctiva Creada
+
+Se creo `supabase/migrations/202607100002_refresh_mvp_grants.sql` para refrescar grants de funciones/tablas MVP existentes y pedir recarga del schema cache de PostgREST:
+
+- No borra datos.
+- No hace reset.
+- No cambia V1/V2.
+- No implementa pagos.
+- Solo aplica grants condicionales si los objetos existen.
+
+No se aplico automaticamente porque no hay Supabase CLI instalado en este entorno. Aplicarla manualmente despues de confirmar que las migraciones base realmente crearon los objetos faltantes.
+
+### Validaciones Ejecutadas
+
+| Comando | Resultado |
+| --- | --- |
+| `scripts/verificar_supabase_mvp.py` | Falla esperado por tablas/RPC faltantes y grant de `predigol_es_admin`. |
+| `scripts/verificar_python.py` | Conecta a Supabase; advierte tablas admin faltantes e historicos insuficientes. |
+| `pytest prediction-service/tests` | 79 tests pasaron. |
+| `npm test` | 90 tests pasaron. |
+| `npm run lint` | Paso. |
+| `npm run build` | Paso. |
+| `npm run preview -- --host 127.0.0.1` | Arranco en `http://127.0.0.1:4173/`. |
+| `scripts/generar_pronosticos.py --dataset reports/api_api_football_liga-39_temporada-2024_dataset.json --model v1` | Salida V1 local ya existia; no se sobrescribio. |
+| `scripts/importar_ligas_temporadas.py --league 39 --seasons 2024 --dry-run` | `skipped_existing`; no consumio cuota. |
+
+### Usuarios Y Premium
+
+No se validaron usuarios reales porque el backend MVP aun no expone las tablas/RPC necesarias para admin/premium. Pendiente despues de corregir Supabase:
+
+- [ ] Usuario admin entra a `/admin`.
+- [ ] Usuario gratis no entra a `/admin`.
+- [ ] Usuario gratis no recibe premium completo.
+- [ ] Usuario premium manual ve contenido permitido.
+- [ ] `user_subscriptions` registra premium manual.
+
+### Pendientes Para Completar 7D
+
+1. Confirmar en SQL Editor que los objetos faltantes existen en schema `public`.
+2. Si existen, ejecutar `notify pgrst, 'reload schema';` o aplicar `202607100002_refresh_mvp_grants.sql`.
+3. Si no existen, reaplicar en orden las migraciones base faltantes de Fase 7C.
+4. Reejecutar `scripts/verificar_supabase_mvp.py` hasta que todas las tablas/RPC esten OK.
+5. Validar usuarios reales y premium manual en navegador.

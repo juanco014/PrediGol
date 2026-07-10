@@ -277,3 +277,31 @@ Orden minimo recomendado para alinear el MVP detectado:
 7. `202607100001_freemium_premium_access.sql`.
 
 No se creo migracion correctiva nueva porque el repo ya contiene las tablas/RPC faltantes; el problema esta en la instancia real no alineada.
+
+## 15. Fase 7D - Verificacion Post-Migraciones Manuales
+
+Despues de aplicar migraciones manualmente en Supabase SQL Editor, la verificacion sigue mostrando objetos faltantes/no expuestos por REST:
+
+- Faltan/no se exponen `model_runs`, `model_datasets`, `team_aliases`, `subscription_plans`, `user_subscriptions`.
+- Faltan/no se exponen RPC freemium `obtener_plan_usuario`, `obtener_predicciones_visibles`, `obtener_prediccion_visible`, `predigol_usuario_tiene_premium`.
+- `predigol_es_admin` responde `permission denied for function predigol_es_admin`.
+
+Se creo una migracion correctiva no destructiva:
+
+```text
+supabase/migrations/202607100002_refresh_mvp_grants.sql
+```
+
+Uso recomendado:
+
+1. Confirmar en SQL Editor que las tablas/RPC base existen en `public`.
+2. Si existen pero no aparecen por REST, aplicar la migracion correctiva o ejecutar `notify pgrst, 'reload schema';`.
+3. Si no existen, reaplicar antes las migraciones base faltantes en el orden documentado en Fase 7C.
+4. Reejecutar:
+
+```bash
+prediction-service/.venv/Scripts/python.exe scripts/verificar_supabase_mvp.py
+prediction-service/.venv/Scripts/python.exe scripts/verificar_python.py
+```
+
+No se aplico automaticamente porque Supabase CLI no esta instalado en este entorno y no se deben ejecutar cambios manuales contra produccion sin confirmacion/backup.

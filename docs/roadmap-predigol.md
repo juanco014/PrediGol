@@ -109,6 +109,12 @@ Estado: pendiente de aplicar migraciones en Supabase real. Se creo `scripts/veri
 
 Siguiente paso recomendado: aplicar migraciones pendientes con backup previo, sin `db reset`, y reejecutar `scripts/verificar_supabase_mvp.py` hasta que tablas/RPC admin-freemium esten OK.
 
+### Fase 7D
+
+Estado: pendiente. Se verifico Supabase despues de migraciones manuales, pero las tablas/RPC admin-freemium siguen faltando o sin exponerse por REST. Se creo `202607100002_refresh_mvp_grants.sql` para corregir grants y recargar schema cache si los objetos ya existen. No se aplico automaticamente.
+
+Pendiente: confirmar existencia de objetos en `public`, aplicar migraciones/grants faltantes y validar usuarios reales.
+
 ## Fases posteriores
 
 | Fase | Objetivo | Estado |

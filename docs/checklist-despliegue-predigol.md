@@ -169,6 +169,26 @@ prediction-service/.venv/Scripts/python.exe scripts/verificar_supabase_mvp.py
 prediction-service/.venv/Scripts/python.exe scripts/verificar_python.py
 ```
 
+## Fase 7D - Verificacion Post-Migraciones
+
+- [x] `.env` reales ignorados.
+- [x] Conexion Supabase desde Python OK.
+- [x] `profiles` OK.
+- [x] `model_predictions` OK.
+- [ ] `model_runs` OK.
+- [ ] `model_datasets` OK.
+- [ ] `team_aliases` OK.
+- [ ] `subscription_plans` OK.
+- [ ] `user_subscriptions` OK.
+- [ ] `predigol_es_admin` ejecutable por roles esperados.
+- [ ] RPC premium disponibles por REST.
+- [x] Migracion correctiva de grants creada: `202607100002_refresh_mvp_grants.sql`.
+- [ ] Migracion correctiva aplicada en Supabase real.
+- [ ] Usuarios reales validados.
+- [ ] Premium manual validado.
+
+Bloqueante: Supabase real sigue sin exponer objetos admin/freemium. Confirmar existencia en SQL Editor y aplicar migraciones/grants pendientes con backup previo.
+
 ## Pendiente Para Pagos Reales
 
 - [ ] Elegir proveedor.
