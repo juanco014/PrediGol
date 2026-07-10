@@ -8,6 +8,7 @@ import {
   estadisticasVacias,
   obtenerEstadisticasUsuario,
 } from "../services/predictionStatsApi";
+import { obtenerPronosticosModelo } from "../services/footballApi";
 
 const filtrosPronosticos = [
   {
@@ -85,6 +86,10 @@ function obtenerEstadoVisual(pronostico) {
   };
 }
 
+function formatearProbabilidad(valor) {
+  return `${Math.round(Number(valor || 0) * 100)}%`;
+}
+
 function PronosticosPage({ session }) {
   const navigate = useNavigate();
   const usuarioId = session?.user?.id;
@@ -92,6 +97,7 @@ function PronosticosPage({ session }) {
     useState(estadisticasVacias);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
+  const [pronosticosModelo, setPronosticosModelo] = useState([]);
   const [filtroActivo, setFiltroActivo] = useState("todos");
   const [busqueda, setBusqueda] = useState("");
 
@@ -104,10 +110,11 @@ function PronosticosPage({ session }) {
       };
     }
 
-    obtenerEstadisticasUsuario(usuarioId)
-      .then((estadisticas) => {
+    Promise.all([obtenerEstadisticasUsuario(usuarioId), obtenerPronosticosModelo()])
+      .then(([estadisticas, modelo]) => {
         if (!respuestaCancelada) {
           setEstadisticasPrediGol(estadisticas);
+          setPronosticosModelo(modelo);
           setError("");
         }
       })
@@ -213,6 +220,63 @@ function PronosticosPage({ session }) {
             <span>{item.label}</span>
           </article>
         ))}
+      </section>
+
+      <section className="profile-section predictions-section">
+        <div className="predictions-section-heading">
+          <div>
+            <p className="section-label">MODELO PRINCIPAL</p>
+            <h2>Pronósticos PrediGol</h2>
+          </div>
+
+          <strong>V1 producción</strong>
+        </div>
+
+        <p className="profile-helper-text">
+          Predicciones informativas generadas por el modelo principal V1. V2 se mantiene experimental y no se usa como producción.
+        </p>
+
+        {cargando ? (
+          <LoadingState cards={3} label="Cargando pronósticos del modelo" />
+        ) : pronosticosModelo.length === 0 ? (
+          <article className="no-predictions-card">
+            Todavía no hay pronósticos del modelo guardados para mostrar.
+          </article>
+        ) : (
+          <div className="saved-predictions-list">
+            {pronosticosModelo.map((pronostico) => (
+              <article
+                key={`${pronostico.apiFootballFixtureId}-${pronostico.generatedAt}`}
+                className="saved-prediction-card"
+                onClick={() => pronostico.partidoId && navigate(`/partidos/${pronostico.partidoId}`)}
+              >
+                <div className="saved-prediction-main">
+                  <span>{pronostico.liga}</span>
+                  <strong>
+                    {pronostico.local} vs {pronostico.visitante}
+                  </strong>
+                  <small>{formatearFecha(pronostico.fechaOrden)}</small>
+                </div>
+
+                <div className="saved-prediction-scoreline">
+                  <span>Local {formatearProbabilidad(pronostico.pHome)}</span>
+                  <span>Empate {formatearProbabilidad(pronostico.pDraw)}</span>
+                  <span>Visitante {formatearProbabilidad(pronostico.pAway)}</span>
+                </div>
+
+                <div className="saved-prediction-result">
+                  <span className={pronostico.accessTier === "free" ? "saved-prediction-pending" : "saved-prediction-score"}>
+                    {pronostico.accessTier === "free" ? "Gratis" : "Premium candidato"}
+                  </span>
+                  <strong>{pronostico.predictedOutcomeLabel}</strong>
+                  <small>
+                    Marcador probable {pronostico.probableScore} · confianza {formatearProbabilidad(pronostico.confidence)}
+                  </small>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="profile-section predictions-section">

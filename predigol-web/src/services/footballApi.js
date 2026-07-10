@@ -440,6 +440,70 @@ export async function obtenerPartidosInicio(usuarioId, client = supabase) {
   };
 }
 
+export async function obtenerPronosticosModelo({ limit = 24, freeLimit = 8 } = {}, client = supabase) {
+  const { data: predicciones, error } = await client
+    .from("model_predictions")
+    .select(
+      `
+        api_football_fixture_id,
+        partido_id,
+        home_win_probability,
+        draw_probability,
+        away_win_probability,
+        expected_home_goals,
+        expected_away_goals,
+        predicted_home_goals,
+        predicted_away_goals,
+        confidence,
+        model_version,
+        generated_at
+      `
+    )
+    .order("generated_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+
+  const fixtureIds = uniqueValues((predicciones || []).map((item) => item.api_football_fixture_id));
+  const partidosResponse = fixtureIds.length > 0
+    ? await client.from("partidos").select(PARTIDOS_SELECT).in("api_football_fixture_id", fixtureIds)
+    : { data: [], error: null };
+
+  if (partidosResponse.error) throw partidosResponse.error;
+
+  const partidosByFixtureId = indexBy(partidosResponse.data, "api_football_fixture_id");
+
+  return (predicciones || []).map((prediccion, index) => {
+    const partido = partidosByFixtureId.get(prediccion.api_football_fixture_id) || {};
+    const probabilities = {
+      home: Number(prediccion.home_win_probability || 0),
+      draw: Number(prediccion.draw_probability || 0),
+      away: Number(prediccion.away_win_probability || 0),
+    };
+    const predictedOutcome = Object.entries(probabilities).sort((a, b) => b[1] - a[1])[0]?.[0] || "home";
+    return {
+      apiFootballFixtureId: prediccion.api_football_fixture_id,
+      partidoId: partido.id || prediccion.partido_id,
+      liga: partido.torneo || "Liga por confirmar",
+      fechaOrden: partido.fecha_orden || null,
+      local: partido.local_nombre || "Local por confirmar",
+      visitante: partido.visitante_nombre || "Visitante por confirmar",
+      pHome: probabilities.home,
+      pDraw: probabilities.draw,
+      pAway: probabilities.away,
+      predictedOutcome,
+      predictedOutcomeLabel: predictedOutcome === "home" ? "Local" : predictedOutcome === "away" ? "Visitante" : "Empate",
+      probableScore: `${prediccion.predicted_home_goals}-${prediccion.predicted_away_goals}`,
+      expectedHomeGoals: prediccion.expected_home_goals,
+      expectedAwayGoals: prediccion.expected_away_goals,
+      confidence: Number(prediccion.confidence || 0),
+      modelVersion: prediccion.model_version,
+      generatedAt: prediccion.generated_at,
+      accessTier: index < freeLimit ? "free" : "premium_candidate",
+    };
+  });
+}
+
 export async function obtenerPartidosExplorador({ limit = 200 } = {}, client = supabase) {
   return obtenerPartidosCompatibles({
     fixtureQuery: client

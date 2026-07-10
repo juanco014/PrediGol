@@ -3,10 +3,11 @@ import test from "node:test";
 import {
   adaptInternalMatchToPartidoRow,
   adaptInternalMatchToDetailPartido,
+  obtenerPronosticosModelo,
   mapFootballFixtureToInternalMatch,
   mapPartidoToInternalMatch,
   selectFootballSourceRows,
-} from "./footballMappers.js";
+} from "./footballApi.js";
 
 test("mapFootballFixtureToInternalMatch normaliza football_fixtures con equipos y liga", () => {
   const fixture = {
@@ -170,4 +171,57 @@ test("selectFootballSourceRows usa fixtures cuando hay datos y fallback partidos
     source: "partidos",
     rows: [],
   });
+});
+
+function createQuery(data) {
+  return {
+    select() { return this; },
+    order() { return this; },
+    limit() { return Promise.resolve({ data, error: null }); },
+    in() { return Promise.resolve({ data, error: null }); },
+  };
+}
+
+test("obtenerPronosticosModelo mapea predicciones del modelo para la UI", async () => {
+  const predictions = [
+    {
+      api_football_fixture_id: 1001,
+      partido_id: "p-1",
+      home_win_probability: 0.52,
+      draw_probability: 0.24,
+      away_win_probability: 0.24,
+      expected_home_goals: 1.8,
+      expected_away_goals: 1.1,
+      predicted_home_goals: 2,
+      predicted_away_goals: 1,
+      confidence: 0.52,
+      model_version: "poisson-elo-v1",
+      generated_at: "2026-07-10T00:00:00Z",
+    },
+  ];
+  const matches = [
+    {
+      id: "p-1",
+      api_football_fixture_id: 1001,
+      torneo: "Premier League",
+      fecha_orden: "2026-08-10T19:00:00Z",
+      local_nombre: "Arsenal",
+      visitante_nombre: "Chelsea",
+    },
+  ];
+  const client = {
+    from(table) {
+      return createQuery(table === "model_predictions" ? predictions : matches);
+    },
+  };
+
+  const result = await obtenerPronosticosModelo({ limit: 1, freeLimit: 1 }, client);
+
+  assert.equal(result.length, 1);
+  assert.equal(result[0].liga, "Premier League");
+  assert.equal(result[0].local, "Arsenal");
+  assert.equal(result[0].pHome, 0.52);
+  assert.equal(result[0].predictedOutcomeLabel, "Local");
+  assert.equal(result[0].probableScore, "2-1");
+  assert.equal(result[0].accessTier, "free");
 });
