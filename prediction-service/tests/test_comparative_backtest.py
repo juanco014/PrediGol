@@ -204,6 +204,61 @@ class ComparativeBacktestTests(unittest.TestCase):
         base = next(item for item in experiment["baseline_comparisons"] if item["label"] == "V2 home_xg=0.90 without selective draw policy")
         self.assertEqual(base["parameters"]["enable_selective_draw_policy"], False)
 
+    def test_experiment_11_reports_candidate_validation_by_league_and_season(self) -> None:
+        history = build_history(120)
+        for index, match in enumerate(history):
+            if index < 40:
+                match["torneo"] = "Liga A"
+                match["temporada"] = 2023
+            elif index < 80:
+                match["torneo"] = "Liga A"
+                match["temporada"] = 2024
+            else:
+                match["torneo"] = "Liga B"
+                match["temporada"] = 2024
+
+        result = compare_v1_v2(history, min_training_matches=30)
+        experiment = result["diagnostics"]["experiment_11"]
+        v2_version = result["models"][1]
+
+        self.assertEqual(experiment["finished_matches_used"], 120)
+        self.assertEqual(experiment["evaluated_matches"], 90)
+        self.assertEqual(experiment["evaluated_matches_after_min_training"], 90)
+        labels = [item["label"] for item in experiment["aggregate"]]
+        self.assertEqual(labels, ["V1 baseline", "V2 baseline", "V2 home_xg=0.90", "V2 home_xg=0.90 selective_draw"])
+        self.assertEqual(len(experiment["candidate_definitions"]), 4)
+        self.assertEqual(len(experiment["by_league"]), 2)
+        self.assertEqual(len(experiment["by_season"]), 2)
+        self.assertEqual(len(experiment["by_dataset"]), 3)
+        self.assertEqual(len(experiment["datasets_evaluated"]), 3)
+
+        v2_baseline = next(item for item in experiment["aggregate"] if item["label"] == "V2 baseline")
+        self.assertAlmostEqual(v2_baseline["accuracy"], result["summaries"][v2_version]["outcome_accuracy"], places=6)
+        self.assertEqual(len(v2_baseline["confidence_bins"]), 10)
+        self.assertGreaterEqual(v2_baseline["ece"], 0)
+        self.assertIn("draw_hits", v2_baseline)
+        self.assertIn("false_draws", v2_baseline)
+        self.assertIn("precision_when_predicting_draw", v2_baseline)
+        self.assertIn("recall_real_draws", v2_baseline)
+
+        home_xg = next(item for item in experiment["aggregate"] if item["label"] == "V2 home_xg=0.90")
+        selective = next(item for item in experiment["aggregate"] if item["label"] == "V2 home_xg=0.90 selective_draw")
+        v2_definition = next(item for item in experiment["candidate_definitions"] if item["label"] == "V2 baseline")
+        self.assertEqual(v2_definition["parameters"], {})
+        self.assertFalse(home_xg["parameters"]["enable_selective_draw_policy"])
+        self.assertTrue(selective["parameters"]["enable_selective_draw_policy"])
+        self.assertFalse(selective["parameters"]["probabilities_changed"])
+        self.assertFalse(selective["parameters"]["xg_changed"])
+        self.assertFalse(selective["parameters"]["score_matrix_changed"])
+        self.assertEqual(selective["brier_score"], home_xg["brier_score"])
+        self.assertEqual(selective["log_loss"], home_xg["log_loss"])
+        self.assertEqual(selective["probability_metrics_note"], "Brier/log_loss/ECE use original probabilities; decision policy only changes predicted_outcome")
+
+        for group in experiment["by_dataset"]:
+            self.assertIn("dataset", group)
+            self.assertIn("date_from", group)
+            self.assertEqual(len(group["candidates"]), 4)
+
 
 if __name__ == "__main__":
     unittest.main()

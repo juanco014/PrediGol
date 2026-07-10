@@ -339,6 +339,7 @@ def _model_diagnostic_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "predicted_home": predicted_home,
         "predicted_draws": predicted_draws,
         "predicted_away": sum(1 for row in rows if row["predicted_outcome"] == "away"),
+        "draw_hits": true_draws,
         "precision_when_predicting_home": _safe_rate(true_home, predicted_home),
         "recall_home_wins": _safe_rate(true_home, actual_home_wins),
         "false_home_predictions": predicted_home - true_home,
@@ -880,6 +881,155 @@ def _experiment_10_diagnostics(v1_rows: list[dict[str, Any]], v2_rows: list[dict
     }
 
 
+def _experiment_11_selective_parameters() -> dict[str, Any]:
+    return {
+        "enable_home_bias_adjustment": True,
+        "home_xg_multiplier": 0.90,
+        "home_bias_multiplier": 1.0,
+        "away_xg_multiplier": 1.0,
+        "enable_selective_draw_policy": True,
+        "selective_draw_min_probability": 0.22,
+        "selective_draw_max_home_away_gap": 0.08,
+        "selective_draw_max_gap_to_winner": 0.05,
+        "probabilities_changed": False,
+        "xg_changed": False,
+        "score_matrix_changed": False,
+    }
+
+
+def _experiment_11_candidate(label: str, model: str, decision_rows: list[dict[str, Any]], probability_rows: list[dict[str, Any]], parameters: dict[str, Any]) -> dict[str, Any]:
+    summary = _model_diagnostic_summary(decision_rows)
+    probability_summary = _aggregate(probability_rows)
+    confidence_bins, ece = _confidence_calibration(probability_rows)
+    matches = len(probability_rows) or 1
+    probability_metrics_note = None
+    if parameters.get("enable_selective_draw_policy"):
+        probability_metrics_note = "Brier/log_loss/ECE use original probabilities; decision policy only changes predicted_outcome"
+    summary.update(
+        {
+            "label": label,
+            "model": model,
+            "parameters": parameters,
+            "brier_score": probability_summary.get("brier_score"),
+            "log_loss": probability_summary.get("log_loss"),
+            "ece": ece,
+            "mean_winning_confidence": round(sum(max(float(value) for value in row["probabilities"].values()) for row in probability_rows) / matches, 6),
+            "confidence_bins": confidence_bins,
+            "probability_metrics_note": probability_metrics_note,
+        }
+    )
+    return summary
+
+
+def _experiment_11_candidates(v1_rows: list[dict[str, Any]], v2_rows: list[dict[str, Any]], experiment_5_rows: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    home_xg_rows = experiment_5_rows.get("home_xg_multiplier=0.90", [])
+    selective_parameters = _experiment_11_selective_parameters()
+    selective_rows = _simulate_selective_draw_policy_rows(home_xg_rows, selective_parameters)
+    return [
+        {"label": "V1 baseline", "model": MODEL_VERSION, "parameters": {}, "decision_rows": v1_rows, "probability_rows": v1_rows},
+        {"label": "V2 baseline", "model": MODEL_VERSION_V2, "parameters": {}, "decision_rows": v2_rows, "probability_rows": v2_rows},
+        {
+            "label": "V2 home_xg=0.90",
+            "model": MODEL_VERSION_V2,
+            "parameters": {"enable_home_bias_adjustment": True, "home_xg_multiplier": 0.90, "home_bias_multiplier": 1.0, "away_xg_multiplier": 1.0, "enable_selective_draw_policy": False},
+            "decision_rows": home_xg_rows,
+            "probability_rows": home_xg_rows,
+        },
+        {
+            "label": "V2 home_xg=0.90 selective_draw",
+            "model": MODEL_VERSION_V2,
+            "parameters": selective_parameters,
+            "decision_rows": selective_rows,
+            "probability_rows": home_xg_rows,
+        },
+    ]
+
+
+def _experiment_11_group(candidates: list[dict[str, Any]], key: str) -> list[dict[str, Any]]:
+    values = sorted({row.get(key) for candidate in candidates for row in candidate["decision_rows"] if row.get(key) is not None})
+    groups = []
+    for value in values:
+        groups.append(
+            {
+                key: str(value),
+                "matches": len([row for row in candidates[0]["decision_rows"] if row.get(key) == value]),
+                "candidates": [
+                    _experiment_11_candidate(
+                        candidate["label"],
+                        candidate["model"],
+                        [row for row in candidate["decision_rows"] if row.get(key) == value],
+                        [row for row in candidate["probability_rows"] if row.get(key) == value],
+                        candidate["parameters"],
+                    )
+                    for candidate in candidates
+                ],
+            }
+        )
+    return groups
+
+
+def _experiment_11_dataset_groups(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    keys = sorted({(row.get("torneo"), row.get("temporada")) for row in candidates[0]["decision_rows"]})
+    groups = []
+    for torneo, temporada in keys:
+        base_rows = [row for row in candidates[0]["decision_rows"] if row.get("torneo") == torneo and row.get("temporada") == temporada]
+        groups.append(
+            {
+                "dataset": f"{torneo} {temporada}",
+                "league": torneo,
+                "season": temporada,
+                "matches": len(base_rows),
+                "date_from": min((row["fecha_orden"] for row in base_rows if row.get("fecha_orden")), default=None),
+                "date_to": max((row["fecha_orden"] for row in base_rows if row.get("fecha_orden")), default=None),
+                "candidates": [
+                    _experiment_11_candidate(
+                        candidate["label"],
+                        candidate["model"],
+                        [row for row in candidate["decision_rows"] if row.get("torneo") == torneo and row.get("temporada") == temporada],
+                        [row for row in candidate["probability_rows"] if row.get("torneo") == torneo and row.get("temporada") == temporada],
+                        candidate["parameters"],
+                    )
+                    for candidate in candidates
+                ],
+            }
+        )
+    return groups
+
+
+def _experiment_11_diagnostics(
+    v1_rows: list[dict[str, Any]],
+    v2_rows: list[dict[str, Any]],
+    experiment_5_rows: dict[str, list[dict[str, Any]]],
+    finished_matches_used: int,
+) -> dict[str, Any]:
+    candidates = _experiment_11_candidates(v1_rows, v2_rows, experiment_5_rows)
+    return {
+        "datasets_evaluated": [
+            {
+                "dataset": f"{torneo} {temporada}",
+                "league": torneo,
+                "season": temporada,
+                "matches": len([row for row in v1_rows if row.get("torneo") == torneo and row.get("temporada") == temporada]),
+            }
+            for torneo, temporada in sorted({(row.get("torneo"), row.get("temporada")) for row in v1_rows})
+        ],
+        "finished_matches_used": finished_matches_used,
+        "evaluated_matches": len(v1_rows),
+        "evaluated_matches_after_min_training": len(v1_rows),
+        "candidate_definitions": [
+            {"label": candidate["label"], "model": candidate["model"], "parameters": candidate["parameters"]}
+            for candidate in candidates
+        ],
+        "aggregate": [
+            _experiment_11_candidate(candidate["label"], candidate["model"], candidate["decision_rows"], candidate["probability_rows"], candidate["parameters"])
+            for candidate in candidates
+        ],
+        "by_league": _experiment_11_group(candidates, "torneo"),
+        "by_season": _experiment_11_group(candidates, "temporada"),
+        "by_dataset": _experiment_11_dataset_groups(candidates),
+    }
+
+
 def _v2_diagnostics(
     rows: list[dict[str, Any]],
     experiment_5_rows: dict[str, list[dict[str, Any]]] | None = None,
@@ -1114,6 +1264,7 @@ def compare_v1_v2(
             "experiment_8": _experiment_8_diagnostics(v1_rows, v2_rows, experiment_5_rows),
             "experiment_9": _experiment_9_diagnostics(v1_rows, v2_rows, experiment_5_rows),
             "experiment_10": _experiment_10_diagnostics(v1_rows, v2_rows, experiment_5_rows),
+            "experiment_11": _experiment_11_diagnostics(v1_rows, v2_rows, experiment_5_rows, len(ordered)),
         },
         "data_quality": data_quality,
         "by_tournament": {

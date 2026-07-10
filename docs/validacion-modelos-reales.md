@@ -550,3 +550,51 @@ Conclusion neutral: Experimento 10 muestra que una politica de empate muy select
 Recomendacion: mantener la politica apagada por defecto. Si se continua, validar esta familia de reglas en mas ligas antes de considerar cualquier adopcion, y no usarla para justificar superioridad mientras Brier/log-loss sigan peores que V1.
 
 Limitaciones: la politica modifica solo la decision final simulada o metadata cuando se habilita; no mejora probabilidades. La validacion sigue limitada a Premier League 2022-2024.
+
+## Experimento 11 V2: validacion multi-liga/multi-temporada de candidatos existentes
+
+Motivacion: evitar seguir ajustando contra Premier League 2022-2024 y ampliar la validacion a todas las ligas y temporadas disponibles localmente antes de considerar cualquier cambio estable.
+
+Objetivo: comparar candidatos ya existentes por agregado, liga, temporada y dataset logico sin cambiar defaults de V2 ni introducir nuevas reglas de modelo. El comando usado fue:
+
+```bash
+python scripts/backtest_v1_v2.py --dataset-glob "reports/api_api_football_liga-*_temporada-*_dataset.json" --min-training 30
+```
+
+Cambio aplicado al reporte: se agrego `diagnostics.experiment_11` con cuatro candidatos: `V1 baseline`, `V2 baseline`, `V2 home_xg=0.90` y `V2 home_xg=0.90 selective_draw`. La politica selectiva usa los parametros del Experimento 10 (`p_draw>=0.22`, `home_away_gap<=0.08`, `winner_gap<=0.05`) y no modifica probabilidades, xG ni matriz. Por eso Brier, log-loss y ECE se calculan con las probabilidades originales del candidato `home_xg=0.90`.
+
+Advertencia: Experimento 11 no cambia defaults de V2. `enable_selective_draw_policy` sigue apagado por defecto y se usa solo como candidato experimental dentro del backtest.
+
+Criterios de interpretacion: no elegir por accuracy solamente; priorizar Brier/log-loss; revisar estabilidad por liga y temporada; detectar mejoras concentradas en una sola liga; verificar si baja el sesgo local sin destruir calibracion; mantener V1 como referencia principal si V2 solo mejora accuracy pero queda peor en Brier/log-loss; marcar impacto bajo si una politica de empate cambia pocos partidos.
+
+Reporte analizado: `reports/backtest_v1_v2_20260709T230314Z.json`, `1110` partidos evaluados. Aunque el glob es multi-liga, los datasets locales disponibles solo cubren Premier League 2022, 2023 y 2024.
+
+Resultados agregados:
+
+| Configuracion | Accuracy | Brier | Log-loss | ECE | Local | Empate | Visitante | Falsos locales | Precision local | Recall local | xG total |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| V1 baseline | 0.519820 | 0.594105 | 0.995172 | 0.036297 | 815 | 0 | 295 | 388 | 0.523926 | 0.854000 | 3.000214 |
+| V2 baseline | 0.513514 | 0.602736 | 1.008483 | 0.022865 | 930 | 0 | 180 | 466 | 0.498925 | 0.928000 | 3.538014 |
+| V2 home_xg=0.90 | 0.527928 | 0.602531 | 1.008291 | 0.065157 | 834 | 0 | 276 | 394 | 0.527578 | 0.880000 | 3.335135 |
+| V2 home_xg=0.90 selective_draw | 0.529730 | 0.602531 | 1.008291 | 0.065157 | 832 | 4 | 274 | 393 | 0.527644 | 0.878000 | 3.335135 |
+
+Resultados por dataset logico:
+
+| Dataset | Configuracion | Accuracy | Brier | Log-loss | Local | Empate | Visitante |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Premier League 2022 | V1 baseline | 0.520000 | 0.593085 | 0.993672 | 285 | 0 | 65 |
+| Premier League 2022 | V2 baseline | 0.514286 | 0.603470 | 1.009235 | 318 | 0 | 32 |
+| Premier League 2022 | V2 home_xg=0.90 | 0.525714 | 0.604005 | 1.009878 | 302 | 0 | 48 |
+| Premier League 2022 | V2 home_xg=0.90 selective_draw | 0.531429 | 0.604005 | 1.009878 | 300 | 4 | 46 |
+| Premier League 2023 | V1 baseline | 0.528947 | 0.576916 | 0.972183 | 275 | 0 | 105 |
+| Premier League 2023 | V2 baseline | 0.555263 | 0.589871 | 0.990675 | 318 | 0 | 62 |
+| Premier League 2023 | V2 home_xg=0.90 | 0.557895 | 0.590693 | 0.992088 | 285 | 0 | 95 |
+| Premier League 2023 | V2 home_xg=0.90 selective_draw | 0.557895 | 0.590693 | 0.992088 | 285 | 0 | 95 |
+| Premier League 2024 | V1 baseline | 0.510526 | 0.612233 | 1.019543 | 255 | 0 | 125 |
+| Premier League 2024 | V2 baseline | 0.471053 | 0.614925 | 1.025598 | 294 | 0 | 86 |
+| Premier League 2024 | V2 home_xg=0.90 | 0.500000 | 0.613012 | 1.023032 | 247 | 0 | 133 |
+| Premier League 2024 | V2 home_xg=0.90 selective_draw | 0.500000 | 0.613012 | 1.023032 | 247 | 0 | 133 |
+
+Interpretacion: el candidato selectivo queda primero en accuracy agregada (`0.529730`), pero la mejora frente a `home_xg=0.90` es minima (`+0.001802`) y solo aparece en Premier League 2022. En 2023 y 2024 no cambia resultados. V1 mantiene mejores Brier y log-loss agregados que todos los candidatos V2, y el ECE de `home_xg=0.90` empeora frente a V1 y V2 baseline.
+
+Conclusion neutral: Experimento 11 no provee evidencia suficiente para cambiar defaults ni para afirmar superioridad de V2. El candidato `home_xg=0.90 selective_draw` puede conservarse como hipotesis experimental, pero requiere validacion multi-liga real antes de cualquier adopcion. Con los datos locales actuales, la validacion sigue siendo multi-temporada de una sola liga.
