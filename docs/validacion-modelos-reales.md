@@ -14,6 +14,15 @@ python scripts/listar_datasets.py
 python scripts/backtest_v1_v2.py --dataset-glob "reports/api_api_football_liga-39_temporada-*_dataset.json" --season 2025 --min-training 30
 ```
 
+Para ampliar la validacion fuera de Premier League, generar datasets multi-liga antes del backtest:
+
+```powershell
+python scripts/importar_ligas_temporadas.py --seasons 2022,2023,2024
+python scripts/backtest_v1_v2.py --dataset-glob "reports/api_api_football_liga-*_temporada-*_dataset.json" --min-training 30
+```
+
+Este flujo solo amplia la muestra real. No cambia V1, no cambia defaults de V2 y no introduce nuevas reglas de modelo.
+
 Revisa los reportes en `reports/` antes de confirmar importaciones. Si hay pocos partidos, aliases pendientes, temporadas no disponibles por plan, o duplicados/conflictos, el backtest solo sirve como diagnostico preliminar.
 
 V1 y V2 deben evaluar exactamente las mismas fechas, torneos y partidos finalizados. No uses partidos futuros al preparar historicos de backtest.
