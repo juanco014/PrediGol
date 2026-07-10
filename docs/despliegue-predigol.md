@@ -193,3 +193,18 @@ Ejecucion local 2026-07-10:
 - Se reemplazaron valores reales encontrados en `.env.example` por placeholders.
 
 Bloqueante para validar backend real: completar variables locales y reejecutar QA. Si las claves detectadas en `.env.example` estuvieron expuestas previamente, rotarlas antes del despliegue publico.
+
+## 13. Reejecucion Fase 7B Con Credenciales
+
+Ejecucion local 2026-07-10:
+
+- `predigol-web/.env.local` existe y esta ignorado.
+- `prediction-service/.env` existe y esta ignorado.
+- Frontend tests/lint/build pasan.
+- Python tests pasan.
+- `scripts/verificar_python.py` conecta a Supabase.
+- Supabase real tiene `profiles` y `model_predictions` accesibles.
+- Supabase real no expone o no tiene aplicadas las tablas admin/freemium `model_runs`, `model_datasets`, `team_aliases`, `subscription_plans`, `user_subscriptions`.
+- RPCs freemium/admin esperadas no estan disponibles por REST.
+
+Accion antes de QA funcional real: aplicar/verificar migraciones del MVP en Supabase definitivo con `npx supabase db push` o revisar el historial de migraciones aplicado en el dashboard/CLI.

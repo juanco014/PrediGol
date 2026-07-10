@@ -125,6 +125,27 @@ Bloqueante actual para completar QA real: faltan variables locales `predigol-web
 
 Accion requerida: completar variables locales y rotar claves si algun valor real de `.env.example` ya fue expuesto fuera del equipo.
 
+## QA Real Fase 7B Reejecutada
+
+- [x] `predigol-web/.env.local` existe y esta ignorado.
+- [x] `prediction-service/.env` existe y esta ignorado.
+- [x] Variables frontend publicas detectadas por nombre.
+- [x] Variables privadas del servicio detectadas por nombre.
+- [x] Supabase conecta desde `scripts/verificar_python.py`.
+- [x] `profiles` accesible.
+- [x] `model_predictions` accesible.
+- [ ] `model_runs` accesible.
+- [ ] `model_datasets` accesible.
+- [ ] `team_aliases` accesible.
+- [ ] `subscription_plans` accesible.
+- [ ] `user_subscriptions` accesible.
+- [ ] RPCs freemium/admin disponibles.
+- [ ] Usuario admin validado en navegador.
+- [ ] Usuario gratis validado en navegador.
+- [ ] Premium manual validado por RLS/RPC.
+
+Bloqueante actual: migraciones admin/freemium parecen no estar aplicadas o no estar expuestas en Supabase real.
+
 ## Pendiente Para Pagos Reales
 
 - [ ] Elegir proveedor.

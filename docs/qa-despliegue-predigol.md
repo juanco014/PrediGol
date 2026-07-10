@@ -270,3 +270,105 @@ No se ejecuto importacion real para no consumir cuota y porque no esta completo 
 4. Reejecutar `scripts/verificar_python.py` hasta que Supabase aparezca OK.
 5. Validar tablas/RPC/RLS con consultas reales.
 6. Probar usuarios gratis, admin y premium manual en navegador.
+
+## Reejecucion Fase 7B - Credenciales Configuradas - 2026-07-10
+
+### Resultado General
+
+Se reejecuto Fase 7B con credenciales locales parcialmente completas. La conexion de Python a Supabase real funciona, pero el proyecto Supabase definitivo no tiene aplicadas o expuestas todas las migraciones/RPC esperadas para admin/freemium.
+
+### Variables Verificadas Sin Exponer Valores
+
+| Archivo | Estado |
+| --- | --- |
+| `predigol-web/.env.local` | Existe e ignorado por Git. |
+| `prediction-service/.env` | Existe e ignorado por Git. |
+
+Variables frontend detectadas por nombre:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+Variables prediction-service detectadas por nombre:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `FOOTBALL_API_KEY`
+- `FOOTBALL_API_DRY_RUN`
+
+### Pruebas Base
+
+| Comando | Resultado |
+| --- | --- |
+| `npm test` | 90 tests pasaron. |
+| `npm run lint` | Paso. |
+| `npm run build` | Paso. |
+| `npm run preview -- --host 127.0.0.1` | Arranco en `http://127.0.0.1:4173/`. |
+| `prediction-service/.venv/Scripts/python.exe -m pytest prediction-service/tests` | 79 tests pasaron. |
+| `prediction-service/.venv/Scripts/python.exe scripts/verificar_python.py` | Supabase conectado; tablas admin/freemium faltantes o no accesibles. |
+
+### Supabase Real Verificado Por REST
+
+Tablas:
+
+| Tabla | Resultado |
+| --- | --- |
+| `profiles` | OK. |
+| `model_predictions` | OK. |
+| `model_runs` | No accesible/no existe en REST. |
+| `model_datasets` | No accesible/no existe en REST. |
+| `team_aliases` | No accesible/no existe en REST. |
+| `subscription_plans` | No accesible/no existe en REST. |
+| `user_subscriptions` | No accesible/no existe en REST. |
+
+RPC:
+
+| RPC | Resultado |
+| --- | --- |
+| `predigol_es_admin` | No disponible para la llamada REST realizada. |
+| `obtener_plan_usuario` | No disponible. |
+| `obtener_predicciones_visibles` | No disponible. |
+| `obtener_prediccion_visible` | No disponible. |
+| `predigol_usuario_tiene_premium` | No disponible. |
+
+`scripts/verificar_python.py` tambien reporto:
+
+- `model_runs`: advertencia, no accesible o no existe.
+- `model_datasets`: advertencia, no accesible o no existe.
+- `team_aliases`: advertencia, no accesible o no existe.
+- Partidos historicos disponibles: 0.
+- Predicciones/registros de modelo: 0.
+
+Conclusion: antes de validar usuarios reales, premium y admin, aplicar/verificar migraciones del MVP en Supabase definitivo.
+
+### Usuarios Y Rutas
+
+No se validaron credenciales de usuarios desde esta sesion porque no se proporcionaron usuario/clave de prueba ni acceso interactivo al navegador. Preview local queda listo para probar manualmente:
+
+- `/`
+- `/auth`
+- `/inicio`
+- `/pronosticos`
+- `/partidos/:partidoId`
+- `/perfil`
+- `/admin`
+- `/admin/modelo`
+- `/admin/partidos`
+
+### Datos Y Pronosticos
+
+| Accion | Resultado |
+| --- | --- |
+| Dry-run API-Football liga 39 temporada 2024 | `skipped_existing`; dataset local ya existe. |
+| Generacion V1 local | Omitida porque `reports/pronosticos_api_api_football_liga-39_temporada-2024_dataset_v1.json` ya existe. |
+| Actualizacion de `model_predictions` | No realizada por este script local; no se sobrescribieron reportes. |
+
+No se ejecuto importacion real de API-Football ni `--force` para evitar consumo de cuota y cambios innecesarios.
+
+### Pendientes Reales
+
+1. Aplicar/verificar migraciones que crean `model_runs`, `model_datasets`, `team_aliases`, `subscription_plans`, `user_subscriptions` y RPC freemium/admin.
+2. Confirmar RLS despues de aplicar migraciones.
+3. Crear/validar admin inicial por SQL controlado.
+4. Probar usuario gratis, admin y premium manual en navegador.
+5. Generar/guardar predicciones reales en `model_predictions` cuando existan historicos suficientes.

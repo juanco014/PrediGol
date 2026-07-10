@@ -101,6 +101,8 @@ Pendiente antes de repetir 7B:
 - Rotar claves si las detectadas en `.env.example` fueron expuestas previamente.
 - Repetir QA contra Supabase real con usuario gratis, admin y premium manual.
 
+Reejecucion con credenciales: parcial. Supabase conecta desde Python y existen `profiles`/`model_predictions`, pero faltan o no estan expuestas tablas/RPC de admin/freemium. Siguiente paso: aplicar/verificar migraciones del MVP en Supabase definitivo antes de validar usuarios, premium y admin.
+
 ## Fases posteriores
 
 | Fase | Objetivo | Estado |
