@@ -146,6 +146,29 @@ Accion requerida: completar variables locales y rotar claves si algun valor real
 
 Bloqueante actual: migraciones admin/freemium parecen no estar aplicadas o no estar expuestas en Supabase real.
 
+## Fase 7C - Sincronizar Migraciones Supabase
+
+- [x] Supabase CLI revisado.
+- [x] No se ejecuto `db reset` ni SQL destructivo.
+- [x] Migraciones faltantes identificadas en el repo.
+- [x] Script `scripts/verificar_supabase_mvp.py` creado.
+- [x] `profiles` OK en Supabase real.
+- [x] `model_predictions` OK en Supabase real.
+- [ ] `model_runs` OK en Supabase real.
+- [ ] `model_datasets` OK en Supabase real.
+- [ ] `team_aliases` OK en Supabase real.
+- [ ] `subscription_plans` OK en Supabase real.
+- [ ] `user_subscriptions` OK en Supabase real.
+- [ ] RPC admin/freemium OK en Supabase real.
+- [ ] RLS/policies validadas con usuarios reales.
+
+Aplicar migraciones pendientes con backup previo y reejecutar:
+
+```bash
+prediction-service/.venv/Scripts/python.exe scripts/verificar_supabase_mvp.py
+prediction-service/.venv/Scripts/python.exe scripts/verificar_python.py
+```
+
 ## Pendiente Para Pagos Reales
 
 - [ ] Elegir proveedor.

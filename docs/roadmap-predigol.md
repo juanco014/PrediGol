@@ -103,6 +103,12 @@ Pendiente antes de repetir 7B:
 
 Reejecucion con credenciales: parcial. Supabase conecta desde Python y existen `profiles`/`model_predictions`, pero faltan o no estan expuestas tablas/RPC de admin/freemium. Siguiente paso: aplicar/verificar migraciones del MVP en Supabase definitivo antes de validar usuarios, premium y admin.
 
+### Fase 7C
+
+Estado: pendiente de aplicar migraciones en Supabase real. Se creo `scripts/verificar_supabase_mvp.py` y se confirmo que el repo contiene las migraciones necesarias, pero la instancia real solo expone `profiles` y `model_predictions`. No se aplicaron migraciones automaticamente porque Supabase CLI no esta instalado en este entorno.
+
+Siguiente paso recomendado: aplicar migraciones pendientes con backup previo, sin `db reset`, y reejecutar `scripts/verificar_supabase_mvp.py` hasta que tablas/RPC admin-freemium esten OK.
+
 ## Fases posteriores
 
 | Fase | Objetivo | Estado |

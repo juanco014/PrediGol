@@ -372,3 +372,69 @@ No se ejecuto importacion real de API-Football ni `--force` para evitar consumo 
 3. Crear/validar admin inicial por SQL controlado.
 4. Probar usuario gratis, admin y premium manual en navegador.
 5. Generar/guardar predicciones reales en `model_predictions` cuando existan historicos suficientes.
+
+## Fase 7C - Sincronizacion Supabase Definitivo - 2026-07-10
+
+### Estado
+
+No se aplicaron migraciones automaticamente. Supabase CLI no esta instalado en este entorno. Se agrego un verificador seguro y se documento el inventario para aplicar migraciones pendientes sin operaciones destructivas.
+
+### Script Agregado
+
+```bash
+prediction-service/.venv/Scripts/python.exe scripts/verificar_supabase_mvp.py
+```
+
+El script usa `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` desde `prediction-service/.env`, no imprime secretos y clasifica cada elemento como `OK`, `FALTANTE`, `PERMISOS` o `ERROR`.
+
+### Resultado De Verificacion Supabase MVP
+
+| Elemento | Resultado |
+| --- | --- |
+| `profiles` | OK. |
+| `model_predictions` | OK. |
+| `model_runs` | Faltante/no expuesto. |
+| `model_datasets` | Faltante/no expuesto. |
+| `team_aliases` | Faltante/no expuesto. |
+| `subscription_plans` | Faltante/no expuesto. |
+| `user_subscriptions` | Faltante/no expuesto. |
+| `predigol_es_admin` | Permisos/grant/RLS insuficiente o funcion no ejecutable via REST. |
+| `obtener_plan_usuario` | Faltante/no expuesto. |
+| `obtener_predicciones_visibles` | Faltante/no expuesto. |
+| `obtener_prediccion_visible` | Faltante/no expuesto. |
+| `predigol_usuario_tiene_premium` | Faltante/no expuesto. |
+
+### Migraciones Identificadas Como Necesarias
+
+| Migracion | Motivo |
+| --- | --- |
+| `202606240005_admin_manual_match_panel.sql` | Define/grants iniciales admin si faltan. |
+| `202606240006_roles_and_relevant_matches.sql` | Refuerza `profiles.rol` y `predigol_es_admin`. |
+| `202607060001_model_v2_metadata.sql` | Settings/metadata de modelo sin cambiar V1/V2. |
+| `202607060002_model_runs_datasets_team_aliases.sql` | Crea `model_runs`, `model_datasets`, `team_aliases`. |
+| `202607060003_model_dataset_checksum_unique.sql` | Indice de checksum datasets. |
+| `202607060004_lock_model_admin_writes.sql` | Bloquea escrituras admin directas para usuarios auth. |
+| `202607070001_api_import_model_runs.sql` | Ajusta tipos de `model_runs`. |
+| `202607100001_freemium_premium_access.sql` | Crea freemium/premium, subscriptions y RPC visibles seguras. |
+
+### Validaciones Ejecutadas
+
+| Comando | Resultado |
+| --- | --- |
+| `scripts/verificar_python.py` | Supabase conecta; advierte tablas admin faltantes e historicos insuficientes. |
+| `scripts/verificar_supabase_mvp.py` | Falla esperado por elementos MVP faltantes. |
+| `pytest prediction-service/tests` | 79 tests pasaron. |
+| `npm test` | 90 tests pasaron. |
+| `npm run lint` | Paso. |
+| `npm run build` | Paso. |
+| `npm run preview -- --host 127.0.0.1` | Arranco en `http://127.0.0.1:4173/`. |
+| `scripts/generar_pronosticos.py --dataset reports/api_api_football_liga-39_temporada-2024_dataset.json --model v1` | Omitido porque salida V1 local ya existe; no se sobrescribio. |
+| `scripts/importar_ligas_temporadas.py --league 39 --seasons 2024 --dry-run` | `skipped_existing`; no consumio cuota. |
+
+### Pendiente Para Completar 7C
+
+1. Aplicar migraciones pendientes en Supabase real con CLI o SQL Editor, sin reset.
+2. Reejecutar `scripts/verificar_supabase_mvp.py` hasta que tablas/RPC esten OK.
+3. Validar admin y usuarios en navegador real.
+4. Validar premium bloqueado/permitido por RLS/RPC.
+5. Cargar historicos/predicciones reales cuando schema este alineado.

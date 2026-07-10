@@ -208,3 +208,72 @@ Ejecucion local 2026-07-10:
 - RPCs freemium/admin esperadas no estan disponibles por REST.
 
 Accion antes de QA funcional real: aplicar/verificar migraciones del MVP en Supabase definitivo con `npx supabase db push` o revisar el historial de migraciones aplicado en el dashboard/CLI.
+
+## 14. Fase 7C - Inventario De Migraciones MVP
+
+Supabase CLI no esta disponible en este entorno (`supabase: command not found`), por lo que no se aplicaron migraciones automaticamente. No hacer `db reset` sobre la base real.
+
+| Migracion | Tablas | RPC/funciones | RLS/policies | Estado en Supabase real |
+| --- | --- | --- | --- | --- |
+| `202606240001_api_football_predictions.sql` | `model_predictions`, football API tables | N/D | RLS en `model_predictions` y tablas football | Parcial: `model_predictions` OK. |
+| `202606240005_admin_manual_match_panel.sql` | Ajustes `profiles` | `predigol_es_admin`, `reclamar_primer_admin`, RPC admin partidos | Grants admin | Parcial: `predigol_es_admin` no ejecutable por REST en QA. |
+| `202606240006_roles_and_relevant_matches.sql` | `profiles.rol`, flags partidos | `predigol_es_admin`, `reclamar_primer_admin`, `marcar_partido_relevante` | Grants admin | Parcial: `profiles` OK; validar funcion tras aplicar migraciones. |
+| `202607060001_model_v2_metadata.sql` | `model_prediction_settings`, columnas metadata en `model_predictions` | `obtener_model_prediction_settings`, `guardar_model_prediction_settings` | RLS admin settings | Pendiente/no verificado. |
+| `202607060002_model_runs_datasets_team_aliases.sql` | `model_datasets`, `model_runs`, `team_aliases` | `obtener_model_admin_summary`, `guardar_team_alias`, `actualizar_estado_team_alias` | RLS admin read | Faltante en Supabase real. |
+| `202607060003_model_dataset_checksum_unique.sql` | Indice `model_datasets` | N/D | N/D | Faltante hasta que exista `model_datasets`. |
+| `202607060004_lock_model_admin_writes.sql` | N/D | N/D | Revoca escrituras auth y mantiene service role | Faltante hasta que existan tablas admin. |
+| `202607070001_api_import_model_runs.sql` | Ajusta constraint `model_runs` | N/D | N/D | Faltante hasta que exista `model_runs`. |
+| `202607100001_freemium_premium_access.sql` | `subscription_plans`, `user_subscriptions`, columnas premium en `model_predictions` | `predigol_usuario_tiene_premium`, `obtener_plan_usuario`, `obtener_predicciones_visibles`, `obtener_prediccion_visible` | RLS premium/admin | Faltante en Supabase real. |
+
+### Verificacion Real Fase 7C
+
+Comando agregado:
+
+```bash
+prediction-service/.venv/Scripts/python.exe scripts/verificar_supabase_mvp.py
+```
+
+Resultado actual:
+
+- OK: `profiles`, `model_predictions`.
+- Faltante: `model_runs`, `model_datasets`, `team_aliases`, `subscription_plans`, `user_subscriptions`.
+- RPC faltantes/no disponibles: `obtener_plan_usuario`, `obtener_predicciones_visibles`, `obtener_prediccion_visible`, `predigol_usuario_tiene_premium`.
+- `predigol_es_admin`: error de permisos o grant/RLS insuficiente en llamada REST.
+
+### Aplicacion Segura De Migraciones
+
+Opcion A, CLI en una maquina con Supabase CLI configurado:
+
+```bash
+supabase --version
+supabase status
+supabase migration list
+supabase db push
+```
+
+Reglas:
+
+- No ejecutar `supabase db reset` en la base real.
+- Hacer backup antes de `db push`.
+- Revisar el diff/plan del CLI antes de confirmar.
+- Reejecutar `scripts/verificar_supabase_mvp.py` despues.
+
+Opcion B, SQL Editor si no hay CLI:
+
+1. Hacer backup/snapshot del proyecto Supabase.
+2. Aplicar en orden los archivos faltantes listados arriba.
+3. No editar migraciones historicas; copiar el SQL exacto del repo.
+4. Ejecutar primero en staging si existe.
+5. Reejecutar `scripts/verificar_supabase_mvp.py` y `scripts/verificar_python.py`.
+
+Orden minimo recomendado para alinear el MVP detectado:
+
+1. `202606240005_admin_manual_match_panel.sql` y `202606240006_roles_and_relevant_matches.sql` si `predigol_es_admin` no existe/grants fallan.
+2. `202607060001_model_v2_metadata.sql`.
+3. `202607060002_model_runs_datasets_team_aliases.sql`.
+4. `202607060003_model_dataset_checksum_unique.sql`.
+5. `202607060004_lock_model_admin_writes.sql`.
+6. `202607070001_api_import_model_runs.sql`.
+7. `202607100001_freemium_premium_access.sql`.
+
+No se creo migracion correctiva nueva porque el repo ya contiene las tablas/RPC faltantes; el problema esta en la instancia real no alineada.
