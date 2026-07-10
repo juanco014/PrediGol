@@ -198,6 +198,20 @@ test("obtenerPronosticosModelo mapea predicciones del modelo para la UI", async 
       model_version: "poisson-elo-v1",
       generated_at: "2026-07-10T00:00:00Z",
     },
+    {
+      api_football_fixture_id: 1002,
+      partido_id: "p-2",
+      home_win_probability: 0.2,
+      draw_probability: 0.3,
+      away_win_probability: 0.5,
+      expected_home_goals: 0.9,
+      expected_away_goals: 1.7,
+      predicted_home_goals: 1,
+      predicted_away_goals: 2,
+      confidence: 0.5,
+      model_version: "poisson-elo-v1",
+      generated_at: "2026-07-10T00:01:00Z",
+    },
   ];
   const matches = [
     {
@@ -208,6 +222,14 @@ test("obtenerPronosticosModelo mapea predicciones del modelo para la UI", async 
       local_nombre: "Arsenal",
       visitante_nombre: "Chelsea",
     },
+    {
+      id: "p-2",
+      api_football_fixture_id: 1002,
+      torneo: "LaLiga",
+      fecha_orden: "2026-08-11T19:00:00Z",
+      local_nombre: "Real Madrid",
+      visitante_nombre: "Barcelona",
+    },
   ];
   const client = {
     from(table) {
@@ -215,13 +237,19 @@ test("obtenerPronosticosModelo mapea predicciones del modelo para la UI", async 
     },
   };
 
-  const result = await obtenerPronosticosModelo({ limit: 1, freeLimit: 1 }, client);
+  const result = await obtenerPronosticosModelo({ limit: 2, freeLimit: 1 }, client);
 
-  assert.equal(result.length, 1);
+  assert.equal(result.length, 2);
   assert.equal(result[0].liga, "Premier League");
   assert.equal(result[0].local, "Arsenal");
   assert.equal(result[0].pHome, 0.52);
   assert.equal(result[0].predictedOutcomeLabel, "Local");
   assert.equal(result[0].probableScore, "2-1");
   assert.equal(result[0].accessTier, "free");
+  assert.equal(result[1].accessTier, "premium_candidate");
+
+  const filtered = await obtenerPronosticosModelo({ limit: 2, freeLimit: 1, league: "LaLiga", team: "barcelona", accessTier: "premium_candidate" }, client);
+  assert.equal(filtered.length, 1);
+  assert.equal(filtered[0].liga, "LaLiga");
+  assert.equal(filtered[0].predictedOutcomeLabel, "Visitante");
 });

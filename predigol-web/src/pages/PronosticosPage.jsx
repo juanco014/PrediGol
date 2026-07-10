@@ -42,6 +42,12 @@ const filtrosPronosticos = [
   },
 ];
 
+const filtrosFechaModelo = [
+  { id: "todos", label: "Todas" },
+  { id: "hoy", label: "Hoy" },
+  { id: "proximos", label: "Proximos" },
+];
+
 function formatearFecha(fechaOrden) {
   if (!fechaOrden) {
     return "Fecha por definir";
@@ -90,6 +96,12 @@ function formatearProbabilidad(valor) {
   return `${Math.round(Number(valor || 0) * 100)}%`;
 }
 
+function esMismoDia(fechaOrden, referencia) {
+  if (!fechaOrden) return false;
+  const fecha = new Date(fechaOrden);
+  return !Number.isNaN(fecha.getTime()) && fecha.toDateString() === referencia.toDateString();
+}
+
 function PronosticosPage({ session }) {
   const navigate = useNavigate();
   const usuarioId = session?.user?.id;
@@ -98,6 +110,10 @@ function PronosticosPage({ session }) {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [pronosticosModelo, setPronosticosModelo] = useState([]);
+  const [ligaModelo, setLigaModelo] = useState("todos");
+  const [tipoModelo, setTipoModelo] = useState("todos");
+  const [fechaModelo, setFechaModelo] = useState("todos");
+  const [busquedaModelo, setBusquedaModelo] = useState("");
   const [filtroActivo, setFiltroActivo] = useState("todos");
   const [busqueda, setBusqueda] = useState("");
 
@@ -193,6 +209,36 @@ function PronosticosPage({ session }) {
     },
   ];
 
+  const ligasModelo = useMemo(
+    () => ["todos", ...new Set(pronosticosModelo.map((item) => item.liga).filter(Boolean))],
+    [pronosticosModelo]
+  );
+
+  const pronosticosModeloFiltrados = useMemo(() => {
+    const busqueda = busquedaModelo.trim().toLowerCase();
+    const ahora = new Date();
+    return pronosticosModelo.filter((pronostico) => {
+      const coincideLiga = ligaModelo === "todos" || pronostico.liga === ligaModelo;
+      const coincideTipo = tipoModelo === "todos" || pronostico.accessTier === tipoModelo;
+      const coincideBusqueda = !busqueda || [pronostico.local, pronostico.visitante, pronostico.liga]
+        .join(" ")
+        .toLowerCase()
+        .includes(busqueda);
+      const fechaPartido = pronostico.fechaOrden ? new Date(pronostico.fechaOrden) : null;
+      const coincideFecha = fechaModelo === "todos"
+        || (fechaModelo === "hoy" && esMismoDia(pronostico.fechaOrden, ahora))
+        || (fechaModelo === "proximos" && fechaPartido && fechaPartido >= ahora);
+      return coincideLiga && coincideTipo && coincideBusqueda && coincideFecha;
+    });
+  }, [busquedaModelo, fechaModelo, ligaModelo, pronosticosModelo, tipoModelo]);
+
+  const limpiarFiltrosModelo = () => {
+    setLigaModelo("todos");
+    setTipoModelo("todos");
+    setFechaModelo("todos");
+    setBusquedaModelo("");
+  };
+
   return (
     <main className="predictions-page">
       <header className="predictions-header">
@@ -208,10 +254,13 @@ function PronosticosPage({ session }) {
         <p className="brand">PREDIGOL</p>
         <h1>Mis pronósticos</h1>
         <p>
-          Revisa tus marcadores guardados, filtra por resultado y abre el
-          detalle de cualquier partido.
+          Consulta pronosticos gratuitos del modelo principal y revisa tus marcadores guardados.
         </p>
       </header>
+
+      <section className="responsible-note predictions-responsible-note">
+        Los pronosticos de PrediGol son estimaciones estadisticas con fines informativos y no garantizan resultados deportivos.
+      </section>
 
       <section className="predictions-summary-card">
         {resumen.map((item) => (
@@ -233,18 +282,61 @@ function PronosticosPage({ session }) {
         </div>
 
         <p className="profile-helper-text">
-          Predicciones informativas generadas por el modelo principal V1. V2 se mantiene experimental y no se usa como producción.
+          Predicciones informativas generadas por el modelo principal V1. V2 se mantiene experimental y no se muestra al usuario final.
         </p>
+
+        <div className="model-prediction-filters" aria-label="Filtrar pronosticos del modelo">
+          <label>
+            <span>Liga</span>
+            <select value={ligaModelo} onChange={(evento) => setLigaModelo(evento.target.value)}>
+              {ligasModelo.map((liga) => (
+                <option value={liga} key={liga}>{liga === "todos" ? "Todas las ligas" : liga}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Equipo</span>
+            <input
+              type="search"
+              value={busquedaModelo}
+              onChange={(evento) => setBusquedaModelo(evento.target.value)}
+              placeholder="Buscar equipo"
+            />
+          </label>
+          <label>
+            <span>Tipo</span>
+            <select value={tipoModelo} onChange={(evento) => setTipoModelo(evento.target.value)}>
+              <option value="todos">Todos</option>
+              <option value="free">Gratis</option>
+              <option value="premium_candidate">Premium candidato</option>
+            </select>
+          </label>
+          <label>
+            <span>Fecha</span>
+            <select value={fechaModelo} onChange={(evento) => setFechaModelo(evento.target.value)}>
+              {filtrosFechaModelo.map((filtro) => (
+                <option value={filtro.id} key={filtro.id}>{filtro.label}</option>
+              ))}
+            </select>
+          </label>
+          <button type="button" onClick={limpiarFiltrosModelo}>Limpiar filtros</button>
+        </div>
 
         {cargando ? (
           <LoadingState cards={3} label="Cargando pronósticos del modelo" />
+        ) : error ? (
+          <article className="no-predictions-card">No pudimos cargar los pronosticos. Revisa tu conexion e intenta nuevamente.</article>
         ) : pronosticosModelo.length === 0 ? (
           <article className="no-predictions-card">
-            Todavía no hay pronósticos del modelo guardados para mostrar.
+            Todavia no hay pronosticos del modelo guardados para mostrar. Cuando el administrador ejecute el flujo de predicciones, apareceran aqui.
+          </article>
+        ) : pronosticosModeloFiltrados.length === 0 ? (
+          <article className="no-predictions-card">
+            No encontramos pronosticos con esos filtros. Limpia la busqueda o prueba otra liga.
           </article>
         ) : (
           <div className="saved-predictions-list">
-            {pronosticosModelo.map((pronostico) => (
+            {pronosticosModeloFiltrados.map((pronostico) => (
               <article
                 key={`${pronostico.apiFootballFixtureId}-${pronostico.generatedAt}`}
                 className="saved-prediction-card"
@@ -270,8 +362,13 @@ function PronosticosPage({ session }) {
                   </span>
                   <strong>{pronostico.predictedOutcomeLabel}</strong>
                   <small>
-                    Marcador probable {pronostico.probableScore} · confianza {formatearProbabilidad(pronostico.confidence)}
+                    Marcador probable {pronostico.probableScore || "por confirmar"} · confianza {pronostico.confidence ? formatearProbabilidad(pronostico.confidence) : "por confirmar"}
                   </small>
+                  {pronostico.partidoId && (
+                    <button type="button" onClick={(evento) => { evento.stopPropagation(); navigate(`/partidos/${pronostico.partidoId}`); }}>
+                      Ver detalle
+                    </button>
+                  )}
                 </div>
               </article>
             ))}

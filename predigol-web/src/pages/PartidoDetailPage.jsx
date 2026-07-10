@@ -242,10 +242,10 @@ function PartidoDetailPage({ session }) {
       <button
         className="league-back-button"
         type="button"
-        onClick={() => navigate("/inicio")}
+        onClick={() => navigate("/pronosticos")}
       >
         <ArrowLeft size={19} />
-        Volver a Inicio
+        Volver a pronosticos
       </button>
 
       {cargando ? (
@@ -327,6 +327,10 @@ function PartidoDetailPage({ session }) {
           </header>
 
           {mensaje && <p className="match-inline-message">{mensaje}</p>}
+
+          <section className="responsible-note match-responsible-note">
+            Los pronosticos de PrediGol son estimaciones estadisticas con fines informativos y no garantizan resultados deportivos.
+          </section>
 
           <section className="match-detail-actions">
             <div>
@@ -433,7 +437,7 @@ function PartidoDetailPage({ session }) {
                       </strong>
                       <p>{explicarPrediccion(prediccionModelo)}</p>
                       <span>
-                        {prediccionModelo.model_version} - Confianza {formatearPorcentaje(prediccionModelo.confidence)}
+                        Modelo PrediGol V1 - Confianza {formatearPorcentaje(prediccionModelo.confidence)}
                       </span>
                       {(prediccionModelo.metadata?.warnings || []).slice(0, 2).map((warning) => (
                         <small key={warning}>{warning}</small>
@@ -549,10 +553,8 @@ function PartidoDetailPage({ session }) {
                   <div className="match-model-metrics">
                     <span><b>{Number(prediccionModelo.expected_home_goals).toFixed(2)}</b> xG local</span>
                     <span><b>{Number(prediccionModelo.expected_away_goals).toFixed(2)}</b> xG visitante</span>
-                    <span><b>{prediccionModelo.metadata?.home_rating || "N/D"}</b> Elo local</span>
-                    <span><b>{prediccionModelo.metadata?.away_rating || "N/D"}</b> Elo visitante</span>
-                    <span><b>{prediccionModelo.metadata?.home_samples || 0}</b> muestras local</span>
-                    <span><b>{prediccionModelo.metadata?.away_samples || 0}</b> muestras visitante</span>
+                    <span><b>{formatearPorcentaje(prediccionModelo.confidence)}</b> confianza</span>
+                    <span><b>{prediccionModelo.predicted_home_goals}-{prediccionModelo.predicted_away_goals}</b> marcador probable</span>
                   </div>
                 ) : (
                   <p>Estos indicadores aparecerán después de ejecutar el modelo.</p>

@@ -11,6 +11,7 @@ Este roadmap prioriza el cierre del MVP freemium como producto. V1 queda como mo
 | Mantener V1 como modelo de produccion. | Decidido | `prediction-service/predigol_model/poisson_elo.py`, `run.py` | Predicciones operativas usan V1 por defecto y registran version. |
 | Congelar V2 como experimental. | Decidido | `v2.py`, `comparative_backtest.py`, docs validacion | V2 no se promociona ni cambia defaults. |
 | Cerrar flujo base de pronosticos V1. | Hecho parcial | `scripts/generar_pronosticos.py`, `predigol-web/src/pages/PronosticosPage.jsx`, `model_predictions` | Dataset/API puede alimentar predicciones V1 y la UI muestra pronosticos del modelo; premium real queda pendiente. |
+| Cerrar experiencia gratuita frontend. | Hecho parcial | `LandingPage.jsx`, `PronosticosPage.jsx`, `PartidoDetailPage.jsx`, `footballApi.js` | Usuario entiende propuesta, ve pronosticos, filtra, abre detalle y ve aviso responsable; pagos siguen pendientes. |
 | Ampliar datasets multi-liga. | En progreso | `scripts/importar_ligas_temporadas.py`, `reports/`, `docs/importing-seasons.md` | Datasets para varias ligas/temporadas disponibles y validados. |
 | Ejecutar backtest multi-liga. | Pendiente operativo | `scripts/backtest_v1_v2.py`, `comparative_backtest.py` | Reporte con agregado, liga, temporada, dataset y metricas Brier/log-loss/accuracy/ECE. |
 | Cerrar disclaimer legal/informativo. | Pendiente | Landing, pronosticos, detalle partido | Mensaje visible: pronosticos informativos, no garantizan resultados. |
@@ -46,12 +47,13 @@ Este roadmap prioriza el cierre del MVP freemium como producto. V1 queda como mo
 
 1. Cerrar definicion de producto freemium y disclaimer.
 2. Mantener el flujo base de pronosticos V1 documentado en `docs/flujo-pronosticos-predigol.md`.
-3. Validar seguridad admin y acceso premium server-side antes de monetizar.
-4. Ampliar datasets multi-liga y ejecutar backtests reproducibles.
-5. Congelar V1 como produccion y V2 como experimental.
-6. Hacer QA completo de rutas principales.
-7. Documentar runbook de operacion.
-8. Solo despues, implementar pagos con webhooks y RLS.
+3. Mantener la experiencia gratuita documentada en `docs/experiencia-usuario-predigol.md`.
+4. Validar seguridad admin y acceso premium server-side antes de monetizar.
+5. Ampliar datasets multi-liga y ejecutar backtests reproducibles.
+6. Congelar V1 como produccion y V2 como experimental.
+7. Hacer QA completo de rutas principales.
+8. Documentar runbook de operacion.
+9. Solo despues, implementar pagos con webhooks y RLS.
 
 ## Criterios de cierre del MVP estable
 

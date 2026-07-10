@@ -440,7 +440,7 @@ export async function obtenerPartidosInicio(usuarioId, client = supabase) {
   };
 }
 
-export async function obtenerPronosticosModelo({ limit = 24, freeLimit = 8 } = {}, client = supabase) {
+export async function obtenerPronosticosModelo({ limit = 24, freeLimit = 8, league, team, accessTier } = {}, client = supabase) {
   const { data: predicciones, error } = await client
     .from("model_predictions")
     .select(
@@ -473,7 +473,8 @@ export async function obtenerPronosticosModelo({ limit = 24, freeLimit = 8 } = {
 
   const partidosByFixtureId = indexBy(partidosResponse.data, "api_football_fixture_id");
 
-  return (predicciones || []).map((prediccion, index) => {
+  return (predicciones || [])
+    .map((prediccion, index) => {
     const partido = partidosByFixtureId.get(prediccion.api_football_fixture_id) || {};
     const probabilities = {
       home: Number(prediccion.home_win_probability || 0),
@@ -501,7 +502,18 @@ export async function obtenerPronosticosModelo({ limit = 24, freeLimit = 8 } = {
       generatedAt: prediccion.generated_at,
       accessTier: index < freeLimit ? "free" : "premium_candidate",
     };
-  });
+    })
+    .filter((pronostico) => {
+      const normalizedLeague = String(league || "").trim().toLowerCase();
+      const normalizedTeam = String(team || "").trim().toLowerCase();
+      const matchesLeague = !normalizedLeague || pronostico.liga.toLowerCase() === normalizedLeague;
+      const matchesTeam = !normalizedTeam || [pronostico.local, pronostico.visitante]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedTeam);
+      const matchesAccess = !accessTier || accessTier === "todos" || pronostico.accessTier === accessTier;
+      return matchesLeague && matchesTeam && matchesAccess;
+    });
 }
 
 export async function obtenerPartidosExplorador({ limit = 200 } = {}, client = supabase) {

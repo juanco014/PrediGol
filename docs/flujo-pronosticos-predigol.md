@@ -136,5 +136,12 @@ No se debe elegir por accuracy solamente. La decision de modelo debe priorizar B
 | Generar pronosticos locales con V1 | Disponible con `scripts/generar_pronosticos.py`. |
 | Guardar predicciones operativas | Disponible con `python -m predigol_model.run` sobre Supabase. |
 | Mostrar pronosticos del modelo | Disponible en `/pronosticos`, inicio y detalle. |
+| Experiencia gratuita frontend | Mejorada en Fase 2: landing, filtros, cards, estados vacios/error y aviso responsable. |
 | Premium real | Pendiente. |
 | V2 produccion | No habilitado; experimental. |
+
+## Experiencia gratuita Fase 2
+
+La landing publica explica que PrediGol ofrece pronosticos deportivos informativos, con contenido gratis y premium futuro. La pagina `/pronosticos` permite filtrar predicciones del modelo por liga, equipo, fecha y tipo (`Gratis` o `Premium candidato`). El detalle de partido muestra probabilidades 1X2, marcador probable, xG, confianza y una explicacion simple sin exponer comparativas V1/V2.
+
+Las etiquetas premium son visuales y de planificacion. No sustituyen la proteccion server-side pendiente para Fase 3.
