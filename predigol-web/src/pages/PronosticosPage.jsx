@@ -285,7 +285,7 @@ function PronosticosPage({ session }) {
         </div>
 
         <p className="profile-helper-text">
-          Predicciones informativas generadas por el modelo principal V1. V2 se mantiene experimental y no se muestra al usuario final.
+          Predicciones informativas generadas por el modelo principal de PrediGol.
         </p>
 
         <div className="model-prediction-filters" aria-label="Filtrar pronosticos del modelo">
@@ -311,7 +311,6 @@ function PronosticosPage({ session }) {
             <select value={tipoModelo} onChange={(evento) => setTipoModelo(evento.target.value)}>
               <option value="todos">Todos</option>
               <option value="free">Gratis</option>
-              <option value="premium_candidate">Premium candidato</option>
               <option value="premium">Premium</option>
             </select>
           </label>

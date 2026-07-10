@@ -103,11 +103,11 @@ El frontend consulta `model_predictions` en:
 | Detalle partido | `predigol-web/src/services/footballApi.js` y `PartidoDetailPage.jsx` | Mostrar prediccion del modelo para el partido. |
 | Pronosticos | `PronosticosPage.jsx` | Mostrar feed basico de pronosticos PrediGol V1. |
 
-La vista basica muestra liga, fecha, local, visitante, probabilidades local/empate/visitante, pronostico principal, marcador probable, confianza y etiqueta `Gratis` o `Premium candidato`.
+La vista basica muestra liga, fecha, local, visitante, probabilidades local/empate/visitante, pronostico principal, marcador probable, confianza y etiqueta `Gratis` o `Premium` cuando la RPC permite verlos. Los estados internos como `premium_candidate` son operativos y no deben presentarse como comparativa tecnica al usuario final.
 
 ## Freemium en esta fase
 
-Esta fase no implementa pagos. La etiqueta `Premium candidato` solo prepara el concepto de producto y no debe considerarse proteccion real.
+Esta fase no implementa pagos. Premium real queda pendiente y el bloqueo depende de Supabase/RLS/RPC, no de React.
 
 Pendiente para premium real:
 
@@ -150,4 +150,4 @@ Las etiquetas premium visuales ahora deben apoyarse en la respuesta segura de Su
 
 ## Operacion admin Fase 4
 
-El panel `/admin` permite revisar conteos de predicciones, datasets, model runs, usuarios gratis/premium y partidos proximos. Tambien muestra comandos sugeridos para importar datos, generar pronosticos V1, ejecutar backtests y verificar Python. El navegador no ejecuta scripts locales; la automatizacion real requiere backend/worker seguro.
+El panel `/admin` permite revisar conteos de predicciones, datasets, model runs, usuarios gratis/premium y partidos proximos. Tambien muestra comandos sugeridos para importar datos, generar pronosticos V1, ejecutar backtests y verificar Python. El navegador no ejecuta scripts locales; la automatizacion real requiere backend/worker seguro. En Fase 5 la UI no cambia el modelo activo: V1 queda como produccion y V2 como experimental.

@@ -1,6 +1,6 @@
 # Freemium y premium PrediGol
 
-Este documento describe la Fase 3 del MVP: base freemium segura para usuarios gratis y premium, sin integrar pasarela de pago.
+Este documento describe la base freemium segura para usuarios gratis y premium, sin integrar pasarela de pago. En Fase 5 queda como alcance MVP entregable con premium manual/admin y pagos reales pendientes.
 
 ## Decision de producto
 
@@ -93,6 +93,10 @@ No implementado en esta fase:
 | Secretos | Guardar claves solo en servidor/Supabase Secrets. |
 | Auditoria | Registrar cambios de plan y proveedor. |
 | Checkout | UI real solo despues de backend seguro. |
+
+## Cierre Fase 5
+
+La entrega MVP mantiene premium como capacidad preparada, no como producto cobrado. El usuario gratis puede ver previews bloqueadas cuando apliquen, pero no debe recibir probabilidades, xG, marcador probable ni metadata completa de predicciones premium si no tiene acceso. La fuente de verdad sigue siendo Supabase/RLS/RPC.
 
 ## Advertencia responsable
 

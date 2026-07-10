@@ -176,7 +176,6 @@ function AdminPartidosPage({ session }) {
   const [cargandoResumenDatos, setCargandoResumenDatos] = useState(false);
   const [historicoBatch, setHistoricoBatch] = useState({ year: "2024", month: "8" });
   const [modelSettings, setModelSettings] = useState(null);
-  const [guardandoModeloActivo, setGuardandoModeloActivo] = useState(false);
 
   const esAdmin = isAdminUser(profile);
   const apiSyncRuns = apiMonitor?.runs ?? [];
@@ -429,33 +428,6 @@ function AdminPartidosPage({ session }) {
     cargarApiFootballMonitor,
     cargarModelSettings,
   ]);
-
-  const guardarModeloActivo = async (modelo) => {
-    const confirmar = window.confirm(
-      `Vas a dejar ${modelo} como modelo activo administrativo. V1 seguirá siendo seguro hasta que ejecutes predicciones explícitamente.`
-    );
-
-    if (!confirmar) {
-      return;
-    }
-
-    setGuardandoModeloActivo(true);
-    setMensaje("");
-
-    const { data, error } = await supabase.rpc("guardar_model_prediction_settings", {
-      p_active_model: modelo,
-    });
-
-    if (error) {
-      setMensaje(error.message || "No fue posible guardar el modelo activo.");
-      setGuardandoModeloActivo(false);
-      return;
-    }
-
-    setModelSettings(data);
-    setMensaje(`Modelo activo actualizado a ${modelo}.`);
-    setGuardandoModeloActivo(false);
-  };
 
   const actualizarCampo = (campo, valor) => {
     setFormulario((actual) => ({
@@ -1152,22 +1124,9 @@ function AdminPartidosPage({ session }) {
           </p>
         )}
 
-        <div className="admin-import-actions">
-          <button
-            type="button"
-            onClick={() => guardarModeloActivo("V1")}
-            disabled={guardandoModeloActivo || modelSettings?.active_model === "V1"}
-          >
-            Usar V1
-          </button>
-          <button
-            type="button"
-            onClick={() => guardarModeloActivo("V2")}
-            disabled={guardandoModeloActivo || modelSettings?.active_model === "V2"}
-          >
-            Usar V2
-          </button>
-        </div>
+        <p className="admin-data-health-note">
+          Fase 5 deja V1 como modelo principal de producción. El cambio entre V1/V2 no se opera desde la UI del MVP.
+        </p>
 
         <p className="admin-data-health-note">
           Acciones locales: `python scripts/diagnostico_modelo_v1.py`, `python scripts/diagnostico_modelo_v2.py`, `python scripts/backtest_modelo_v1.py --model V1`, `python scripts/backtest_modelo_v1.py --model V2`.

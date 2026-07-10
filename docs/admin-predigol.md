@@ -8,7 +8,7 @@ Este documento describe la Fase 4 del MVP: panel administrativo operativo para r
 | --- | --- | --- | --- | --- |
 | `/admin` | Nueva | Dashboard operativo, modelo principal, V2 experimental, conteos, datasets, runs, predicciones, usuarios free/premium y comandos sugeridos. | Si, via perfil `rol = admin` o `es_admin = true`; datos sensibles dependen de RLS/RPC. | Automatizar ejecucion segura de scripts desde backend/worker. |
 | `/admin/modelo` | Existente, ajustada | Trazabilidad de modelo, API-Football, `model_runs`, `model_datasets` y alias. | Si. | Mantener solo como revision; V2 no se activa desde UI. |
-| `/admin/partidos` | Existente | Estado de partidos, fixtures, importacion/API, edicion/cierre de partidos segun RPC existentes. | Si. | Automatizacion completa de ingesta y conciliacion. |
+| `/admin/partidos` | Existente | Estado de partidos, fixtures, importacion/API, edicion/cierre de partidos segun RPC existentes. El cambio V1/V2 queda deshabilitado desde UI en Fase 5. | Si. | Automatizacion completa de ingesta y conciliacion. |
 
 ## Estado de modelos
 
@@ -17,7 +17,7 @@ Este documento describe la Fase 4 del MVP: panel administrativo operativo para r
 | `poisson-elo-v1` | Produccion | Modelo principal del MVP. Se muestra como V1 en dashboards. |
 | `poisson-elo-form-v2` | Experimental | Visible para trazabilidad/backtests. No se promociona ni se activa como produccion. |
 
-El panel no modifica probabilidades, xG, matrices ni defaults. Las acciones relacionadas con modelos son comandos sugeridos para operar scripts existentes.
+El panel no modifica probabilidades, xG, matrices ni defaults. Las acciones relacionadas con modelos son comandos sugeridos para operar scripts existentes. En el MVP entregable no se puede cambiar V1/V2 desde la UI.
 
 ## Dashboard principal
 
@@ -108,9 +108,9 @@ El panel solo copia o muestra comandos. No ejecuta scripts locales desde el nave
 
 | Accion | Comando sugerido |
 | --- | --- |
-| Importar ligas/temporadas | `./prediction-service/.venv/Scripts/python.exe scripts/importar_ligas_temporadas.py --liga 140 --temporada 2022` |
-| Generar pronosticos V1 | `./prediction-service/.venv/Scripts/python.exe scripts/generar_pronosticos.py --model poisson-elo-v1` |
-| Backtest comparativo | `./prediction-service/.venv/Scripts/python.exe -m predigol_model.comparative_backtest` |
+| Importar ligas/temporadas | `./prediction-service/.venv/Scripts/python.exe scripts/importar_ligas_temporadas.py --league 140 --seasons 2022 --dry-run` |
+| Generar pronosticos V1 | `./prediction-service/.venv/Scripts/python.exe scripts/generar_pronosticos.py --dataset reports/api_api_football_liga-140_temporada-2022_dataset.json --model v1` |
+| Backtest comparativo | `./prediction-service/.venv/Scripts/python.exe scripts/backtest_v1_v2.py --dataset-glob "reports/*_dataset.json" --min-training 30` |
 | Verificar Python | `./prediction-service/.venv/Scripts/python.exe scripts/verificar_python.py` |
 
 ## Seguridad

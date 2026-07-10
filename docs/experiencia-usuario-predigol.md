@@ -16,8 +16,9 @@ Este documento resume la Fase 2 del MVP: experiencia gratuita presentable para u
 | `/perfil` | Requiere sesion | Mejorado/parcial | Perfil, cuenta, preferencias y plan actual. |
 | `/notificaciones` | Requiere sesion | Existente/parcial | Preferencias y push notifications. |
 | `/estadisticas` | Requiere sesion | Existente/parcial | Estadisticas de usuario/app. |
-| `/admin/partidos` | Requiere sesion/admin en backend | Parcial | Operacion de partidos/API. |
-| `/admin/modelo` | Requiere sesion/admin en backend | Parcial | Model runs, datasets y configuracion. |
+| `/admin` | Requiere sesion/admin | Operativo | Dashboard admin, predicciones, datasets, runs y premium manual. |
+| `/admin/partidos` | Requiere sesion/admin | Operativo | Operacion de partidos/API sin cambio V1/V2 desde UI. |
+| `/admin/modelo` | Requiere sesion/admin | Operativo | Model runs, datasets y trazabilidad. |
 
 ## Flujo del usuario gratuito
 
@@ -43,11 +44,11 @@ Este documento resume la Fase 2 del MVP: experiencia gratuita presentable para u
 
 ## Premium pendiente
 
-Las etiquetas `Premium candidato` o `Premium pronto` son solo comunicacion de producto. No representan una proteccion real todavia.
+Las etiquetas premium son comunicacion de producto y deben apoyarse en la respuesta segura de Supabase. No hay checkout ni pagos reales todavia.
 
 Desde Fase 3, las predicciones marcadas como `access_tier = premium` deben consultarse mediante RPCs seguras. El frontend puede mostrar una card bloqueada, pero los campos sensibles no deben llegar al navegador si el usuario no tiene acceso.
 
-Pendiente para Fase 3:
+Pendiente para pagos reales:
 
 | Pendiente | Requisito |
 | --- | --- |

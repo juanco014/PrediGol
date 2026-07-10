@@ -23,9 +23,9 @@ function formatearPorcentaje(valor) {
 }
 
 const comandosOperativos = [
-  { label: "Importar ligas/temporadas", command: "./prediction-service/.venv/Scripts/python.exe scripts/importar_ligas_temporadas.py --liga 140 --temporada 2022" },
-  { label: "Generar pronósticos V1", command: "./prediction-service/.venv/Scripts/python.exe scripts/generar_pronosticos.py --model poisson-elo-v1" },
-  { label: "Backtest comparativo", command: "./prediction-service/.venv/Scripts/python.exe -m predigol_model.comparative_backtest" },
+  { label: "Importar ligas/temporadas", command: "./prediction-service/.venv/Scripts/python.exe scripts/importar_ligas_temporadas.py --league 140 --seasons 2022 --dry-run" },
+  { label: "Generar pronósticos V1", command: "./prediction-service/.venv/Scripts/python.exe scripts/generar_pronosticos.py --dataset reports/api_api_football_liga-140_temporada-2022_dataset.json --model v1" },
+  { label: "Backtest comparativo", command: "./prediction-service/.venv/Scripts/python.exe scripts/backtest_v1_v2.py --dataset-glob \"reports/*_dataset.json\" --min-training 30" },
   { label: "Verificar Python", command: "./prediction-service/.venv/Scripts/python.exe scripts/verificar_python.py" },
 ];
 
