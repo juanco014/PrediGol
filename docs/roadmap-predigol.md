@@ -7,7 +7,7 @@ Este roadmap prioriza el cierre del MVP freemium como producto. V1 queda como mo
 | Tarea | Estado recomendado | Archivos/modulos relacionados | Criterios de aceptacion |
 | --- | --- | --- | --- |
 | Definir matriz gratis vs premium. | Pendiente | `predigol-web/src/pages/*`, Supabase policies futuras, docs producto | Documento aprobado con que ve visitante, gratis, premium y admin. |
-| Proteger contenido premium server-side. | Hecho parcial | `202607100001_freemium_premium_access.sql`, RPCs, `footballApi.js` | Predicciones premium usan RLS/RPC; pagos reales y panel admin completo quedan pendientes. |
+| Proteger contenido premium server-side. | Hecho parcial | `202607100001_freemium_premium_access.sql`, RPCs, `footballApi.js`, `adminApi.js` | Predicciones premium usan RLS/RPC; pagos reales quedan pendientes. |
 | Mantener V1 como modelo de produccion. | Decidido | `prediction-service/predigol_model/poisson_elo.py`, `run.py` | Predicciones operativas usan V1 por defecto y registran version. |
 | Congelar V2 como experimental. | Decidido | `v2.py`, `comparative_backtest.py`, docs validacion | V2 no se promociona ni cambia defaults. |
 | Cerrar flujo base de pronosticos V1. | Hecho parcial | `scripts/generar_pronosticos.py`, `predigol-web/src/pages/PronosticosPage.jsx`, `model_predictions` | Dataset/API puede alimentar predicciones V1 y la UI muestra pronosticos del modelo; premium real queda pendiente. |
@@ -16,8 +16,8 @@ Este roadmap prioriza el cierre del MVP freemium como producto. V1 queda como mo
 | Ampliar datasets multi-liga. | En progreso | `scripts/importar_ligas_temporadas.py`, `reports/`, `docs/importing-seasons.md` | Datasets para varias ligas/temporadas disponibles y validados. |
 | Ejecutar backtest multi-liga. | Pendiente operativo | `scripts/backtest_v1_v2.py`, `comparative_backtest.py` | Reporte con agregado, liga, temporada, dataset y metricas Brier/log-loss/accuracy/ECE. |
 | Cerrar disclaimer legal/informativo. | Pendiente | Landing, pronosticos, detalle partido | Mensaje visible: pronosticos informativos, no garantizan resultados. |
-| Auditar rutas admin y permisos. | Pendiente | `AdminPartidosPage.jsx`, `ModelAdminPage.jsx`, `predigol_es_admin`, RLS | Usuario no admin no puede ejecutar acciones administrativas. |
-| Consolidar runbook operativo. | Pendiente | `docs/importing-seasons.md`, `docs/validacion-modelos-reales.md`, `docs/model-admin.md` | Pasos claros para importar, preflight, predecir, backtestear y revisar errores. |
+| Auditar rutas admin y permisos. | Hecho parcial | `AdminDashboardPage.jsx`, `AdminPartidosPage.jsx`, `ModelAdminPage.jsx`, `predigol_es_admin`, RLS | `/admin` centraliza operacion; usuario no admin ve acceso denegado y datos sensibles dependen de RLS/RPC. |
+| Consolidar runbook operativo. | Hecho parcial | `docs/admin-predigol.md`, `docs/importing-seasons.md`, `docs/validacion-modelos-reales.md` | Pasos claros para importar, predecir, backtestear y revisar premium; automatizacion backend queda pendiente. |
 | Revisar QA de rutas principales. | Pendiente | `predigol-web/src/App.jsx`, pages principales | Home, pronosticos, detalle, ligas, ranking, perfil y admin cargan sin errores en desktop/mobile. |
 
 ## Prioridad media
@@ -25,7 +25,7 @@ Este roadmap prioriza el cierre del MVP freemium como producto. V1 queda como mo
 | Tarea | Estado recomendado | Archivos/modulos relacionados | Criterios de aceptacion |
 | --- | --- | --- | --- |
 | Mejorar cola de alias de equipos. | Parcial | `team_aliases`, `team_normalization.py`, `ModelAdminPage.jsx` | Admin puede revisar, aprobar y desactivar aliases con trazabilidad. |
-| Estandarizar model runs/datasets en admin. | Parcial | `model_runs`, `model_datasets`, `traceability.py` | Admin ve fecha, fuente, checksum, estado, metricas y warnings. |
+| Estandarizar model runs/datasets en admin. | Hecho parcial | `model_runs`, `model_datasets`, `traceability.py`, `/admin`, `/admin/modelo` | Admin ve fecha, fuente, estado, metricas y warnings; detalle profundo puede ampliarse. |
 | Revisar notificaciones push. | Parcial | `web_push_*`, hooks push, Edge Functions | Suscripcion/desuscripcion y dispatch funcionan con secretos seguros. |
 | Revisar rankings. | Parcial | `ranking*.js`, RPCs ranking | Ranking global/liga/segmentado usa datos reales y maneja estados vacios. |
 | Definir historico para usuarios. | Pendiente | `PartidoDetailPage.jsx`, `EstadisticasPage.jsx`, Supabase | Usuario ve historico acorde a plan, con resultados y aciertos. |
@@ -50,11 +50,11 @@ Este roadmap prioriza el cierre del MVP freemium como producto. V1 queda como mo
 2. Mantener el flujo base de pronosticos V1 documentado en `docs/flujo-pronosticos-predigol.md`.
 3. Mantener la experiencia gratuita documentada en `docs/experiencia-usuario-predigol.md`.
 4. Mantener la base freemium segura documentada en `docs/freemium-y-premium-predigol.md`.
-5. Validar seguridad admin y acceso premium server-side antes de monetizar.
+5. Mantener el panel admin operativo documentado en `docs/admin-predigol.md`.
 6. Ampliar datasets multi-liga y ejecutar backtests reproducibles.
 7. Congelar V1 como produccion y V2 como experimental.
 8. Hacer QA completo de rutas principales.
-9. Documentar runbook de operacion.
+9. Automatizar runbook de operacion con backend seguro cuando sea necesario.
 10. Solo despues, implementar pagos con webhooks y RLS.
 
 ## Criterios de cierre del MVP estable

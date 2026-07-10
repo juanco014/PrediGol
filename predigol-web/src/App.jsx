@@ -12,6 +12,7 @@ const LigasPage = lazy(() => import("./pages/LigasPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const LigaDetailPage = lazy(() => import("./pages/LigaDetailPage"));
 const AdminPartidosPage = lazy(() => import("./pages/AdminPartidosPage"));
+const AdminDashboardPage = lazy(() => import("./pages/AdminDashboardPage"));
 const ModelAdminPage = lazy(() => import("./pages/ModelAdminPage"));
 const PartidoDetailPage = lazy(() => import("./pages/PartidoDetailPage"));
 const NotificacionesPage = lazy(() => import("./pages/NotificacionesPage"));
@@ -211,6 +212,15 @@ function App() {
         element={
           <ProtectedRoute session={session}>
             <ProfilePage session={session} />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute session={session}>
+            <AdminDashboardPage session={session} />
           </ProtectedRoute>
         }
       />

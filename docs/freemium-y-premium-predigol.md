@@ -80,7 +80,7 @@ Puede ver:
 
 ## Administrador
 
-El admin puede ver todo mediante `predigol_es_admin()` y puede gestionar suscripciones manualmente usando Supabase o una herramienta admin futura. No se agrego un panel complejo de asignacion en esta fase.
+El admin puede ver todo mediante `predigol_es_admin()`. Desde Fase 4, `/admin` muestra usuarios gratis/premium y permite activar premium manual temporal insertando en `user_subscriptions` con RLS admin y metadata `source = manual_admin`. No hay checkout ni pasarela.
 
 ## Pagos pendientes
 
@@ -108,6 +108,18 @@ Los pronosticos de PrediGol son estimaciones estadisticas con fines informativos
 | `predigol-web/src/pages/PronosticosPage.jsx` | Muestra gratis completo y premium bloqueado. |
 | `predigol-web/src/pages/PartidoDetailPage.jsx` | Respeta bloqueo premium en detalle. |
 | `predigol-web/src/pages/ProfilePage.jsx` | Muestra plan actual. |
+| `predigol-web/src/pages/AdminDashboardPage.jsx` | Revisa usuarios gratis/premium y activacion manual temporal. |
+| `predigol-web/src/services/adminApi.js` | Lectura admin y alta manual de premium protegida por RLS. |
+
+## Gestion manual temporal Fase 4
+
+| Punto | Estado |
+| --- | --- |
+| Activacion premium manual | Disponible en `/admin` para admins. |
+| Confirmacion | Requerida antes de insertar suscripcion. |
+| Auditoria minima | `metadata.source = manual_admin` y nota opcional. |
+| Cancelacion/expiracion manual avanzada | Pendiente. |
+| Pagos reales | Pendiente. |
 
 ## Integracion futura de pagos
 

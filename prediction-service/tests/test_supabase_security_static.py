@@ -34,6 +34,18 @@ class SupabaseSecurityStaticTests(unittest.TestCase):
                     matches.append(path)
         self.assertEqual(matches, [])
 
+    def test_freemium_predictions_use_rls_and_secure_rpcs(self) -> None:
+        migration = (ROOT / "supabase/migrations/202607100001_freemium_premium_access.sql").read_text(encoding="utf-8")
+
+        for table in ["subscription_plans", "user_subscriptions"]:
+            self.assertIn(f"alter table public.{table} enable row level security", migration)
+        for function_name in ["obtener_predicciones_visibles", "obtener_prediccion_visible", "obtener_plan_usuario"]:
+            self.assertIn(f"function public.{function_name}", migration)
+        self.assertIn("drop policy if exists \"model_predictions_read_authenticated\"", migration)
+        self.assertIn("create policy \"model_predictions_read_by_entitlement\"", migration)
+        self.assertIn("case when v_can_access then p_prediction.home_win_probability else null end", migration)
+        self.assertIn("revoke insert, update, delete on public.user_subscriptions from anon, authenticated", migration)
+
 
 if __name__ == "__main__":
     unittest.main()

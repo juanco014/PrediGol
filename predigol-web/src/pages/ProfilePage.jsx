@@ -500,11 +500,11 @@ function ProfilePage({ session }) {
         <section className="achievement-card admin-shortcut-card">
           <div>
             <p className="section-label">ADMINISTRACIÓN</p>
-            <h3>Panel de partidos</h3>
-            <span>Carga partidos actuales y cierra resultados sin tocar SQL.</span>
+            <h3>Panel operativo</h3>
+            <span>Revisa sistema, modelo, predicciones, datasets y premium.</span>
           </div>
 
-          <button type="button" onClick={() => navigate("/admin/partidos")}>
+          <button type="button" onClick={() => navigate("/admin")}>
             Abrir panel
           </button>
         </section>

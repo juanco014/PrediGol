@@ -138,6 +138,7 @@ No se debe elegir por accuracy solamente. La decision de modelo debe priorizar B
 | Mostrar pronosticos del modelo | Disponible en `/pronosticos`, inicio y detalle. |
 | Experiencia gratuita frontend | Mejorada en Fase 2: landing, filtros, cards, estados vacios/error y aviso responsable. |
 | Base freemium segura | Disponible en Fase 3 con `user_subscriptions`, `access_tier` y RPCs visibles. |
+| Panel admin operativo | Disponible en Fase 4 con `/admin`, `/admin/modelo` y `/admin/partidos`. |
 | Premium real con pagos | Pendiente. |
 | V2 produccion | No habilitado; experimental. |
 
@@ -146,3 +147,7 @@ No se debe elegir por accuracy solamente. La decision de modelo debe priorizar B
 La landing publica explica que PrediGol ofrece pronosticos deportivos informativos, con contenido gratis y premium futuro. La pagina `/pronosticos` permite filtrar predicciones del modelo por liga, equipo, fecha y tipo (`Gratis` o `Premium candidato`). El detalle de partido muestra probabilidades 1X2, marcador probable, xG, confianza y una explicacion simple sin exponer comparativas V1/V2.
 
 Las etiquetas premium visuales ahora deben apoyarse en la respuesta segura de Supabase. Las RPCs `obtener_predicciones_visibles` y `obtener_prediccion_visible` devuelven datos completos solo si el usuario tiene acceso, y preview bloqueado si no lo tiene. La pasarela de pago sigue pendiente.
+
+## Operacion admin Fase 4
+
+El panel `/admin` permite revisar conteos de predicciones, datasets, model runs, usuarios gratis/premium y partidos proximos. Tambien muestra comandos sugeridos para importar datos, generar pronosticos V1, ejecutar backtests y verificar Python. El navegador no ejecuta scripts locales; la automatizacion real requiere backend/worker seguro.

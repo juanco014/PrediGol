@@ -106,18 +106,6 @@ function ModelAdminPage({ session }) {
   const runsApi = runs.filter((run) => run.run_type === "api_import" || run.model_config?.provider === "api-football").slice(0, 5);
   const comandoApiBase = `python scripts/importar_desde_api.py --liga "${apiForm.liga || "ID_LIGA"}" --temporada "${apiForm.temporada || "TEMPORADA"}"`;
 
-  const cambiarModeloActivo = async (modelo) => {
-    if (!window.confirm(`¿Confirmas seleccionar ${modelo} como modelo activo administrativo?`)) return;
-    setGuardando(true);
-    const { data, error } = await supabase.rpc("guardar_model_prediction_settings", { p_active_model: modelo });
-    if (error) setMensaje(error.message || "No fue posible cambiar el modelo activo.");
-    else {
-      setSummary((actual) => ({ ...(actual || {}), settings: data }));
-      setMensaje(`Modelo activo actualizado a ${modelo}.`);
-    }
-    setGuardando(false);
-  };
-
   const guardarAlias = async (event) => {
     event.preventDefault();
     if (!aliasForm.canonical || !aliasForm.alias) {
@@ -202,7 +190,9 @@ function ModelAdminPage({ session }) {
           <button type="button" onClick={cargarDatos}><RefreshCw size={17} />Actualizar</button>
         </div>
         <div className="admin-data-health-grid">
-          <span>Modelo activo: {summary?.settings?.active_model || "V1"}</span>
+          <span>Modelo producción: V1 (poisson-elo-v1)</span>
+          <span>V2: experimental, no producción</span>
+          <span>Setting Supabase: {summary?.settings?.active_model || "V1"}</span>
           <span>Última ejecución: {formatearFecha(summary?.last_successful_run?.finished_at || summary?.last_successful_run?.created_at)}</span>
           <span>Último backtest: {formatearFecha(summary?.last_backtest?.finished_at || summary?.last_backtest?.created_at)}</span>
           <span>Última importación: {summary?.last_import?.name || "Sin registro"}</span>
@@ -214,10 +204,7 @@ function ModelAdminPage({ session }) {
           <span>Supabase: {summary?.supabase?.configured ? "OK" : "Sin configurar"}</span>
           <span>Python: externo via scripts</span>
         </div>
-        <div className="admin-import-actions">
-          <button type="button" disabled={guardando} onClick={() => cambiarModeloActivo("V1")}>Usar V1</button>
-          <button type="button" disabled={guardando} onClick={() => cambiarModeloActivo("V2")}>Usar V2</button>
-        </div>
+        <p className="admin-data-health-note">El MVP mantiene V1 como modelo principal. V2 queda visible solo para trazabilidad experimental; no se cambia desde este panel.</p>
       </section>
 
       <section className="admin-import-panel">
