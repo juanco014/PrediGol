@@ -122,6 +122,21 @@ export async function obtenerPerfilUsuario(usuarioId, client = null) {
   return data || null;
 }
 
+export async function obtenerPlanUsuario(client = null) {
+  const db = await obtenerClienteSupabase(client);
+  const { data, error } = await db.rpc("obtener_plan_usuario");
+
+  if (error) throw error;
+
+  return {
+    planCode: data?.plan_code || "free",
+    status: data?.status || "free",
+    isPremium: Boolean(data?.is_premium),
+    expiresAt: data?.expires_at || null,
+    source: data?.source || "default_free",
+  };
+}
+
 export async function reclamarPrimerAdmin(client = null) {
   const db = await obtenerClienteSupabase(client);
   const { data, error } = await db.rpc("reclamar_primer_admin");

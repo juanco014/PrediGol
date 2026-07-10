@@ -48,6 +48,10 @@ function explicarPrediccion(prediccion) {
     return "";
   }
 
+  if (prediccion.is_locked) {
+    return prediccion.preview_message || "Este pronostico requiere plan premium. Premium real se habilitara proximamente.";
+  }
+
   const opciones = [
     ["victoria local", Number(prediccion.home_win_probability)],
     ["empate", Number(prediccion.draw_probability)],
@@ -431,13 +435,19 @@ function PartidoDetailPage({ session }) {
                   </div>
                   {prediccionModelo ? (
                     <>
-                      <strong className="match-detail-user-score">
-                        {prediccionModelo.predicted_home_goals} -{" "}
-                        {prediccionModelo.predicted_away_goals}
-                      </strong>
+                      {prediccionModelo.is_locked ? (
+                        <strong className="match-detail-user-score">Premium</strong>
+                      ) : (
+                        <strong className="match-detail-user-score">
+                          {prediccionModelo.predicted_home_goals} -{" "}
+                          {prediccionModelo.predicted_away_goals}
+                        </strong>
+                      )}
                       <p>{explicarPrediccion(prediccionModelo)}</p>
                       <span>
-                        Modelo PrediGol V1 - Confianza {formatearPorcentaje(prediccionModelo.confidence)}
+                        {prediccionModelo.is_locked
+                          ? "Contenido premium protegido desde PrediGol"
+                          : `Modelo PrediGol V1 - Confianza ${formatearPorcentaje(prediccionModelo.confidence)}`}
                       </span>
                       {(prediccionModelo.metadata?.warnings || []).slice(0, 2).map((warning) => (
                         <small key={warning}>{warning}</small>
@@ -534,11 +544,15 @@ function PartidoDetailPage({ session }) {
                   <h2>Probabilidades 1X2</h2>
                 </div>
                 {prediccionModelo ? (
-                  <div className="match-probability-list">
-                    <ProbabilityBar label={partido.local} value={prediccionModelo.home_win_probability} />
-                    <ProbabilityBar label="Empate" value={prediccionModelo.draw_probability} />
-                    <ProbabilityBar label={partido.visitante} value={prediccionModelo.away_win_probability} />
-                  </div>
+                  prediccionModelo.is_locked ? (
+                    <p>{prediccionModelo.preview_message || "Probabilidades premium bloqueadas para este usuario."}</p>
+                  ) : (
+                    <div className="match-probability-list">
+                      <ProbabilityBar label={partido.local} value={prediccionModelo.home_win_probability} />
+                      <ProbabilityBar label="Empate" value={prediccionModelo.draw_probability} />
+                      <ProbabilityBar label={partido.visitante} value={prediccionModelo.away_win_probability} />
+                    </div>
+                  )
                 ) : (
                   <p>No hay datos del modelo para comparar.</p>
                 )}
@@ -550,12 +564,16 @@ function PartidoDetailPage({ session }) {
                   <h2>Poisson y Elo</h2>
                 </div>
                 {prediccionModelo ? (
-                  <div className="match-model-metrics">
-                    <span><b>{Number(prediccionModelo.expected_home_goals).toFixed(2)}</b> xG local</span>
-                    <span><b>{Number(prediccionModelo.expected_away_goals).toFixed(2)}</b> xG visitante</span>
-                    <span><b>{formatearPorcentaje(prediccionModelo.confidence)}</b> confianza</span>
-                    <span><b>{prediccionModelo.predicted_home_goals}-{prediccionModelo.predicted_away_goals}</b> marcador probable</span>
-                  </div>
+                  prediccionModelo.is_locked ? (
+                    <p>Los indicadores avanzados de este pronostico estan reservados para premium.</p>
+                  ) : (
+                    <div className="match-model-metrics">
+                      <span><b>{Number(prediccionModelo.expected_home_goals).toFixed(2)}</b> xG local</span>
+                      <span><b>{Number(prediccionModelo.expected_away_goals).toFixed(2)}</b> xG visitante</span>
+                      <span><b>{formatearPorcentaje(prediccionModelo.confidence)}</b> confianza</span>
+                      <span><b>{prediccionModelo.predicted_home_goals}-{prediccionModelo.predicted_away_goals}</b> marcador probable</span>
+                    </div>
+                  )
                 ) : (
                   <p>Estos indicadores aparecerán después de ejecutar el modelo.</p>
                 )}

@@ -4,6 +4,7 @@ import {
   cerrarSesion,
   iniciarSesion,
   obtenerMensajeErrorAuth,
+  obtenerPlanUsuario,
   obtenerPerfilUsuario,
   obtenerSesionActual,
   reclamarPrimerAdmin,
@@ -164,4 +165,26 @@ test("reclamarPrimerAdmin usa RPC existente", async () => {
 
   assert.deepEqual(result, { ok: true });
   assert.deepEqual(client.calls[0], ["rpc", "reclamar_primer_admin"]);
+});
+
+test("obtenerPlanUsuario normaliza plan gratuito y premium", async () => {
+  const freeClient = crearClientePerfilFake({ rpcData: null });
+  const premiumClient = crearClientePerfilFake({
+    rpcData: {
+      plan_code: "premium",
+      status: "premium_active",
+      is_premium: true,
+      expires_at: "2026-12-31T00:00:00Z",
+      source: "user_subscriptions",
+    },
+  });
+
+  const free = await obtenerPlanUsuario(freeClient);
+  const premium = await obtenerPlanUsuario(premiumClient);
+
+  assert.equal(free.planCode, "free");
+  assert.equal(free.isPremium, false);
+  assert.equal(premium.planCode, "premium");
+  assert.equal(premium.isPremium, true);
+  assert.deepEqual(premiumClient.calls[0], ["rpc", "obtener_plan_usuario"]);
 });

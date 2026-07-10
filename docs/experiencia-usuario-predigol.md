@@ -13,7 +13,7 @@ Este documento resume la Fase 2 del MVP: experiencia gratuita presentable para u
 | `/partidos/:partidoId` | Requiere sesion | Mejorada | Detalle de partido, probabilidades, marcador probable, xG y aviso responsable. |
 | `/ligas` y `/ligas/:ligaId` | Requiere sesion | Existente/parcial | Ligas y ligas privadas. |
 | `/ranking` | Requiere sesion | Existente | Ranking global/ligas. |
-| `/perfil` | Requiere sesion | Existente/parcial | Perfil, cuenta y preferencias. |
+| `/perfil` | Requiere sesion | Mejorado/parcial | Perfil, cuenta, preferencias y plan actual. |
 | `/notificaciones` | Requiere sesion | Existente/parcial | Preferencias y push notifications. |
 | `/estadisticas` | Requiere sesion | Existente/parcial | Estadisticas de usuario/app. |
 | `/admin/partidos` | Requiere sesion/admin en backend | Parcial | Operacion de partidos/API. |
@@ -44,6 +44,8 @@ Este documento resume la Fase 2 del MVP: experiencia gratuita presentable para u
 ## Premium pendiente
 
 Las etiquetas `Premium candidato` o `Premium pronto` son solo comunicacion de producto. No representan una proteccion real todavia.
+
+Desde Fase 3, las predicciones marcadas como `access_tier = premium` deben consultarse mediante RPCs seguras. El frontend puede mostrar una card bloqueada, pero los campos sensibles no deben llegar al navegador si el usuario no tiene acceso.
 
 Pendiente para Fase 3:
 

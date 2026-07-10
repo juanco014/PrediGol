@@ -182,6 +182,18 @@ function createQuery(data) {
   };
 }
 
+function createPredictionClient(predictions, matches) {
+  return {
+    rpc(name) {
+      assert.equal(name, "obtener_predicciones_visibles");
+      return Promise.resolve({ data: predictions, error: null });
+    },
+    from(table) {
+      return createQuery(table === "partidos" ? matches : []);
+    },
+  };
+}
+
 test("obtenerPronosticosModelo mapea predicciones del modelo para la UI", async () => {
   const predictions = [
     {
@@ -231,11 +243,7 @@ test("obtenerPronosticosModelo mapea predicciones del modelo para la UI", async 
       visitante_nombre: "Barcelona",
     },
   ];
-  const client = {
-    from(table) {
-      return createQuery(table === "model_predictions" ? predictions : matches);
-    },
-  };
+  const client = createPredictionClient(predictions, matches);
 
   const result = await obtenerPronosticosModelo({ limit: 2, freeLimit: 1 }, client);
 
@@ -252,4 +260,44 @@ test("obtenerPronosticosModelo mapea predicciones del modelo para la UI", async 
   assert.equal(filtered.length, 1);
   assert.equal(filtered[0].liga, "LaLiga");
   assert.equal(filtered[0].predictedOutcomeLabel, "Visitante");
+});
+
+test("obtenerPronosticosModelo no expone datos premium bloqueados", async () => {
+  const predictions = [
+    {
+      api_football_fixture_id: 2001,
+      partido_id: "p-premium",
+      access_tier: "premium",
+      is_locked: true,
+      user_can_access: false,
+      preview_message: "Requiere plan premium.",
+      home_win_probability: null,
+      draw_probability: null,
+      away_win_probability: null,
+      predicted_home_goals: null,
+      predicted_away_goals: null,
+      confidence: null,
+      model_version: null,
+      generated_at: "2026-07-10T00:00:00Z",
+    },
+  ];
+  const matches = [
+    {
+      id: "p-premium",
+      api_football_fixture_id: 2001,
+      torneo: "Serie A",
+      fecha_orden: "2026-08-10T19:00:00Z",
+      local_nombre: "Inter",
+      visitante_nombre: "Milan",
+    },
+  ];
+
+  const result = await obtenerPronosticosModelo({}, createPredictionClient(predictions, matches));
+
+  assert.equal(result[0].accessTier, "premium");
+  assert.equal(result[0].isLocked, true);
+  assert.equal(result[0].pHome, null);
+  assert.equal(result[0].probableScore, null);
+  assert.equal(result[0].predictedOutcomeLabel, "Premium");
+  assert.equal(result[0].previewMessage, "Requiere plan premium.");
 });

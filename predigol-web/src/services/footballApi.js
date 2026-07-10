@@ -284,18 +284,7 @@ export async function obtenerDetallePartido(partidoId, usuarioId, client = supab
 
   if (partido.apiFootballFixtureId) {
     consultas.push(
-      client
-        .from("model_predictions")
-        .select(
-          `
-            api_football_fixture_id, home_win_probability, draw_probability,
-            away_win_probability, expected_home_goals, expected_away_goals,
-            predicted_home_goals, predicted_away_goals, confidence,
-            model_version, generated_at, metadata
-          `
-        )
-        .eq("api_football_fixture_id", partido.apiFootballFixtureId)
-        .maybeSingle(),
+      client.rpc("obtener_prediccion_visible", { p_api_football_fixture_id: partido.apiFootballFixtureId }),
       client
         .from("football_live_snapshots")
         .select("id, captured_at, status, status_short, elapsed, goals_home, goals_away")
@@ -391,24 +380,7 @@ export async function obtenerPartidosInicio(usuarioId, client = supabase) {
   let prediccionesModelo = {};
 
   if (apiFootballFixtureIds.length > 0) {
-    const respuestaPredicciones = await client
-      .from("model_predictions")
-      .select(
-        `
-          api_football_fixture_id,
-          home_win_probability,
-          draw_probability,
-          away_win_probability,
-          expected_home_goals,
-          expected_away_goals,
-          predicted_home_goals,
-          predicted_away_goals,
-          confidence,
-          model_version,
-          generated_at
-        `
-      )
-      .in("api_football_fixture_id", apiFootballFixtureIds);
+    const respuestaPredicciones = await client.rpc("obtener_predicciones_visibles", { p_limit: 100 });
 
     if (respuestaPredicciones.error) {
       console.warn(
@@ -417,10 +389,9 @@ export async function obtenerPartidosInicio(usuarioId, client = supabase) {
       );
     } else {
       prediccionesModelo = Object.fromEntries(
-        (respuestaPredicciones.data || []).map((prediccion) => [
-          prediccion.api_football_fixture_id,
-          prediccion,
-        ])
+        (respuestaPredicciones.data || [])
+          .filter((prediccion) => apiFootballFixtureIds.includes(prediccion.api_football_fixture_id))
+          .map((prediccion) => [prediccion.api_football_fixture_id, prediccion])
       );
     }
   }
@@ -441,26 +412,7 @@ export async function obtenerPartidosInicio(usuarioId, client = supabase) {
 }
 
 export async function obtenerPronosticosModelo({ limit = 24, freeLimit = 8, league, team, accessTier } = {}, client = supabase) {
-  const { data: predicciones, error } = await client
-    .from("model_predictions")
-    .select(
-      `
-        api_football_fixture_id,
-        partido_id,
-        home_win_probability,
-        draw_probability,
-        away_win_probability,
-        expected_home_goals,
-        expected_away_goals,
-        predicted_home_goals,
-        predicted_away_goals,
-        confidence,
-        model_version,
-        generated_at
-      `
-    )
-    .order("generated_at", { ascending: false })
-    .limit(limit);
+  const { data: predicciones, error } = await client.rpc("obtener_predicciones_visibles", { p_limit: limit });
 
   if (error) throw error;
 
@@ -476,12 +428,15 @@ export async function obtenerPronosticosModelo({ limit = 24, freeLimit = 8, leag
   return (predicciones || [])
     .map((prediccion, index) => {
     const partido = partidosByFixtureId.get(prediccion.api_football_fixture_id) || {};
-    const probabilities = {
-      home: Number(prediccion.home_win_probability || 0),
-      draw: Number(prediccion.draw_probability || 0),
-      away: Number(prediccion.away_win_probability || 0),
-    };
-    const predictedOutcome = Object.entries(probabilities).sort((a, b) => b[1] - a[1])[0]?.[0] || "home";
+    const isLocked = Boolean(prediccion.is_locked);
+    const probabilities = isLocked
+      ? { home: null, draw: null, away: null }
+      : {
+          home: Number(prediccion.home_win_probability || 0),
+          draw: Number(prediccion.draw_probability || 0),
+          away: Number(prediccion.away_win_probability || 0),
+        };
+    const predictedOutcome = isLocked ? null : Object.entries(probabilities).sort((a, b) => b[1] - a[1])[0]?.[0] || "home";
     return {
       apiFootballFixtureId: prediccion.api_football_fixture_id,
       partidoId: partido.id || prediccion.partido_id,
@@ -493,14 +448,17 @@ export async function obtenerPronosticosModelo({ limit = 24, freeLimit = 8, leag
       pDraw: probabilities.draw,
       pAway: probabilities.away,
       predictedOutcome,
-      predictedOutcomeLabel: predictedOutcome === "home" ? "Local" : predictedOutcome === "away" ? "Visitante" : "Empate",
-      probableScore: `${prediccion.predicted_home_goals}-${prediccion.predicted_away_goals}`,
+      predictedOutcomeLabel: isLocked ? "Premium" : predictedOutcome === "home" ? "Local" : predictedOutcome === "away" ? "Visitante" : "Empate",
+      probableScore: isLocked ? null : `${prediccion.predicted_home_goals}-${prediccion.predicted_away_goals}`,
       expectedHomeGoals: prediccion.expected_home_goals,
       expectedAwayGoals: prediccion.expected_away_goals,
-      confidence: Number(prediccion.confidence || 0),
+      confidence: isLocked ? null : Number(prediccion.confidence || 0),
       modelVersion: prediccion.model_version,
       generatedAt: prediccion.generated_at,
-      accessTier: index < freeLimit ? "free" : "premium_candidate",
+      accessTier: prediccion.access_tier === "premium" ? "premium" : index < freeLimit ? "free" : "premium_candidate",
+      isLocked,
+      userCanAccess: Boolean(prediccion.user_can_access),
+      previewMessage: prediccion.preview_message || null,
     };
     })
     .filter((pronostico) => {

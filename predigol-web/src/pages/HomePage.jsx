@@ -517,14 +517,21 @@ function HomePage({ session }) {
 
             <div className="home-featured-model">
               {prediccionDestacada ? (
-                <>
-                  <span>
-                    Modelo PrediGol {prediccionDestacada.model_version || ""}: Local {formatearPorcentaje(prediccionDestacada.home_win_probability)} · Empate {formatearPorcentaje(prediccionDestacada.draw_probability)} · Visitante {formatearPorcentaje(prediccionDestacada.away_win_probability)}
-                  </span>
-                  <strong>
-                    PrediGol estima {prediccionDestacada.predicted_home_goals} - {prediccionDestacada.predicted_away_goals}
-                  </strong>
-                </>
+                prediccionDestacada.is_locked ? (
+                  <>
+                    <span>Predicción premium bloqueada</span>
+                    <strong>{prediccionDestacada.preview_message || "Requiere plan premium."}</strong>
+                  </>
+                ) : (
+                  <>
+                    <span>
+                      Modelo PrediGol {prediccionDestacada.model_version || ""}: Local {formatearPorcentaje(prediccionDestacada.home_win_probability)} · Empate {formatearPorcentaje(prediccionDestacada.draw_probability)} · Visitante {formatearPorcentaje(prediccionDestacada.away_win_probability)}
+                    </span>
+                    <strong>
+                      PrediGol estima {prediccionDestacada.predicted_home_goals} - {prediccionDestacada.predicted_away_goals}
+                    </strong>
+                  </>
+                )
               ) : (
                 <span>Predicción del modelo no disponible todavía.</span>
               )}
@@ -733,31 +740,23 @@ function HomePage({ session }) {
                 {prediccionModelo && (
                   <div className="model-prediction-card">
                     <div>
-                      <span>Modelo PrediGol {prediccionModelo.model_version || ""}</span>
+                      <span>{prediccionModelo.is_locked ? "Premium" : `Modelo PrediGol ${prediccionModelo.model_version || ""}`}</span>
                       <strong>
-                        {prediccionModelo.predicted_home_goals} -{" "}
-                        {prediccionModelo.predicted_away_goals}
+                        {prediccionModelo.is_locked
+                          ? "Bloqueado"
+                          : `${prediccionModelo.predicted_home_goals} - ${prediccionModelo.predicted_away_goals}`}
                       </strong>
                     </div>
 
-                    <div className="model-probabilities">
-                      <span>
-                        Local{" "}
-                        {formatearPorcentaje(
-                          prediccionModelo.home_win_probability
-                        )}
-                      </span>
-                      <span>
-                        Empate{" "}
-                        {formatearPorcentaje(prediccionModelo.draw_probability)}
-                      </span>
-                      <span>
-                        Visitante{" "}
-                        {formatearPorcentaje(
-                          prediccionModelo.away_win_probability
-                        )}
-                      </span>
-                    </div>
+                    {prediccionModelo.is_locked ? (
+                      <p>{prediccionModelo.preview_message || "Requiere plan premium."}</p>
+                    ) : (
+                      <div className="model-probabilities">
+                        <span>Local {formatearPorcentaje(prediccionModelo.home_win_probability)}</span>
+                        <span>Empate {formatearPorcentaje(prediccionModelo.draw_probability)}</span>
+                        <span>Visitante {formatearPorcentaje(prediccionModelo.away_win_probability)}</span>
+                      </div>
+                    )}
                   </div>
                 )}
 

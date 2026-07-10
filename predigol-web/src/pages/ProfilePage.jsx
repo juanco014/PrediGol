@@ -25,6 +25,7 @@ import { obtenerRankingGlobalSupabase } from "../utils/rankingSupabase";
 import {
   cerrarSesion as cerrarSesionCuenta,
   obtenerMensajeErrorAuth,
+  obtenerPlanUsuario,
   reclamarPrimerAdmin as reclamarPrimerAdminCuenta,
 } from "../services/userAccountApi";
 import { useFavorites } from "../hooks/useFavorites";
@@ -40,6 +41,7 @@ function ProfilePage({ session }) {
     useState(estadisticasVacias);
   const [rankingSupabase, setRankingSupabase] = useState([]);
   const [favoritosMensaje, setFavoritosMensaje] = useState("");
+  const [planUsuario, setPlanUsuario] = useState({ planCode: "free", status: "free", isPremium: false });
 
   const usuarioId = session?.user?.id;
   const { profile } = useProfile(usuarioId);
@@ -83,6 +85,30 @@ function ProfilePage({ session }) {
         if (!respuestaCancelada) {
           setCargandoEstadisticas(false);
         }
+      });
+
+    return () => {
+      respuestaCancelada = true;
+    };
+  }, [usuarioId]);
+
+  useEffect(() => {
+    let respuestaCancelada = false;
+
+    if (!usuarioId) {
+      return () => {
+        respuestaCancelada = true;
+      };
+    }
+
+    obtenerPlanUsuario()
+      .then((plan) => {
+        if (!respuestaCancelada) {
+          setPlanUsuario(plan);
+        }
+      })
+      .catch((error) => {
+        console.error("Error al cargar plan del usuario:", error);
       });
 
     return () => {
@@ -256,6 +282,25 @@ function ProfilePage({ session }) {
           <p>Puntos totales</p>
           <strong>{estadisticasPrediGol.puntosTotales}</strong>
         </div>
+      </section>
+
+      <section className="profile-section profile-plan-card">
+        <p className="section-label">PLAN ACTUAL</p>
+        <h2>{planUsuario.isPremium ? "Premium" : "Gratis"}</h2>
+        <p>
+          {planUsuario.isPremium
+            ? "Tu cuenta tiene acceso premium activo segun Supabase."
+            : "Tu cuenta usa el plan gratuito. Premium real queda preparado para una fase posterior."}
+        </p>
+        <span>
+          Estado: {planUsuario.status || "free"}
+          {planUsuario.expiresAt ? ` · vence ${new Date(planUsuario.expiresAt).toLocaleDateString("es-CO")}` : ""}
+        </span>
+        {!planUsuario.isPremium && (
+          <button type="button" disabled>
+            Premium proximamente
+          </button>
+        )}
       </section>
 
       <section className="profile-section">

@@ -93,6 +93,9 @@ function obtenerEstadoVisual(pronostico) {
 }
 
 function formatearProbabilidad(valor) {
+  if (valor === null || valor === undefined) {
+    return "Bloqueado";
+  }
   return `${Math.round(Number(valor || 0) * 100)}%`;
 }
 
@@ -309,6 +312,7 @@ function PronosticosPage({ session }) {
               <option value="todos">Todos</option>
               <option value="free">Gratis</option>
               <option value="premium_candidate">Premium candidato</option>
+              <option value="premium">Premium</option>
             </select>
           </label>
           <label>
@@ -358,11 +362,13 @@ function PronosticosPage({ session }) {
 
                 <div className="saved-prediction-result">
                   <span className={pronostico.accessTier === "free" ? "saved-prediction-pending" : "saved-prediction-score"}>
-                    {pronostico.accessTier === "free" ? "Gratis" : "Premium candidato"}
+                    {pronostico.accessTier === "free" ? "Gratis" : pronostico.isLocked ? "Premium bloqueado" : "Premium"}
                   </span>
                   <strong>{pronostico.predictedOutcomeLabel}</strong>
                   <small>
-                    Marcador probable {pronostico.probableScore || "por confirmar"} · confianza {pronostico.confidence ? formatearProbabilidad(pronostico.confidence) : "por confirmar"}
+                    {pronostico.isLocked
+                      ? (pronostico.previewMessage || "Requiere plan premium. Premium real se habilitara proximamente.")
+                      : `Marcador probable ${pronostico.probableScore || "por confirmar"} · confianza ${pronostico.confidence ? formatearProbabilidad(pronostico.confidence) : "por confirmar"}`}
                   </small>
                   {pronostico.partidoId && (
                     <button type="button" onClick={(evento) => { evento.stopPropagation(); navigate(`/partidos/${pronostico.partidoId}`); }}>
