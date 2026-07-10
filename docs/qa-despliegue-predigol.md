@@ -515,3 +515,18 @@ No se validaron usuarios reales porque el backend MVP aun no expone las tablas/R
 3. Si no existen, reaplicar en orden las migraciones base faltantes de Fase 7C.
 4. Reejecutar `scripts/verificar_supabase_mvp.py` hasta que todas las tablas/RPC esten OK.
 5. Validar usuarios reales y premium manual en navegador.
+
+## Correccion Verificador Supabase MVP - 2026-07-10
+
+### Alcance
+
+`scripts/verificar_supabase_mvp.py` distingue ahora entre RPC faltante, permisos insuficientes, firma/cache REST incorrecta, RPC ejecutable y RPC existente protegida por sesion.
+
+Las RPC que dependen de `auth.uid()` pueden responder `P0001: Debes iniciar sesion` cuando se prueban desde SQL Editor o sin una sesion de usuario real. Ese resultado confirma que la funcion existe y conserva la proteccion de sesion; no reemplaza la validacion funcional con usuarios reales.
+
+### Validacion Pendiente En Navegador
+
+- [ ] Usuario gratis: `obtener_plan_usuario`, `obtener_predicciones_visibles(24)` y `obtener_prediccion_visible(fixture real)` devuelven solo contenido permitido.
+- [ ] Usuario premium manual: las mismas RPC devuelven contenido premium permitido si existe suscripcion activa o trial.
+- [ ] Usuario admin: `predigol_es_admin()` permite acceso admin y las RPC devuelven datos completos segun policies.
+- [ ] Usuario sin sesion: rutas privadas redirigen a `/auth` y no se usan RPC protegidas como fuente de datos publica.

@@ -29,8 +29,7 @@ EXPECTED_TABLES = [
 EXPECTED_RPCS: list[tuple[str, dict[str, Any]]] = [
     ("predigol_es_admin", {}),
     ("obtener_plan_usuario", {}),
-    ("obtener_predicciones_visibles", {"p_limit": 1}),
-    ("obtener_prediccion_visible", {"p_api_football_fixture_id": 0}),
+    ("obtener_predicciones_visibles", {"p_limit": 24}),
     ("predigol_usuario_tiene_premium", {}),
 ]
 
@@ -57,11 +56,47 @@ def configured(value: str | None) -> bool:
 
 def classify_error(status_code: int, body: str) -> tuple[str, str]:
     lowered = body.lower()
+    if status_code == 400 and "p0001" in lowered and "debes iniciar sesi" in lowered:
+        return "PENDIENTE SESION", "RPC existente y protegida; requiere usuario autenticado para validacion funcional"
+    if "permission denied" in lowered or status_code in {401, 403}:
+        return "PERMISOS", "credenciales sin permiso o grant/RLS insuficiente"
     if status_code == 404 or "pgrst202" in lowered or "could not find" in lowered:
         return "FALTANTE", "no existe o no esta en cache REST"
-    if status_code in {401, 403}:
-        return "PERMISOS", "credenciales sin permiso o grant/RLS insuficiente"
+    if "pgrst203" in lowered or "could not choose the best candidate function" in lowered:
+        return "ERROR", "firma incorrecta o ambigua"
     return "ERROR", f"HTTP {status_code}"
+
+
+def get_sample_fixture_id(client: httpx.Client) -> int | None:
+    try:
+        response = client.get(
+            "/model_predictions",
+            params={
+                "select": "api_football_fixture_id",
+                "api_football_fixture_id": "not.is.null",
+                "order": "generated_at.desc",
+                "limit": "1",
+            },
+        )
+    except httpx.HTTPError:
+        return None
+
+    if response.status_code not in {200, 206}:
+        return None
+
+    try:
+        rows = response.json()
+    except ValueError:
+        return None
+
+    if not rows:
+        return None
+
+    fixture_id = rows[0].get("api_football_fixture_id")
+    try:
+        return int(fixture_id) if fixture_id is not None else None
+    except (TypeError, ValueError):
+        return None
 
 
 def get_client() -> httpx.Client | None:
@@ -100,13 +135,15 @@ def check_table(client: httpx.Client, table: str) -> CheckResult:
     return CheckResult(table, status, detail)
 
 
-def check_rpc(client: httpx.Client, name: str, payload: dict[str, Any]) -> CheckResult:
+def check_rpc(client: httpx.Client, name: str, payload: dict[str, Any], *, null_is_pending: bool = False) -> CheckResult:
     try:
         response = client.post(f"/rpc/{name}", content=json.dumps(payload))
     except httpx.HTTPError as error:
         return CheckResult(name, "ERROR", f"conexion: {error.__class__.__name__}")
 
     if response.status_code in {200, 204}:
+        if null_is_pending and response.text.strip().lower() in {"", "null"}:
+            return CheckResult(name, "PENDIENTE DATOS", "RPC ejecutable; falta fixture existente para validacion funcional")
         return CheckResult(name, "OK", "ejecutable")
 
     status, detail = classify_error(response.status_code, response.text)
@@ -126,12 +163,22 @@ def main() -> int:
 
     with client:
         table_results = [check_table(client, table) for table in EXPECTED_TABLES]
+        fixture_id = get_sample_fixture_id(client)
         rpc_results = [check_rpc(client, name, payload) for name, payload in EXPECTED_RPCS]
+        rpc_results.append(
+            check_rpc(
+                client,
+                "obtener_prediccion_visible",
+                {"p_api_football_fixture_id": fixture_id or 0},
+                null_is_pending=fixture_id is None,
+            )
+        )
 
     print_results("Tablas", table_results)
     print_results("RPC", rpc_results)
 
-    missing = [result for result in [*table_results, *rpc_results] if result.status != "OK"]
+    accepted_statuses = {"OK", "PENDIENTE SESION", "PENDIENTE DATOS"}
+    missing = [result for result in [*table_results, *rpc_results] if result.status not in accepted_statuses]
     if missing:
         print("Resumen: FALTAN elementos MVP o no son accesibles.")
         print("Accion: aplica/verifica migraciones pendientes sin hacer reset de la base real.")
