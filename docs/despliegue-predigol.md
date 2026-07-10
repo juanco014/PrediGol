@@ -179,3 +179,17 @@ Antes de declarar el despliegue validado contra backend real, completar:
 2. Configurar variables privadas del servicio Python.
 3. Validar migraciones/RPC/RLS en Supabase definitivo.
 4. Probar usuario gratis, admin y premium manual en navegador real.
+
+## 12. Estado QA Fase 7B
+
+Ejecucion local 2026-07-10:
+
+- Tests frontend/lint/build pasaron.
+- Preview local arranco.
+- Tests Python pasaron.
+- `scripts/verificar_python.py` sigue reportando Supabase sin configurar.
+- `predigol-web/.env.local` no existe.
+- `prediction-service/.env` existe, pero faltan `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`.
+- Se reemplazaron valores reales encontrados en `.env.example` por placeholders.
+
+Bloqueante para validar backend real: completar variables locales y reejecutar QA. Si las claves detectadas en `.env.example` estuvieron expuestas previamente, rotarlas antes del despliegue publico.

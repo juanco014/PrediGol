@@ -90,6 +90,17 @@ Estado: parcial. La validacion automatizada local paso, pero la validacion contr
 | Supabase real/RLS/RPC | Pendiente por credenciales locales. |
 | Usuario gratis/admin/premium en navegador | Pendiente por variables frontend. |
 
+### Fase 7B
+
+Estado: bloqueada por configuracion local incompleta. Se confirmo que los `.env` reales estan ignorados, pero `predigol-web/.env.local` no existe y `prediction-service/.env` no declara `SUPABASE_URL` ni `SUPABASE_SERVICE_ROLE_KEY`. Tambien se reemplazaron valores reales encontrados en `.env.example` por placeholders.
+
+Pendiente antes de repetir 7B:
+
+- Crear `predigol-web/.env.local` con variables publicas reales.
+- Completar `prediction-service/.env` con Supabase URL y service role reales.
+- Rotar claves si las detectadas en `.env.example` fueron expuestas previamente.
+- Repetir QA contra Supabase real con usuario gratis, admin y premium manual.
+
 ## Fases posteriores
 
 | Fase | Objetivo | Estado |

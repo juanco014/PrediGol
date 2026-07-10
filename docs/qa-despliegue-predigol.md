@@ -174,3 +174,99 @@ prediction-service/.venv/Scripts/python.exe scripts/generar_pronosticos.py --dat
 4. Ejecutar QA manual en navegador con usuario gratis, admin y premium manual.
 5. Validar respuestas de RPC premium con usuario gratis y usuario premium/admin.
 6. Registrar resultados sin exponer emails, UUIDs completos ni secretos.
+
+## Ejecucion Fase 7B - 2026-07-10
+
+### Resultado General
+
+Fase 7B no pudo completar validacion real contra Supabase definitivo desde este workspace. Las credenciales locales siguen incompletas:
+
+- `predigol-web/.env.local` no existe.
+- `prediction-service/.env` existe y esta ignorado, pero solo declara `FOOTBALL_API_KEY` por nombre.
+- Faltan `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` en `prediction-service/.env`.
+
+### Seguridad Y Git
+
+| Revision | Resultado |
+| --- | --- |
+| `git status --short` inicial | Mostraba cambios en `.env.example`; no habia `.env` reales rastreados. |
+| `git check-ignore predigol-web/.env.local` | Ignorado por Git. |
+| `git check-ignore prediction-service/.env` | Ignorado por Git. |
+| Secretos en archivos rastreados | Se detectaron valores reales en `.env.example` y fueron reemplazados por placeholders. |
+| Reportes/build | Presentes solo como ignorados por Git. |
+
+Nota de seguridad: se reemplazaron valores reales en `prediction-service/.env.example` y `predigol-web/.env.example`. Si esos valores ya fueron compartidos o commiteados previamente, deben rotarse en Supabase/API-Football.
+
+### Variables Verificadas Sin Exponer Valores
+
+Frontend local:
+
+- `predigol-web/.env.local`: no existe.
+- No se detectaron `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` ni `VITE_SUPABASE_ANON_KEY` en archivo local.
+
+Prediction service:
+
+- `prediction-service/.env`: existe e ignorado por Git.
+- Detectada por nombre: `FOOTBALL_API_KEY`.
+- Faltan por nombre: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+
+### Pruebas Automatizadas
+
+| Comando | Resultado |
+| --- | --- |
+| `npm test` | 90 tests pasaron. |
+| `npm run lint` | Paso. |
+| `npm run build` | Paso. |
+| `npm run preview -- --host 127.0.0.1` | Arranco en `http://127.0.0.1:4173/`. |
+| `prediction-service/.venv/Scripts/python.exe -m pytest prediction-service/tests` | 79 tests pasaron. |
+| `prediction-service/.venv/Scripts/python.exe scripts/verificar_python.py` | Entorno OK; advierte que falta Supabase. |
+
+### Supabase Real
+
+No validado. Bloqueante: faltan `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` en el servicio Python y faltan variables publicas frontend locales.
+
+Pendiente validar en Supabase real:
+
+- [ ] `profiles`.
+- [ ] `model_predictions`.
+- [ ] `model_runs`.
+- [ ] `model_datasets`.
+- [ ] `team_aliases`.
+- [ ] `subscription_plans`.
+- [ ] `user_subscriptions`.
+- [ ] `predigol_es_admin`.
+- [ ] `obtener_plan_usuario`.
+- [ ] `obtener_predicciones_visibles`.
+- [ ] `obtener_prediccion_visible`.
+- [ ] `predigol_usuario_tiene_premium`.
+
+### Usuarios Y Rutas Reales
+
+No validados en navegador real por falta de `predigol-web/.env.local`.
+
+Pendiente:
+
+- [ ] Login real.
+- [ ] Sesion persistente.
+- [ ] Usuario gratis en `/inicio`, `/pronosticos`, `/partidos/:partidoId`, `/perfil`.
+- [ ] `/admin` bloqueado para no admin.
+- [ ] Admin en `/admin`, `/admin/modelo`, `/admin/partidos`.
+- [ ] Premium manual permitido/bloqueado por RPC/RLS.
+
+### Datos Y Pronosticos
+
+| Comando | Resultado |
+| --- | --- |
+| `scripts/importar_ligas_temporadas.py --league 39 --seasons 2024 --dry-run` | `skipped_existing`; dataset local disponible. |
+| `scripts/generar_pronosticos.py --dataset reports/api_api_football_liga-39_temporada-2024_dataset.json --model v1` | Omitido porque la salida V1 ya existe; no se uso `--force`. |
+
+No se ejecuto importacion real para no consumir cuota y porque no esta completo el entorno Supabase.
+
+### Pendientes Para Completar 7B
+
+1. Crear `predigol-web/.env.local` con `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` o `VITE_SUPABASE_ANON_KEY`.
+2. Completar `prediction-service/.env` con `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` reales.
+3. Rotar cualquier clave que haya estado expuesta en `.env.example` si ya fue compartida o commiteada.
+4. Reejecutar `scripts/verificar_python.py` hasta que Supabase aparezca OK.
+5. Validar tablas/RPC/RLS con consultas reales.
+6. Probar usuarios gratis, admin y premium manual en navegador.

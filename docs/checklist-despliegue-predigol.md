@@ -108,6 +108,23 @@ where id = 'UUID_DEL_USUARIO_ADMIN';
 
 Bloqueante actual para completar QA real: faltan variables locales `predigol-web/.env.local`, `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` en `prediction-service/.env`.
 
+## QA Real Fase 7B
+
+- [x] `.env` reales confirmados como ignorados por Git.
+- [x] Tests frontend/lint/build pasaron.
+- [x] Tests Python pasaron.
+- [x] Preview local arranco.
+- [x] Valores reales removidos de `.env.example` rastreados.
+- [ ] `predigol-web/.env.local` existe con variables publicas reales.
+- [ ] `prediction-service/.env` contiene `SUPABASE_URL`.
+- [ ] `prediction-service/.env` contiene `SUPABASE_SERVICE_ROLE_KEY`.
+- [ ] Supabase real validado por script.
+- [ ] Login real probado en navegador.
+- [ ] Admin real probado en navegador.
+- [ ] Premium manual validado por RPC/RLS.
+
+Accion requerida: completar variables locales y rotar claves si algun valor real de `.env.example` ya fue expuesto fuera del equipo.
+
 ## Pendiente Para Pagos Reales
 
 - [ ] Elegir proveedor.
