@@ -162,3 +162,20 @@ Supabase:
 - Secretos del proveedor fuera del frontend.
 - Auditoria de cambios de suscripcion.
 - Reconciliacion de pagos y expiraciones.
+
+## 11. Estado QA Post-Despliegue Fase 7
+
+Ejecucion local 2026-07-10:
+
+- Frontend: tests, lint, build y preview pasan.
+- Python: tests y verificacion de dependencias pasan.
+- Dataset local disponible: `reports/api_api_football_liga-39_temporada-2024_dataset.json`.
+- Pronosticos V1 locales ya generados: `reports/pronosticos_api_api_football_liga-39_temporada-2024_dataset_v1.json`.
+- Supabase real no se valido desde este workspace porque faltan `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` en `prediction-service/.env` y no existe `predigol-web/.env.local`.
+
+Antes de declarar el despliegue validado contra backend real, completar:
+
+1. Configurar variables publicas frontend.
+2. Configurar variables privadas del servicio Python.
+3. Validar migraciones/RPC/RLS en Supabase definitivo.
+4. Probar usuario gratis, admin y premium manual en navegador real.

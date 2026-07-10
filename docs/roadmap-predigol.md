@@ -76,14 +76,27 @@ Entregables:
 | Admin inicial seguro | Documentado con SQL controlado; auto-elevacion no se expone en UI. |
 | V1 produccion / V2 experimental | Mantenido. |
 
+## Fase 7: QA real post-despliegue
+
+Estado: parcial. La validacion automatizada local paso, pero la validacion contra Supabase definitivo queda pendiente porque este workspace no tiene variables locales completas para frontend ni service role del servicio Python.
+
+| Validacion | Estado |
+| --- | --- |
+| Tests frontend/lint/build | Hecho. |
+| Preview produccion local | Hecho. |
+| Tests Python | Hecho. |
+| Dataset real local liga 39 temporada 2024 | Disponible. |
+| Pronosticos V1 locales | Ya generados, no sobrescritos. |
+| Supabase real/RLS/RPC | Pendiente por credenciales locales. |
+| Usuario gratis/admin/premium en navegador | Pendiente por variables frontend. |
+
 ## Fases posteriores
 
 | Fase | Objetivo | Estado |
 | --- | --- | --- |
-| Fase 7 | Pagos reales, checkout server-side y webhooks. | Pendiente. |
-| Fase 8 | Automatizacion backend/worker para importaciones y generacion programada. | Pendiente. |
-| Fase 9 | Validacion multi-liga real ampliada y reporting operativo. | Pendiente. |
-| Fase 10 | Monitoreo, observabilidad, alertas y gestion de errores productivos. | Pendiente. |
+| Fase 8 | Pagos reales, checkout server-side y webhooks. | Pendiente. |
+| Fase 9 | Automatizacion backend/worker para importaciones y generacion programada. | Pendiente. |
+| Fase 10 | Validacion multi-liga real ampliada, monitoreo y observabilidad. | Pendiente. |
 
 ## Criterios de cierre del MVP estable
 

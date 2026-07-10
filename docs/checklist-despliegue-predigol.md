@@ -91,6 +91,23 @@ where id = 'UUID_DEL_USUARIO_ADMIN';
 - [ ] Revisar conteo de `model_predictions` despues de generar pronosticos.
 - [ ] Revisar usuarios premium manuales y expiraciones.
 
+## QA Real Fase 7
+
+- [x] `git status --short` limpio antes de QA local.
+- [x] `.env` reales no estan rastreados por Git.
+- [x] Frontend tests/lint/build pasan.
+- [x] Preview de produccion arranca localmente.
+- [x] Python tests pasan.
+- [x] `scripts/verificar_python.py` ejecutado.
+- [x] Dataset local liga 39 temporada 2024 detectado.
+- [ ] Supabase real validado desde scripts locales.
+- [ ] Usuario gratis validado en navegador real.
+- [ ] Usuario admin validado en navegador real.
+- [ ] Usuario premium manual validado en navegador real.
+- [ ] Premium bloqueado/permitido validado con RPC real.
+
+Bloqueante actual para completar QA real: faltan variables locales `predigol-web/.env.local`, `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` en `prediction-service/.env`.
+
 ## Pendiente Para Pagos Reales
 
 - [ ] Elegir proveedor.
