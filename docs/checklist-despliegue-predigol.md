@@ -4,6 +4,7 @@
 
 - [ ] `VITE_SUPABASE_URL` apunta al proyecto correcto.
 - [ ] `VITE_SUPABASE_PUBLISHABLE_KEY` es public/publishable, no service role.
+- [ ] Si se usa `VITE_SUPABASE_ANON_KEY`, es anon/public y no service role.
 - [ ] `VITE_WEB_PUSH_VAPID_PUBLIC_KEY` es publica o queda vacia si push no se usa.
 - [ ] No hay `SUPABASE_SERVICE_ROLE_KEY`, claves privadas ni API-Football key en `VITE_*`.
 - [ ] `npm test` pasa.
@@ -13,19 +14,40 @@
 
 ## Supabase
 
+- [ ] Proyecto Supabase definitivo creado y seleccionado.
 - [ ] Migraciones aplicadas en orden.
 - [ ] RLS activo en tablas sensibles.
 - [ ] `predigol_es_admin()` disponible y probado.
 - [ ] `model_predictions_read_by_entitlement` protege premium.
 - [ ] `user_subscriptions_admin_write` limita escrituras premium a admin.
-- [ ] RPCs `obtener_predicciones_visibles`, `obtener_prediccion_visible` y `obtener_plan_usuario` disponibles.
+- [ ] RPCs `predigol_usuario_tiene_premium`, `obtener_predicciones_visibles`, `obtener_prediccion_visible` y `obtener_plan_usuario` disponibles.
+- [ ] Tabla `model_predictions` accesible por RPC segura.
+- [ ] Usuario gratis no recibe premium completo.
+- [ ] Admin puede consultar datos completos segun RLS/RPC.
 - [ ] Edge Functions tienen secretos en Supabase Secrets, no en frontend.
-- [ ] Usuario admin inicial creado o reclamado de forma controlada.
+- [ ] Usuario admin inicial creado desde SQL controlado o RPC bootstrap no expuesto en UI.
+- [ ] Perfil admin tiene `rol = 'admin'` y/o `es_admin = true`.
+
+## Admin Inicial
+
+- [ ] Crear usuario desde Auth o registro normal.
+- [ ] Confirmar que existe fila en `public.profiles`.
+- [ ] Asignar admin desde SQL Editor:
+
+```sql
+update public.profiles
+set rol = 'admin', es_admin = true
+where id = 'UUID_DEL_USUARIO_ADMIN';
+```
+
+- [ ] Validar que `/admin` carga solo con ese usuario.
+- [ ] No exponer botones de auto-elevacion admin en frontend de produccion.
 
 ## API Keys Y Secretos
 
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` solo en backend/scripts/Edge Functions.
 - [ ] `FOOTBALL_API_KEY` solo en `prediction-service/.env` local o secretos backend.
+- [ ] `API_FOOTBALL_KEY` legacy, si se usa, solo en backend/scripts/Edge Functions.
 - [ ] `WEB_PUSH_VAPID_PRIVATE_KEY` solo en Edge Functions.
 - [ ] `.env` reales estan ignorados por Git.
 - [ ] `.env.example` no contiene claves reales.

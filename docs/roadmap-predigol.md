@@ -61,6 +61,30 @@ Este roadmap prioriza el cierre del MVP freemium como producto. V1 queda como mo
 
 La Fase 5 deja el MVP en estado entregable: documentacion de entrega, checklist de despliegue, revision de rutas principales, seguridad basica, scripts operativos y pruebas obligatorias. No incluye pagos reales, tuning de modelos, cambios en V1/V2 ni migraciones nuevas.
 
+## Fase 6: preparacion de despliegue
+
+Estado: completada a nivel de repositorio y documentacion; pendiente QA manual contra Supabase definitivo si las credenciales reales no estan configuradas localmente.
+
+Entregables:
+
+| Entregable | Estado |
+| --- | --- |
+| Variables reales documentadas | Hecho en `docs/configuracion-entorno-predigol.md`. |
+| Checklist Supabase real | Hecho en `docs/checklist-despliegue-predigol.md`. |
+| Runbook despliegue | Hecho en `docs/despliegue-predigol.md`. |
+| QA manual navegador | Hecho en `docs/qa-despliegue-predigol.md`. |
+| Admin inicial seguro | Documentado con SQL controlado; auto-elevacion no se expone en UI. |
+| V1 produccion / V2 experimental | Mantenido. |
+
+## Fases posteriores
+
+| Fase | Objetivo | Estado |
+| --- | --- | --- |
+| Fase 7 | Pagos reales, checkout server-side y webhooks. | Pendiente. |
+| Fase 8 | Automatizacion backend/worker para importaciones y generacion programada. | Pendiente. |
+| Fase 9 | Validacion multi-liga real ampliada y reporting operativo. | Pendiente. |
+| Fase 10 | Monitoreo, observabilidad, alertas y gestion de errores productivos. | Pendiente. |
+
 ## Criterios de cierre del MVP estable
 
 | Criterio | Resultado esperado |

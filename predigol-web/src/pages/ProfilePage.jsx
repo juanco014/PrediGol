@@ -26,7 +26,6 @@ import {
   cerrarSesion as cerrarSesionCuenta,
   obtenerMensajeErrorAuth,
   obtenerPlanUsuario,
-  reclamarPrimerAdmin as reclamarPrimerAdminCuenta,
 } from "../services/userAccountApi";
 import { useFavorites } from "../hooks/useFavorites";
 import { useProfile } from "../hooks/useProfile";
@@ -35,7 +34,6 @@ import { isAdminUser } from "../utils/admin";
 function ProfilePage({ session }) {
   const navigate = useNavigate();
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
-  const [activandoAdmin, setActivandoAdmin] = useState(false);
   const [cargandoEstadisticas, setCargandoEstadisticas] = useState(true);
   const [estadisticasPrediGol, setEstadisticasPrediGol] =
     useState(estadisticasVacias);
@@ -180,25 +178,6 @@ function ProfilePage({ session }) {
       );
     } finally {
       setCerrandoSesion(false);
-    }
-  };
-
-  const reclamarPrimerAdmin = async () => {
-    try {
-      setActivandoAdmin(true);
-
-      await reclamarPrimerAdminCuenta();
-
-      window.location.reload();
-    } catch (error) {
-      window.alert(
-        obtenerMensajeErrorAuth(
-          error,
-          "No fue posible activar el administrador. Revisa si ya existe otro admin."
-        )
-      );
-    } finally {
-      setActivandoAdmin(false);
     }
   };
 
@@ -506,24 +485,6 @@ function ProfilePage({ session }) {
 
           <button type="button" onClick={() => navigate("/admin")}>
             Abrir panel
-          </button>
-        </section>
-      )}
-
-      {profile && !esAdmin && (
-        <section className="achievement-card admin-shortcut-card">
-          <div>
-            <p className="section-label">CONFIGURACIÓN INICIAL</p>
-            <h3>Activar primer admin</h3>
-            <span>Solo funciona si aún no existe un administrador.</span>
-          </div>
-
-          <button
-            type="button"
-            onClick={reclamarPrimerAdmin}
-            disabled={activandoAdmin}
-          >
-            {activandoAdmin ? "Activando..." : "Activar"}
           </button>
         </section>
       )}
