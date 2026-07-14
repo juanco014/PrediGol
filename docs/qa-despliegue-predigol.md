@@ -81,6 +81,19 @@
 
 Registrar fecha, URL probada, usuario gratis, usuario admin, navegador, resultado y pendientes antes de liberar el MVP.
 
+## Fase 7J - Preflight Fixtures Reales
+
+Resultado operativo: bloqueado por plan API-Football. El preflight `scripts/verificar_acceso_api_football.py --dry-run` consulto La Liga (`league=140`, `season=2025`, `next=3`) y recibio `season_not_in_plan`. No hubo fixtures futuros, importacion ni predicciones publicadas.
+
+Checklist antes de repetir QA de predicciones reales:
+
+- [ ] Confirmar en la cuenta API-Football que el plan permite temporada actual de la liga MVP.
+- [ ] Reejecutar `prediction-service/.venv/Scripts/python.exe scripts/verificar_acceso_api_football.py --dry-run`.
+- [ ] Si hay fixtures futuros, ejecutar dry-run de `scripts/importar_fixtures_proximos_mvp.py` con fuente verificable.
+- [ ] Importar solo 2 a 5 fixtures reales despues de dry-run valido.
+- [ ] Ejecutar `scripts/publicar_predicciones_v1_mvp.py --dry-run` y validar que V1 reconoce equipos e historico.
+- [ ] No ejecutar `--apply` de publicacion hasta completar validacion free/premium/admin.
+
 ## Ejecucion Fase 7 - 2026-07-10
 
 ### Alcance Ejecutado

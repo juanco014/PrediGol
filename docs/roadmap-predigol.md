@@ -158,6 +158,16 @@ Recomendacion de 7I: para cerrar el MVP, mantener API-Football y habilitar acces
 
 Limpieza pendiente: existe un partido manual con estado `proximo`, sin fixture externo y fecha pasada. No se debe borrar ni modificar automaticamente; debe corregirse desde el panel admin o mediante accion administrativa controlada, marcandolo `finalizado` con resultado real, `cancelado`, o actualizando fecha solo si hay fuente verificable.
 
+### Fase 7J
+
+Estado: bloqueada por acceso del plan API-Football. Se agrego `scripts/verificar_acceso_api_football.py` para hacer preflight conservador sin escritura y sin imprimir secretos. La configuracion local tiene `FOOTBALL_API_KEY` presente, proveedor `api_football` y host `https://v3.football.api-sports.io`; la clave esta en `prediction-service/.env`, ignorado por Git, y no se expone en frontend.
+
+Liga evaluada: La Liga (`league=140`, `season=2025`, `next=3`), seleccionada porque es la liga con mas historico real en Supabase para V1 dentro del dataset actual (`34` partidos finalizados en 2024) y ya existe en `football_competitions`.
+
+Resultado del acceso: API-Football devolvio `season_not_in_plan` / `temporada no incluida en el plan actual`. En 7J se consumieron 2 solicitudes reales de preflight: una explicita con `--league 140 --season 2025 --next 3` y otra mediante el comando de validacion default `--dry-run`. No se obtuvieron fixtures, no se importo nada y no se ejecuto publicacion V1.
+
+Siguiente accion: el propietario debe habilitar en API-Football un plan con acceso a temporada actual o indicar otra temporada/liga vigente permitida. No intentar eludir restricciones del proveedor ni usar temporadas historicas como si fueran actuales.
+
 ## Fases posteriores
 
 | Fase | Objetivo | Estado |

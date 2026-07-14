@@ -250,6 +250,20 @@ where estado = 'proximo'
 order by fecha_orden asc;
 ```
 
+## Fase 7J - Preflight API-Football Temporada Actual
+
+- [x] Script creado: `scripts/verificar_acceso_api_football.py`.
+- [x] Script no escribe en Supabase y limita a 1 request por corrida.
+- [x] Script no imprime secretos.
+- [x] Liga candidata seleccionada por historico: La Liga (`league=140`).
+- [x] Temporada consultada: `2025` con `next=3`.
+- [x] Solicitudes reales consumidas en 7J: 2.
+- [x] Resultado: `season_not_in_plan` / temporada no incluida en el plan actual.
+- [x] Fixtures encontrados: 0.
+- [x] Fixtures importados: 0.
+- [x] Publicacion V1: no ejecutada; solo dry-run, sin candidatos.
+- [ ] Propietario revisa plan/API-Football para habilitar temporada actual.
+
 ## Pendiente Para Pagos Reales
 
 - [ ] Elegir proveedor.

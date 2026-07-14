@@ -490,3 +490,49 @@ order by fecha_orden asc;
 Correccion recomendada: revisar la fuente real desde `/admin/partidos` o SQL administrativo controlado. Si el partido se jugo, registrar resultado real y cerrarlo; si fue cancelado, marcar `cancelado`; si la fecha era incorrecta, actualizarla solo con fuente verificable. No borrar registros ni inventar resultados.
 
 Decision pendiente del propietario: confirmar si se habilita plan/API-Football para temporada actual o si se prioriza una migracion formal para soporte manual por `partido_id`.
+
+## 19. Fase 7J - Preflight API-Football Temporada Actual
+
+Se agrego el comando conservador:
+
+```bash
+prediction-service/.venv/Scripts/python.exe scripts/verificar_acceso_api_football.py --dry-run
+```
+
+Propiedades:
+
+- No escribe en Supabase.
+- Ejecuta como maximo 1 request por corrida.
+- No imprime `FOOTBALL_API_KEY` ni secretos.
+- Clasifica acceso permitido, temporada fuera del plan, clave invalida, cuota/rate limit, cero fixtures validos, errores de red y respuesta malformada.
+- No clasifica una respuesta valida sin fixtures como falta de acceso.
+
+Configuracion inspeccionada sin exponer valores:
+
+| Variable | Estado |
+| --- | --- |
+| `FOOTBALL_API_PROVIDER` | `api_football` |
+| `FOOTBALL_API_KEY` | Presente en `prediction-service/.env` |
+| `FOOTBALL_API_BASE_URL` | `https://v3.football.api-sports.io` |
+| Frontend `VITE_*` | No contiene clave privada de API-Football |
+| Git ignore | `.env`, `prediction-service/.env`, `predigol-web/.env` y `.env.local` ignorados |
+
+Liga seleccionada para preflight: La Liga (`league=140`, `season=2025`, `next=3`). Motivo: es la liga con mas historico real disponible para V1 en Supabase dentro del dataset actual y esta incluida en `football_competitions`.
+
+Resultado 7J:
+
+```json
+{
+  "status": "season_not_in_plan",
+  "reason": "temporada no incluida en el plan actual",
+  "request": {"league": 140, "season": 2025, "next": 3},
+  "requests_count_por_corrida": 1,
+  "requests_reales_fase_7j": 2,
+  "raw_count": 0,
+  "future_fixtures": 0
+}
+```
+
+No se ejecuto importacion con `--apply`, no se modifico Supabase, no se generaron predicciones y no se publicaron filas en `model_predictions`.
+
+Siguiente accion: revisar en la cuenta de API-Football/API-Sports el plan necesario para acceder a temporada actual de las ligas MVP. Una vez habilitado, repetir `verificar_acceso_api_football.py --dry-run`, luego importar entre 2 y 5 fixtures con dry-run previo y validar `publicar_predicciones_v1_mvp.py --dry-run` antes de cualquier publicacion.
