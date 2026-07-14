@@ -264,6 +264,29 @@ order by fecha_orden asc;
 - [x] Publicacion V1: no ejecutada; solo dry-run, sin candidatos.
 - [ ] Propietario revisa plan/API-Football para habilitar temporada actual.
 
+## Fase 8A - Despliegue Seguro Sin Fixtures Actuales
+
+- [x] Frontend puede desplegarse aunque no existan fixtures actuales.
+- [x] Estados vacios de partidos/predicciones tratados como ausencia de datos, no como error de cuenta.
+- [x] Preflight de despliegue agregado: `scripts/verificar_despliegue_predigol.py`.
+- [x] Preflight no consulta API-Football ni escribe en Supabase.
+- [x] CI sin secretos agregado en `.github/workflows/ci.yml`.
+- [ ] Configurar variables publicas en el proveedor frontend: `VITE_SUPABASE_URL` y publishable/anon key.
+- [ ] Configurar `Site URL` y `Redirect URLs` en Supabase Auth.
+- [ ] Confirmar HTTPS y dominios permitidos.
+- [ ] Ejecutar smoke test post-despliegue.
+- [ ] Mantener bloqueadas sincronizaciones/API-Football hasta fuente valida.
+
+Variables criticas:
+
+| Variable | Ubicacion permitida | Estado |
+| --- | --- | --- |
+| `VITE_SUPABASE_URL` | Frontend publica | Requerida para despliegue. |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` o `VITE_SUPABASE_ANON_KEY` | Frontend publica | Requerida; nunca clave secreta de Supabase. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Backend/scripts privados | Prohibida en frontend. |
+| `FOOTBALL_API_KEY` | Backend/scripts privados | Bloqueada temporalmente para consultas reales. |
+| `PREDIGOL_TEST_*` | Local no versionado | No incluir en ejemplos ni CI. |
+
 ## Pendiente Para Pagos Reales
 
 - [ ] Elegir proveedor.

@@ -94,6 +94,33 @@ Checklist antes de repetir QA de predicciones reales:
 - [ ] Ejecutar `scripts/publicar_predicciones_v1_mvp.py --dry-run` y validar que V1 reconoce equipos e historico.
 - [ ] No ejecutar `--apply` de publicacion hasta completar validacion free/premium/admin.
 
+## Fase 8A - QA Sin Fixtures Actuales
+
+Validar que la ausencia de fixtures actuales no bloquee el despliegue frontend:
+
+- [ ] `/` carga para visitante.
+- [ ] `/auth` permite iniciar sesion.
+- [ ] `/inicio` muestra estado vacio o partidos disponibles sin spinner infinito.
+- [ ] `/pronosticos` muestra mensaje honesto si no hay predicciones del modelo.
+- [ ] `/admin` muestra conteos en cero sin tratarlo como fallo critico.
+- [ ] `/admin/partidos` permite consultar estado sin ejecutar sincronizacion real.
+- [ ] No aparecen secretos ni service role en bundle, consola o responses.
+- [ ] No se ejecuta API-Football durante QA salvo autorizacion expresa.
+
+Comandos permitidos para QA automatizada 8A:
+
+```bash
+prediction-service/.venv/Scripts/python.exe scripts/verificar_despliegue_predigol.py
+prediction-service/.venv/Scripts/python.exe scripts/verificar_supabase_mvp.py
+prediction-service/.venv/Scripts/python.exe -m pytest prediction-service/tests
+cd predigol-web
+npm test
+npm run lint
+npm run build
+```
+
+`scripts/verificar_roles_supabase.py` queda como validacion manual condicionada porque intenta escrituras controladas para comprobar bloqueo RLS.
+
 ## Ejecucion Fase 7 - 2026-07-10
 
 ### Alcance Ejecutado
@@ -577,17 +604,17 @@ El script inicia sesion contra Supabase Auth con `SUPABASE_URL` y una clave publ
 
 Variables requeridas para validar los tres perfiles:
 
-```env
-SUPABASE_URL=https://tu-proyecto.supabase.co
-SUPABASE_ANON_KEY=tu_anon_key_publica
-# Alternativas aceptadas: SUPABASE_PUBLISHABLE_KEY, VITE_SUPABASE_ANON_KEY o VITE_SUPABASE_PUBLISHABLE_KEY
-PREDIGOL_TEST_FREE_EMAIL=<EMAIL_USUARIO_GRATIS>
-PREDIGOL_TEST_FREE_PASSWORD=<PASSWORD_USUARIO_GRATIS>
-PREDIGOL_TEST_PREMIUM_EMAIL=<EMAIL_USUARIO_PREMIUM>
-PREDIGOL_TEST_PREMIUM_PASSWORD=<PASSWORD_USUARIO_PREMIUM>
-PREDIGOL_TEST_ADMIN_EMAIL=<EMAIL_USUARIO_ADMIN>
-PREDIGOL_TEST_ADMIN_PASSWORD=<PASSWORD_USUARIO_ADMIN>
-```
+| Variable | Placeholder |
+| --- | --- |
+| `SUPABASE_URL` | `<SUPABASE_URL>` |
+| `SUPABASE_ANON_KEY` | `<SUPABASE_ANON_KEY_PUBLICA>` |
+| `SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_ANON_KEY` o `VITE_SUPABASE_PUBLISHABLE_KEY` | Alternativas aceptadas por el script. |
+| `PREDIGOL_TEST_FREE_EMAIL` | `<EMAIL_USUARIO_GRATIS>` |
+| `PREDIGOL_TEST_FREE_PASSWORD` | `<PASSWORD_USUARIO_GRATIS>` |
+| `PREDIGOL_TEST_PREMIUM_EMAIL` | `<EMAIL_USUARIO_PREMIUM>` |
+| `PREDIGOL_TEST_PREMIUM_PASSWORD` | `<PASSWORD_USUARIO_PREMIUM>` |
+| `PREDIGOL_TEST_ADMIN_EMAIL` | `<EMAIL_USUARIO_ADMIN>` |
+| `PREDIGOL_TEST_ADMIN_PASSWORD` | `<PASSWORD_USUARIO_ADMIN>` |
 
 Si falta una credencial, el script reporta `PENDIENTE CREDENCIALES` indicando solo el nombre de variable faltante. No imprime correos, passwords, JWT ni claves.
 

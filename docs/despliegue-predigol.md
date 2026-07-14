@@ -54,13 +54,13 @@ No configurar service role, API-Football key ni claves privadas en frontend.
 
 En `prediction-service/.env` local o en el runner privado:
 
-```env
-SUPABASE_URL=https://tu-proyecto.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=tu_service_role_key_solo_backend
-FOOTBALL_API_PROVIDER=api_football
-FOOTBALL_API_KEY=tu_api_football_key
-FOOTBALL_API_DRY_RUN=true
-```
+| Variable | Placeholder |
+| --- | --- |
+| `SUPABASE_URL` | `<SUPABASE_URL>` |
+| `SUPABASE_SERVICE_ROLE_KEY` | `<SUPABASE_SERVICE_ROLE_KEY_SOLO_BACKEND>` |
+| `FOOTBALL_API_PROVIDER` | `api_football` |
+| `FOOTBALL_API_KEY` | `<FOOTBALL_API_KEY>` |
+| `FOOTBALL_API_DRY_RUN` | `true` |
 
 Cambiar `FOOTBALL_API_DRY_RUN=false` solo cuando se vaya a consumir API real con cuota disponible.
 
@@ -144,17 +144,17 @@ prediction-service/.venv/Scripts/python.exe scripts/verificar_roles_supabase.py
 
 Variables necesarias para el verificador autenticado:
 
-```env
-SUPABASE_URL=https://tu-proyecto.supabase.co
-SUPABASE_ANON_KEY=tu_anon_key_publica
-# Alternativas aceptadas por el script: SUPABASE_PUBLISHABLE_KEY, VITE_SUPABASE_ANON_KEY o VITE_SUPABASE_PUBLISHABLE_KEY
-PREDIGOL_TEST_FREE_EMAIL=<EMAIL_USUARIO_GRATIS>
-PREDIGOL_TEST_FREE_PASSWORD=<PASSWORD_USUARIO_GRATIS>
-PREDIGOL_TEST_PREMIUM_EMAIL=<EMAIL_USUARIO_PREMIUM>
-PREDIGOL_TEST_PREMIUM_PASSWORD=<PASSWORD_USUARIO_PREMIUM>
-PREDIGOL_TEST_ADMIN_EMAIL=<EMAIL_USUARIO_ADMIN>
-PREDIGOL_TEST_ADMIN_PASSWORD=<PASSWORD_USUARIO_ADMIN>
-```
+| Variable | Placeholder |
+| --- | --- |
+| `SUPABASE_URL` | `<SUPABASE_URL>` |
+| `SUPABASE_ANON_KEY` | `<SUPABASE_ANON_KEY_PUBLICA>` |
+| `SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_ANON_KEY` o `VITE_SUPABASE_PUBLISHABLE_KEY` | Alternativas aceptadas por el script. |
+| `PREDIGOL_TEST_FREE_EMAIL` | `<EMAIL_USUARIO_GRATIS>` |
+| `PREDIGOL_TEST_FREE_PASSWORD` | `<PASSWORD_USUARIO_GRATIS>` |
+| `PREDIGOL_TEST_PREMIUM_EMAIL` | `<EMAIL_USUARIO_PREMIUM>` |
+| `PREDIGOL_TEST_PREMIUM_PASSWORD` | `<PASSWORD_USUARIO_PREMIUM>` |
+| `PREDIGOL_TEST_ADMIN_EMAIL` | `<EMAIL_USUARIO_ADMIN>` |
+| `PREDIGOL_TEST_ADMIN_PASSWORD` | `<PASSWORD_USUARIO_ADMIN>` |
 
 Con usuario gratis autenticado, no con service role:
 
@@ -536,3 +536,113 @@ Resultado 7J:
 No se ejecuto importacion con `--apply`, no se modifico Supabase, no se generaron predicciones y no se publicaron filas en `model_predictions`.
 
 Siguiente accion: revisar en la cuenta de API-Football/API-Sports el plan necesario para acceder a temporada actual de las ligas MVP. Una vez habilitado, repetir `verificar_acceso_api_football.py --dry-run`, luego importar entre 2 y 5 fixtures con dry-run previo y validar `publicar_predicciones_v1_mvp.py --dry-run` antes de cualquier publicacion.
+
+## 20. Fase 8A - Despliegue Seguro Sin Fixtures Actuales
+
+PrediGol puede desplegar el frontend y operar autenticacion/RLS aunque no existan fixtures actuales ni predicciones proximas. Esta situacion debe comunicarse como limitacion temporal de datos, no como error del usuario.
+
+### Componentes Desplegables Ahora
+
+| Componente | Estado | Nota |
+| --- | --- | --- |
+| Frontend Vite | Listo si variables publicas estan configuradas | Root recomendado `predigol-web`, build `npm run build`, salida `dist`. |
+| Supabase Auth/RPC/RLS | Listo segun verificadores | Requiere configurar dominios y redirect URLs en dashboard. |
+| Scripts Python de verificacion | Listos local/runner privado | No usar service role en frontend. |
+| Publicador V1 | Preparado, bloqueado para `--apply` | Sin fixtures futuros reales no hay publicacion. |
+| Sync/API-Football cron | Bloqueado | No activar mientras el plan no permita temporada actual. |
+| Edge Functions existentes | Desplegables solo si se decide operarlas | No invocar sync real sin fuente habilitada y monitoreo de cuota. |
+
+### Matriz De Variables
+
+| Variable | Clasificacion | Obligatoria | Componente | Estado/Riesgo |
+| --- | --- | --- | --- | --- |
+| `VITE_SUPABASE_URL` | Frontend publica | Si | Vite/Supabase client | Publica; no es secreto. |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Frontend publica | Si, salvo `VITE_SUPABASE_ANON_KEY` | Vite/Supabase client | Publica; nunca usar service role. |
+| `VITE_SUPABASE_ANON_KEY` | Frontend publica legacy | Opcional alternativa | Vite/Supabase client | Publica; no usar claves secretas de Supabase. |
+| `VITE_WEB_PUSH_VAPID_PUBLIC_KEY` | Frontend publica | Opcional | Push web | Publica. |
+| `SUPABASE_URL` | Backend secreta/privada operativa | Si para scripts | Python/verificadores | No exponer en frontend si se combina con service role. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Backend secreta critica | Si para scripts admin | Python/verificadores/importadores | Nunca `VITE_*`; rotar si se expone. |
+| `SUPABASE_ANON_KEY` | Solo pruebas locales/autenticadas | Si para `verificar_roles_supabase.py` | Verificador autenticado | Publica, pero no documentar valores reales. |
+| `FOOTBALL_API_KEY` | Backend secreta bloqueada temporalmente | Opcional mientras no se consulta API | Importadores/API-Football | No usar hasta plan habilitado; no exponer en frontend. |
+| `API_FOOTBALL_KEY` | Backend secreta legacy bloqueada | Opcional | Edge/scripts legacy | Mantener fuera de frontend. |
+| `PREDIGOL_TEST_*_EMAIL` | Solo pruebas locales | Opcional | Verificador roles | No incluir en `.env.example`; no commitear. |
+| `PREDIGOL_TEST_*_PASSWORD` | Solo pruebas locales secreta | Opcional | Verificador roles | No incluir en `.env.example`; rotar si se expone. |
+
+### Preflight De Despliegue
+
+Ejecutar desde la raiz:
+
+```bash
+prediction-service/.venv/Scripts/python.exe scripts/verificar_despliegue_predigol.py
+```
+
+El preflight verifica archivos, Python, Node, variables, ausencia de secretos obvios en `VITE_*`, conectividad Supabase si esta configurada, tablas/RPC principales, estado de fixtures y predicciones. No consulta API-Football, no escribe en Supabase, no aplica migraciones y no imprime secretos.
+
+Estados esperados sin fixtures actuales:
+
+- Frontend listo: puede ser `true` con variables publicas configuradas.
+- Operacion autenticada lista: requiere Supabase/RPC accesibles.
+- Predicciones en vivo listas: debe permanecer `false` hasta tener fixtures reales actuales.
+
+### Configuracion Frontend En Hosting
+
+- Directorio raiz: `predigol-web` si el proveedor permite monorepo. Si se despliega desde la raiz, usar la configuracion `vercel.json` existente y apuntar el build al subproyecto segun el proveedor.
+- Instalacion: `npm ci`.
+- Build: `npm run build`.
+- Salida: `dist`.
+- SPA fallback: `vercel.json` reescribe `/(.*)` a `/index.html`.
+- HTTPS obligatorio.
+- No configurar `SUPABASE_SERVICE_ROLE_KEY`, `FOOTBALL_API_KEY`, JWT ni contrasenas en variables frontend.
+
+### Supabase Auth Produccion
+
+Configurar manualmente en Supabase Dashboard:
+
+1. `Site URL` con el dominio HTTPS de produccion.
+2. `Redirect URLs` para dominio de produccion y dominios de preview/desarrollo autorizados.
+3. URL local de desarrollo si se usara QA local (`http://localhost:5173` o la que corresponda).
+4. Confirmacion de correo y recuperacion de contrasena segun politica del producto.
+5. OAuth solo si ya esta implementado y probado.
+6. Probar login, logout, rutas protegidas, redireccion post-login y recuperacion de contrasena.
+
+No cambiar estos valores por SQL ni API desde scripts automatizados.
+
+### Scripts Permitidos Y Bloqueados
+
+Permitidos ahora:
+
+- `scripts/verificar_despliegue_predigol.py`.
+- `scripts/verificar_supabase_mvp.py` si se cuenta con credenciales y se acepta lectura/RPC sin escritura.
+- `scripts/verificar_python.py`.
+- `python -m pytest prediction-service/tests`.
+- `npm test`, `npm run lint`, `npm run build`.
+- Checks estaticos y dry-runs que no consulten API-Football.
+
+Bloqueados o condicionados:
+
+- `scripts/verificar_acceso_api_football.py` salvo autorizacion expresa, porque consume una request API-Football.
+- Importaciones o sincronizaciones reales, especialmente cualquier `--apply`, `--confirm` o Edge Function `sync-live-fixtures`.
+- `scripts/publicar_predicciones_v1_mvp.py --apply`.
+- Crons externos y sincronizaciones recurrentes.
+- `scripts/verificar_roles_supabase.py` en automatizacion no interactiva: intenta escrituras controladas para validar RLS, por lo que debe ejecutarse manualmente solo cuando se acepte esa validacion.
+
+### CI
+
+El workflow `.github/workflows/ci.yml` ejecuta Python 3.11 y Node 22 sin secretos, sin Supabase real y sin API-Football. Solo instala dependencias, corre pruebas, lint y build.
+
+### Rollback Frontend
+
+1. Revertir al despliegue anterior desde el proveedor de hosting.
+2. Mantener variables publicas previas.
+3. Invalidar cache si aplica.
+4. Reejecutar smoke test de `/`, `/auth`, `/inicio`, `/pronosticos`, `/perfil` y rutas admin con usuario autorizado.
+
+### Habilitar Fixtures En El Futuro
+
+Cuando exista fuente valida:
+
+1. Autorizar una consulta controlada de `scripts/verificar_acceso_api_football.py --dry-run`.
+2. Ejecutar dry-run de importacion con fuente verificable.
+3. Importar solo 2 a 5 fixtures reales.
+4. Validar Supabase y `scripts/publicar_predicciones_v1_mvp.py --dry-run`.
+5. Publicar V1 en fase separada, nunca desde frontend.

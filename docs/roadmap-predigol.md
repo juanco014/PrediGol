@@ -170,6 +170,12 @@ Siguiente accion: el propietario debe habilitar en API-Football un plan con acce
 
 ## Fases posteriores
 
+### Fase 8A
+
+Estado: preparada para despliegue seguro sin fixtures actuales. Se agrego preflight de despliegue, CI sin secretos y documentacion operativa para mantener API-Football, importaciones y publicacion V1 bloqueadas hasta contar con fuente valida. La falta de predicciones proximas queda como limitacion conocida de datos, no como fallo del frontend.
+
+No se modifica V1 ni V2. No se marca prediccion en vivo como lista.
+
 | Fase | Objetivo | Estado |
 | --- | --- | --- |
 | Fase 8 | Pagos reales, checkout server-side y webhooks. | Pendiente. |
