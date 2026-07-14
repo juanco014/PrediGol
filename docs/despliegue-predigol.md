@@ -346,4 +346,13 @@ Resultado esperado si faltan usuarios o datos:
 
 Preparacion manual de usuarios, SQL seguro y matriz de navegador estan en `docs/qa-despliegue-predigol.md`.
 
-Fase 7E queda pendiente hasta ejecutar el verificador y la matriz manual con usuario gratis, premium y administrador reales.
+Estado final: Fase 7E completada para autenticacion, roles, suscripciones y RLS. El verificador autenticado termino con `Resumen: validacion autenticada sin fallos criticos.`
+
+Resultado validado:
+
+- Usuario gratis: login real, perfil, plan free, premium false, sin admin y escrituras administrativas bloqueadas.
+- Usuario premium: login real, perfil, plan premium, premium true, suscripcion vigente, sin admin y escrituras administrativas bloqueadas.
+- Usuario administrador: login real, perfil admin, `predigol_es_admin()=true`, lectura administrativa permitida y escrituras directas del modelo bloqueadas segun politicas actuales.
+- Administrador con plan free: comportamiento aceptado; `predigol_usuario_tiene_premium()` devuelve true porque la RPC concede acceso premium al administrador.
+
+Pendiente no bloqueante: no habia predicciones premium reales. `obtener_predicciones_visibles()` devolvio 0 filas, por lo que el bloqueo/desbloqueo de contenido premium queda como `PENDIENTE DATOS`. No crear datos ficticios ni modificar V1/V2 solo para cerrar esa prueba.

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import base64
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -50,21 +51,118 @@ class CheckResult:
     detail: str
 
 
+@dataclass
+class AdminCredentialStatus:
+    ok: bool
+    label: str
+    detail: str
+
+
 def configured(value: str | None) -> bool:
     return bool(value and value.strip())
 
 
+def parse_error_body(body: str) -> dict[str, Any]:
+    try:
+        parsed = json.loads(body) if body.strip() else {}
+    except ValueError:
+        return {"message": body.strip()}
+    return parsed if isinstance(parsed, dict) else {"message": body.strip()}
+
+
+def safe_error_detail(status_code: int, body: str) -> str:
+    error = parse_error_body(body)
+    code = error.get("code") or "sin_codigo"
+    message = error.get("message") or "sin_mensaje"
+    details = error.get("details")
+    hint = error.get("hint")
+    parts = [f"HTTP {status_code}", f"code={code}", f"message={message}"]
+    if details:
+        parts.append(f"details={details}")
+    if hint:
+        parts.append(f"hint={hint}")
+    return "; ".join(str(part) for part in parts)
+
+
 def classify_error(status_code: int, body: str) -> tuple[str, str]:
     lowered = body.lower()
+    error = parse_error_body(body)
+    code = str(error.get("code") or "")
+    message = str(error.get("message") or "")
+    detail = safe_error_detail(status_code, body)
     if status_code == 400 and "p0001" in lowered and "debes iniciar sesi" in lowered:
         return "PENDIENTE SESION", "RPC existente y protegida; requiere usuario autenticado para validacion funcional"
-    if "permission denied" in lowered or status_code in {401, 403}:
-        return "PERMISOS", "credenciales sin permiso o grant/RLS insuficiente"
+    if status_code in {401, 403} and ("invalid api key" in lowered or "jwt" in lowered or "token" in lowered):
+        return "CLAVE", detail
+    if "row-level security" in lowered or "violates row-level security" in lowered:
+        return "RLS", detail
+    if code == "42501" or "permission denied" in message.lower():
+        return "PERMISOS", detail
+    if status_code in {401, 403}:
+        return "PERMISOS", detail
     if status_code == 404 or "pgrst202" in lowered or "could not find" in lowered:
-        return "FALTANTE", "no existe o no esta en cache REST"
+        return "FALTANTE", detail
     if "pgrst203" in lowered or "could not choose the best candidate function" in lowered:
-        return "ERROR", "firma incorrecta o ambigua"
-    return "ERROR", f"HTTP {status_code}"
+        return "CONSULTA", detail
+    if status_code == 400:
+        return "CONSULTA", detail
+    return "ERROR", detail
+
+
+def get_jwt_role(token: str) -> str:
+    try:
+        payload = token.split(".")[1]
+        payload += "=" * (-len(payload) % 4)
+        decoded = base64.urlsafe_b64decode(payload.encode("ascii"))
+        claims = json.loads(decoded.decode("utf-8"))
+    except (IndexError, ValueError, json.JSONDecodeError):
+        return "no_identificado"
+
+    role = claims.get("role")
+    return str(role) if role else "sin_role"
+
+
+def validate_admin_credential(service_key: str) -> AdminCredentialStatus:
+    stripped = service_key.strip()
+    if stripped.startswith("sb_secret_"):
+        return AdminCredentialStatus(True, "clave moderna sb_secret", "credencial administrativa moderna detectada")
+    if stripped.startswith("sb_publishable_"):
+        return AdminCredentialStatus(
+            False,
+            "clave publica sb_publishable",
+            "CONFIGURACION INCORRECTA: SUPABASE_SERVICE_ROLE_KEY contiene una clave anon/publishable",
+        )
+
+    jwt_parts = stripped.split(".")
+    if len(jwt_parts) == 3:
+        role = get_jwt_role(stripped)
+        if role == "service_role":
+            return AdminCredentialStatus(True, "JWT role=service_role", "credencial administrativa legacy detectada")
+        if role == "anon":
+            return AdminCredentialStatus(
+                False,
+                "JWT role=anon",
+                "CONFIGURACION INCORRECTA: SUPABASE_SERVICE_ROLE_KEY contiene una clave anon/publishable",
+            )
+        return AdminCredentialStatus(
+            False,
+            f"JWT role={role}",
+            "CONFIGURACION INCORRECTA: SUPABASE_SERVICE_ROLE_KEY no contiene un JWT service_role",
+        )
+
+    return AdminCredentialStatus(
+        False,
+        "formato no reconocido",
+        "CONFIGURACION INCORRECTA: SUPABASE_SERVICE_ROLE_KEY no es JWT service_role ni clave moderna sb_secret_",
+    )
+
+
+def build_service_headers(service_key: str) -> dict[str, str]:
+    return {
+        "apikey": service_key,
+        "Authorization": f"Bearer {service_key}",
+        "Content-Type": "application/json",
+    }
 
 
 def get_sample_fixture_id(client: httpx.Client) -> int | None:
@@ -114,11 +212,15 @@ def get_client() -> httpx.Client | None:
         print("Supabase: sin credenciales completas. No se muestran secretos.")
         return None
 
-    headers = {
-        "apikey": service_key,
-        "Authorization": f"Bearer {service_key}",
-        "Content-Type": "application/json",
-    }
+    credential_status = validate_admin_credential(service_key)
+    print(f"Credencial administrativa: {credential_status.label}")
+    if not credential_status.ok:
+        print(credential_status.detail)
+        print("Supabase: no se crea cliente administrativo con credencial publica o no reconocida.")
+        return None
+
+    print("Cliente administrativo: nuevo cliente REST sin sesion de usuario.")
+    headers = build_service_headers(service_key)
     return httpx.Client(base_url=f"{supabase_url}/rest/v1", headers=headers, timeout=30)
 
 

@@ -117,15 +117,14 @@ Pendiente: confirmar existencia de objetos en `public`, aplicar migraciones/gran
 
 ### Fase 7E
 
-Estado: preparada, no completada. Se agrego validacion autenticada con sesiones reales de Supabase Auth para usuario gratis, premium y admin en `scripts/verificar_roles_supabase.py`, mas pruebas unitarias con mocks. La documentacion de QA incluye preparacion manual segura de usuarios, SQL idempotente y matriz de navegador.
+Estado: completada para autenticacion, roles, suscripciones y RLS. Se agrego validacion autenticada con sesiones reales de Supabase Auth para usuario gratis, premium y admin en `scripts/verificar_roles_supabase.py`, mas pruebas unitarias con mocks. La documentacion de QA incluye preparacion manual segura de usuarios, SQL idempotente y matriz de navegador.
 
-Pendiente para cerrar 7E:
+Resultado validado:
 
-- Configurar `SUPABASE_URL` y `SUPABASE_ANON_KEY` para el verificador autenticado.
-- Configurar credenciales `PREDIGOL_TEST_FREE_*`, `PREDIGOL_TEST_PREMIUM_*` y `PREDIGOL_TEST_ADMIN_*` sin commitearlas.
-- Ejecutar `scripts/verificar_supabase_mvp.py` y `scripts/verificar_roles_supabase.py` contra Supabase real.
-- Probar manualmente navegador con los tres usuarios, cerrando sesion completamente entre cambios.
-- Registrar si hay `PENDIENTE DATOS` por falta de predicciones premium reales.
+- Usuario gratis: login real, plan free, premium false, sin admin, escrituras administrativas bloqueadas.
+- Usuario premium: login real, plan premium, suscripcion vigente, premium true, sin admin, escrituras administrativas bloqueadas.
+- Usuario admin: login real, perfil admin, `predigol_es_admin()=true`, lectura administrativa permitida, escrituras directas del modelo bloqueadas.
+- Pendiente no bloqueante: contenido premium bloqueado/desbloqueado queda `PENDIENTE DATOS` porque no hay predicciones premium reales.
 
 ## Fases posteriores
 

@@ -170,6 +170,21 @@ class VerificarRolesSupabaseTests(unittest.TestCase):
 
         admin_result = next(result for result in results if result.name == "lectura_admin_model_runs")
         self.assertEqual(admin_result.status, "OK")
+        self.assertIn("cero filas", admin_result.detail)
+
+    def test_permiso_administrativo_denegado_explica_error_si_rls_rechaza(self) -> None:
+        class DeniedModelRunsClient(FakeRestClient):
+            def get(self, path: str, params: dict[str, str]) -> FakeResponse:
+                if path == "/model_runs":
+                    return FakeResponse(403, {"message": "permission denied"}, '{"message":"permission denied"}')
+                return super().get(path, params)
+
+        session = verificar_roles_supabase.AuthSession("gratis", "PREDIGOL_TEST_FREE_EMAIL", "user-free", "token")
+        results = verificar_roles_supabase.check_role(session, DeniedModelRunsClient(), verificar_roles_supabase.ROLE_CONFIG["gratis"])
+
+        admin_result = next(result for result in results if result.name == "lectura_admin_model_runs")
+        self.assertEqual(admin_result.status, "OK")
+        self.assertIn("consulta denegada", admin_result.detail)
 
     def test_error_inesperado_supabase(self) -> None:
         session = verificar_roles_supabase.AuthSession("gratis", "PREDIGOL_TEST_FREE_EMAIL", "user-free", "token")

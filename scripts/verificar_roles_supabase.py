@@ -222,7 +222,7 @@ def check_profile(client: httpx.Client, session: AuthSession) -> tuple[dict[str,
 
 def check_role(session: AuthSession, client: httpx.Client, expected: dict[str, Any]) -> list[CheckResult]:
     results: list[CheckResult] = []
-    results.append(CheckResult(session.role_name, "auth_uid", "OK", f"usuario autenticado: {session.user_id}"))
+    results.append(CheckResult(session.role_name, "auth_uid", "OK", "usuario autenticado con auth.uid() disponible"))
 
     profile, profile_result = check_profile(client, session)
     results.append(profile_result)
@@ -370,13 +370,18 @@ def check_role(session: AuthSession, client: httpx.Client, expected: dict[str, A
 
     if session.role_name in {"gratis", "premium"}:
         rows, error = select_rows(client, "model_runs", {"select": "id", "limit": "1"})
-        denied = bool(error) or len(rows) == 0
+        if error:
+            detail = f"consulta denegada: {error}"
+        elif len(rows) == 0:
+            detail = "consulta permitida, pero devolvio cero filas; no se obtuvo informacion administrativa"
+        else:
+            detail = f"consulta permitida y devolvio {len(rows)} fila(s) de model_runs"
         results.append(
             CheckResult(
                 session.role_name,
                 "lectura_admin_model_runs",
-                "OK" if denied else "FALLO",
-                error or "usuario no admin obtuvo filas de model_runs",
+                "OK" if error or len(rows) == 0 else "FALLO",
+                detail,
             )
         )
     elif session.role_name == "admin":

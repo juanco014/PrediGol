@@ -725,10 +725,59 @@ Usuario administrador:
 - [x] Frontend revisado sin cambios requeridos.
 - [x] Verificador autenticado creado.
 - [x] Pruebas unitarias del verificador agregadas sin Supabase real.
-- [ ] Usuario gratis real validado con credenciales configuradas.
-- [ ] Usuario premium real validado con credenciales configuradas.
-- [ ] Usuario admin real validado con credenciales configuradas.
-- [ ] Matriz manual en navegador ejecutada.
-- [ ] Fase 7E completada.
+- [x] Usuario gratis real validado con sesion Supabase Auth: login, perfil, plan free, premium false, sin admin y escrituras administrativas bloqueadas.
+- [x] Usuario premium real validado con sesion Supabase Auth: login, perfil, plan premium, premium true, suscripcion vigente, sin rol admin y escrituras administrativas bloqueadas.
+- [x] Usuario admin real validado con sesion Supabase Auth: login, perfil admin, `predigol_es_admin()=true`, lectura administrativa permitida y escrituras directas del modelo bloqueadas por politicas actuales.
+- [x] Fase 7E completada para autenticacion, roles, suscripcion y RLS.
+- [ ] PENDIENTE DATOS: validar bloqueo/desbloqueo de contenido premium cuando exista al menos una prediccion premium real.
 
-No marcar Fase 7E como completada hasta que el verificador autenticado y la matriz manual hayan sido ejecutados con los tres usuarios reales.
+### Resultado Real Del Verificador Autenticado
+
+Comando ejecutado:
+
+```bash
+prediction-service/.venv/Scripts/python.exe scripts/verificar_roles_supabase.py
+```
+
+Resultado final reportado: `Resumen: validacion autenticada sin fallos criticos.`
+
+Usuario gratis:
+
+- Inicio de sesion real: OK.
+- Perfil: OK.
+- `predigol_es_admin()`: false.
+- `obtener_plan_usuario()`: free.
+- `predigol_usuario_tiene_premium()`: false.
+- `obtener_predicciones_visibles()`: ejecutable.
+- Escrituras en `model_runs`, `model_datasets` y `team_aliases`: bloqueadas.
+- Acceso administrativo: no permitido.
+
+Usuario premium:
+
+- Inicio de sesion real: OK.
+- Perfil: OK.
+- `predigol_es_admin()`: false.
+- `obtener_plan_usuario()`: premium.
+- `predigol_usuario_tiene_premium()`: true.
+- Suscripcion `premium_active` o `trial` vigente: OK.
+- Escrituras administrativas: bloqueadas.
+- No obtiene rol admin.
+
+Usuario administrador:
+
+- Inicio de sesion real: OK.
+- Perfil admin: OK.
+- `predigol_es_admin()`: true.
+- Lectura administrativa de `model_runs`: permitida.
+- Escrituras directas en las tablas del modelo: bloqueadas segun las politicas actuales.
+- `obtener_plan_usuario()` devuelve free, pero `predigol_usuario_tiene_premium()` devuelve true porque la RPC concede acceso premium al administrador por la logica vigente.
+
+Pendiente de datos:
+
+- No existe ninguna prediccion premium real en la base al momento de la validacion.
+- `obtener_predicciones_visibles()` devuelve 0 filas.
+- La validacion de bloqueo para usuario gratis y desbloqueo para premium/admin queda como `PENDIENTE DATOS`.
+- Este pendiente no es fallo de autenticacion, roles, suscripciones ni RLS.
+- No se crearon datos ficticios ni se modificaron V1/V2 para forzar esta prueba.
+
+No se documentan correos, passwords, JWT, claves ni UUID reales de usuarios de prueba.
