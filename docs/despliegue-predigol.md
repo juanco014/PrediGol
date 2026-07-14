@@ -130,7 +130,33 @@ Probar en navegador real las rutas documentadas en `docs/qa-despliegue-predigol.
 
 ## 8. Verificar Premium/RLS
 
-Con usuario gratis:
+Validacion tecnica con service role para inventario de objetos:
+
+```bash
+prediction-service/.venv/Scripts/python.exe scripts/verificar_supabase_mvp.py
+```
+
+Validacion autenticada con sesiones reales de Supabase Auth:
+
+```bash
+prediction-service/.venv/Scripts/python.exe scripts/verificar_roles_supabase.py
+```
+
+Variables necesarias para el verificador autenticado:
+
+```env
+SUPABASE_URL=https://tu-proyecto.supabase.co
+SUPABASE_ANON_KEY=tu_anon_key_publica
+# Alternativas aceptadas por el script: SUPABASE_PUBLISHABLE_KEY, VITE_SUPABASE_ANON_KEY o VITE_SUPABASE_PUBLISHABLE_KEY
+PREDIGOL_TEST_FREE_EMAIL=<EMAIL_USUARIO_GRATIS>
+PREDIGOL_TEST_FREE_PASSWORD=<PASSWORD_USUARIO_GRATIS>
+PREDIGOL_TEST_PREMIUM_EMAIL=<EMAIL_USUARIO_PREMIUM>
+PREDIGOL_TEST_PREMIUM_PASSWORD=<PASSWORD_USUARIO_PREMIUM>
+PREDIGOL_TEST_ADMIN_EMAIL=<EMAIL_USUARIO_ADMIN>
+PREDIGOL_TEST_ADMIN_PASSWORD=<PASSWORD_USUARIO_ADMIN>
+```
+
+Con usuario gratis autenticado, no con service role:
 
 ```sql
 select * from public.obtener_predicciones_visibles(10);
@@ -139,6 +165,8 @@ select * from public.obtener_predicciones_visibles(10);
 La respuesta de predicciones premium bloqueadas debe tener campos sensibles en `null` y `is_locked = true`.
 
 Con admin o usuario premium activo debe devolver contenido completo si existen filas premium.
+
+No marcar la validacion de roles como aprobada si faltan usuarios de prueba o si no hay sesion real de Supabase Auth.
 
 ## 9. Rollback Basico
 
@@ -305,3 +333,17 @@ prediction-service/.venv/Scripts/python.exe scripts/verificar_python.py
 ```
 
 No se aplico automaticamente porque Supabase CLI no esta instalado en este entorno y no se deben ejecutar cambios manuales contra produccion sin confirmacion/backup.
+
+## 16. Fase 7E - Roles Reales Gratis/Premium/Admin
+
+Se agrego `scripts/verificar_roles_supabase.py` para validar sesiones reales de Supabase Auth. El script comprueba login, `obtener_plan_usuario`, `predigol_usuario_tiene_premium`, `obtener_predicciones_visibles`, `obtener_prediccion_visible`, RLS de tablas administrativas y `predigol_es_admin`.
+
+Resultado esperado si faltan usuarios o datos:
+
+- `PENDIENTE CREDENCIALES`: falta una variable `PREDIGOL_TEST_*`; no imprime secretos.
+- `PENDIENTE DATOS`: no hay prediccion premium real para validar bloqueo o acceso.
+- `FALLO`: credenciales incorrectas, RPC con error, premium/admin inesperado o escritura admin aceptada.
+
+Preparacion manual de usuarios, SQL seguro y matriz de navegador estan en `docs/qa-despliegue-predigol.md`.
+
+Fase 7E queda pendiente hasta ejecutar el verificador y la matriz manual con usuario gratis, premium y administrador reales.

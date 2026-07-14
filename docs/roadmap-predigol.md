@@ -115,6 +115,18 @@ Estado: pendiente. Se verifico Supabase despues de migraciones manuales, pero la
 
 Pendiente: confirmar existencia de objetos en `public`, aplicar migraciones/grants faltantes y validar usuarios reales.
 
+### Fase 7E
+
+Estado: preparada, no completada. Se agrego validacion autenticada con sesiones reales de Supabase Auth para usuario gratis, premium y admin en `scripts/verificar_roles_supabase.py`, mas pruebas unitarias con mocks. La documentacion de QA incluye preparacion manual segura de usuarios, SQL idempotente y matriz de navegador.
+
+Pendiente para cerrar 7E:
+
+- Configurar `SUPABASE_URL` y `SUPABASE_ANON_KEY` para el verificador autenticado.
+- Configurar credenciales `PREDIGOL_TEST_FREE_*`, `PREDIGOL_TEST_PREMIUM_*` y `PREDIGOL_TEST_ADMIN_*` sin commitearlas.
+- Ejecutar `scripts/verificar_supabase_mvp.py` y `scripts/verificar_roles_supabase.py` contra Supabase real.
+- Probar manualmente navegador con los tres usuarios, cerrando sesion completamente entre cambios.
+- Registrar si hay `PENDIENTE DATOS` por falta de predicciones premium reales.
+
 ## Fases posteriores
 
 | Fase | Objetivo | Estado |

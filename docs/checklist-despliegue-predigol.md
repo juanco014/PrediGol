@@ -189,6 +189,24 @@ prediction-service/.venv/Scripts/python.exe scripts/verificar_python.py
 
 Bloqueante: Supabase real sigue sin exponer objetos admin/freemium. Confirmar existencia en SQL Editor y aplicar migraciones/grants pendientes con backup previo.
 
+## Fase 7E - Validacion Autenticada De Roles
+
+- [x] Verificador autenticado creado: `scripts/verificar_roles_supabase.py`.
+- [x] Verificador usa Supabase Auth con `SUPABASE_ANON_KEY`; no usa service role para simular usuarios.
+- [x] Tests unitarios agregados con mocks, sin depender de Supabase real.
+- [x] Esquema real documentado: `profiles.rol`, `profiles.es_admin`, `subscription_plans.code`, `user_subscriptions.status`, `expires_at`.
+- [ ] Configurar `PREDIGOL_TEST_FREE_EMAIL` y `PREDIGOL_TEST_FREE_PASSWORD`.
+- [ ] Configurar `PREDIGOL_TEST_PREMIUM_EMAIL` y `PREDIGOL_TEST_PREMIUM_PASSWORD`.
+- [ ] Configurar `PREDIGOL_TEST_ADMIN_EMAIL` y `PREDIGOL_TEST_ADMIN_PASSWORD`.
+- [ ] Ejecutar `prediction-service/.venv/Scripts/python.exe scripts/verificar_roles_supabase.py`.
+- [ ] Usuario gratis real validado: login, plan free, premium false, premium bloqueado, sin admin, sin escrituras admin.
+- [ ] Usuario premium real validado: login, plan premium, suscripcion vigente, premium permitido, sin admin automatico, sin escrituras admin.
+- [ ] Usuario admin real validado: login, rol admin, `predigol_es_admin()=true`, panel admin reconocido.
+- [ ] Matriz manual de navegador ejecutada cerrando sesion completamente entre usuarios.
+- [ ] Confirmar que no se reutiliza JWT anterior al cambiar de usuario.
+
+Fase 7E no queda completa hasta probar realmente los tres usuarios en Supabase real y registrar resultados.
+
 ## Pendiente Para Pagos Reales
 
 - [ ] Elegir proveedor.

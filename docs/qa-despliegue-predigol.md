@@ -530,3 +530,205 @@ Las RPC que dependen de `auth.uid()` pueden responder `P0001: Debes iniciar sesi
 - [ ] Usuario premium manual: las mismas RPC devuelven contenido premium permitido si existe suscripcion activa o trial.
 - [ ] Usuario admin: `predigol_es_admin()` permite acceso admin y las RPC devuelven datos completos segun policies.
 - [ ] Usuario sin sesion: rutas privadas redirigen a `/auth` y no se usan RPC protegidas como fuente de datos publica.
+
+## Fase 7E - Validacion Autenticada De Roles
+
+### Diagnostico Del Esquema Real
+
+La inspeccion de migraciones confirma esta estructura para roles y suscripciones:
+
+| Elemento | Estructura real |
+| --- | --- |
+| Rol administrativo | `public.profiles.rol = 'admin'`; `public.profiles.es_admin = true` sigue aceptado por `predigol_es_admin()` por compatibilidad. |
+| Valores de rol | Constraint `profiles_rol_check`: `usuario`, `admin`. |
+| Plan gratuito | `subscription_plans.code = 'free'`; si no hay suscripcion vigente, `obtener_plan_usuario()` devuelve `plan_code='free'`, `status='free'`, `is_premium=false`, `source='default_free'`. |
+| Plan premium | `subscription_plans.code = 'premium'`. |
+| Suscripcion activa | `user_subscriptions.status in ('premium_active', 'trial')` y `expires_at is null or expires_at > now()`. |
+| Estados validos de suscripcion | `free`, `premium_active`, `premium_expired`, `canceled`, `trial`. |
+| Vigencia | `started_at` ordena la suscripcion vigente; `expires_at` nulo no vence, si existe debe ser futuro. |
+| Premium por RPC | `predigol_usuario_tiene_premium(p_user_id uuid default auth.uid())` devuelve booleano y tambien considera admin via `predigol_es_admin()`. |
+| Plan por RPC | `obtener_plan_usuario()` devuelve `jsonb`. |
+| Listado predicciones | `obtener_predicciones_visibles(p_limit integer default 24)` devuelve `setof jsonb`. |
+| Detalle prediccion | `obtener_prediccion_visible(p_api_football_fixture_id bigint)` devuelve `jsonb` o `null`. |
+| Bloqueo premium | `predigol_prediction_visible_row()` devuelve `is_locked`, `user_can_access`, `preview_message` y campos sensibles en `null` si el usuario no puede acceder. |
+
+### Verificador Autenticado
+
+Script agregado:
+
+```bash
+prediction-service/.venv/Scripts/python.exe scripts/verificar_roles_supabase.py
+```
+
+El script inicia sesion contra Supabase Auth con `SUPABASE_URL` y una clave publica: `SUPABASE_ANON_KEY`, `SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_ANON_KEY` o `VITE_SUPABASE_PUBLISHABLE_KEY`. No usa `SUPABASE_SERVICE_ROLE_KEY` para simular usuarios. Cada RPC protegida se ejecuta con el JWT real devuelto por `signInWithPassword`.
+
+Variables requeridas para validar los tres perfiles:
+
+```env
+SUPABASE_URL=https://tu-proyecto.supabase.co
+SUPABASE_ANON_KEY=tu_anon_key_publica
+# Alternativas aceptadas: SUPABASE_PUBLISHABLE_KEY, VITE_SUPABASE_ANON_KEY o VITE_SUPABASE_PUBLISHABLE_KEY
+PREDIGOL_TEST_FREE_EMAIL=<EMAIL_USUARIO_GRATIS>
+PREDIGOL_TEST_FREE_PASSWORD=<PASSWORD_USUARIO_GRATIS>
+PREDIGOL_TEST_PREMIUM_EMAIL=<EMAIL_USUARIO_PREMIUM>
+PREDIGOL_TEST_PREMIUM_PASSWORD=<PASSWORD_USUARIO_PREMIUM>
+PREDIGOL_TEST_ADMIN_EMAIL=<EMAIL_USUARIO_ADMIN>
+PREDIGOL_TEST_ADMIN_PASSWORD=<PASSWORD_USUARIO_ADMIN>
+```
+
+Si falta una credencial, el script reporta `PENDIENTE CREDENCIALES` indicando solo el nombre de variable faltante. No imprime correos, passwords, JWT ni claves.
+
+### Preparacion Manual Segura De Usuarios
+
+Crear los usuarios desde Supabase Dashboard > Authentication > Users, o por el flujo normal `/auth`. No crear usuarios ni cambiar contrasenas desde scripts de QA.
+
+Consultar UUID de un usuario por correo en SQL Editor usando placeholders, sin registrar correos reales en archivos:
+
+```sql
+select id, created_at, email_confirmed_at is not null as email_confirmed
+from auth.users
+where email = '<EMAIL_USUARIO_ADMIN>';
+```
+
+Verificar perfil sin exponer datos sensibles:
+
+```sql
+select id, rol, es_admin, created_at, updated_at
+from public.profiles
+where id in ('<UUID_USUARIO_ADMIN>', '<UUID_USUARIO_PREMIUM>', '<UUID_USUARIO_GRATIS>');
+```
+
+Asignar rol administrador con la columna real y mantener compatibilidad con `es_admin`:
+
+```sql
+update public.profiles
+set rol = 'admin', es_admin = true
+where id = '<UUID_USUARIO_ADMIN>'
+  and (rol is distinct from 'admin' or es_admin is distinct from true);
+```
+
+Retirar rol admin de un usuario de prueba si se necesita volver a gratis/premium no admin:
+
+```sql
+update public.profiles
+set rol = 'usuario', es_admin = false
+where id = '<UUID_USUARIO_NO_ADMIN>'
+  and (rol is distinct from 'usuario' or es_admin is distinct from false);
+```
+
+Consultar planes disponibles:
+
+```sql
+select code, name, active
+from public.subscription_plans
+order by code;
+```
+
+Asignar suscripcion premium activa de prueba de forma idempotente. La migracion permite una sola suscripcion activa o trial por usuario:
+
+```sql
+insert into public.user_subscriptions (
+  user_id,
+  plan_code,
+  status,
+  started_at,
+  expires_at,
+  metadata
+)
+values (
+  '<UUID_USUARIO_PREMIUM>',
+  'premium',
+  'premium_active',
+  now(),
+  now() + interval '30 days',
+  jsonb_build_object('source', 'qa_manual_fase_7e')
+)
+on conflict (user_id) where status in ('premium_active', 'trial')
+do update set
+  plan_code = excluded.plan_code,
+  status = excluded.status,
+  expires_at = excluded.expires_at,
+  metadata = excluded.metadata,
+  updated_at = now();
+```
+
+Retirar o vencer una suscripcion de prueba sin borrar datos:
+
+```sql
+update public.user_subscriptions
+set status = 'premium_expired',
+    expires_at = least(coalesce(expires_at, now() - interval '1 second'), now() - interval '1 second'),
+    updated_at = now(),
+    metadata = metadata || jsonb_build_object('qa_retired', true)
+where user_id = '<UUID_USUARIO_PREMIUM>'
+  and status in ('premium_active', 'trial');
+```
+
+Verificar resultado sin mostrar secretos:
+
+```sql
+select p.id,
+       p.rol,
+       p.es_admin,
+       us.plan_code,
+       us.status,
+       us.started_at,
+       us.expires_at,
+       (us.status in ('premium_active', 'trial') and (us.expires_at is null or us.expires_at > now())) as premium_vigente
+from public.profiles p
+left join public.user_subscriptions us on us.user_id = p.id
+where p.id in ('<UUID_USUARIO_ADMIN>', '<UUID_USUARIO_PREMIUM>', '<UUID_USUARIO_GRATIS>')
+order by p.id, us.started_at desc nulls last;
+```
+
+### Matriz Manual En Navegador
+
+Cerrar sesion completamente entre usuarios. Confirmar en DevTools/Application que no se reutiliza el JWT anterior y que `onAuthStateChange` actualiza la sesion.
+
+Usuario gratis:
+
+- [ ] Iniciar sesion.
+- [ ] Abrir `/inicio`.
+- [ ] Abrir `/pronosticos`.
+- [ ] Identificar contenido bloqueado si hay predicciones premium.
+- [ ] Intentar abrir una prediccion premium desde `/partidos/:partidoId`.
+- [ ] Confirmar que probabilidades, xG, marcador probable, confianza y metadata completa no aparecen si `is_locked=true`.
+- [ ] Abrir `/perfil` y confirmar plan gratis.
+- [ ] Intentar entrar manualmente a `/admin`, `/admin/modelo` y `/admin/partidos`.
+- [ ] Confirmar acceso denegado.
+- [ ] Cerrar sesion.
+
+Usuario premium:
+
+- [ ] Iniciar sesion.
+- [ ] Abrir `/perfil` y confirmar plan premium.
+- [ ] Abrir `/pronosticos` y filtrar tipo `Premium`.
+- [ ] Abrir detalle de una prediccion premium permitida.
+- [ ] Confirmar que no aparece acceso administrativo en `/perfil`.
+- [ ] Intentar `/admin` y confirmar acceso denegado si no es admin.
+- [ ] Cerrar sesion.
+
+Usuario administrador:
+
+- [ ] Iniciar sesion.
+- [ ] Confirmar acceso administrativo en `/perfil`.
+- [ ] Abrir `/admin`.
+- [ ] Abrir `/admin/modelo`.
+- [ ] Abrir `/admin/partidos`.
+- [ ] Comprobar guardas de rutas en recarga directa.
+- [ ] Cerrar sesion.
+- [ ] Intentar volver a `/admin` despues del cierre de sesion y confirmar redireccion o bloqueo.
+
+### Estado Fase 7E
+
+- [x] Diagnostico conservador de migraciones completado.
+- [x] Frontend revisado sin cambios requeridos.
+- [x] Verificador autenticado creado.
+- [x] Pruebas unitarias del verificador agregadas sin Supabase real.
+- [ ] Usuario gratis real validado con credenciales configuradas.
+- [ ] Usuario premium real validado con credenciales configuradas.
+- [ ] Usuario admin real validado con credenciales configuradas.
+- [ ] Matriz manual en navegador ejecutada.
+- [ ] Fase 7E completada.
+
+No marcar Fase 7E como completada hasta que el verificador autenticado y la matriz manual hayan sido ejecutados con los tres usuarios reales.
