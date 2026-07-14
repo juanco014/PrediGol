@@ -356,3 +356,44 @@ Resultado validado:
 - Administrador con plan free: comportamiento aceptado; `predigol_usuario_tiene_premium()` devuelve true porque la RPC concede acceso premium al administrador.
 
 Pendiente no bloqueante: no habia predicciones premium reales. `obtener_predicciones_visibles()` devolvio 0 filas, por lo que el bloqueo/desbloqueo de contenido premium queda como `PENDIENTE DATOS`. No crear datos ficticios ni modificar V1/V2 solo para cerrar esa prueba.
+
+## 17. Fase 7F - Publicacion Controlada V1
+
+Se agrego un publicador seguro para preparar la muestra MVP de predicciones V1 reales:
+
+```bash
+prediction-service/.venv/Scripts/python.exe scripts/publicar_predicciones_v1_mvp.py --dry-run
+```
+
+Caracteristicas:
+
+- Usa exclusivamente `poisson-elo-v1`.
+- Rechaza payloads que no tengan `model_version = poisson-elo-v1`.
+- Lee historicos reales finalizados desde Supabase.
+- Lee solo partidos `proximo` con `api_football_fixture_id` desde Supabase.
+- Clasifica con el contrato real `model_predictions.access_tier` (`free` o `premium`).
+- No sobrescribe por defecto; requiere `--allow-update` para actualizar.
+- `--apply` queda bloqueado si no hay predicciones validas.
+
+Estado actual: Fase 7F preparada, pendiente de fixtures reales.
+
+Resultado del dry-run:
+
+```json
+{
+  "ok": true,
+  "status": "PENDIENTE FUENTE REAL",
+  "history_matches": 226,
+  "upcoming_matches": 0,
+  "api_football_quota_used": 0
+}
+```
+
+Fuente de fixtures revisada:
+
+- Supabase `partidos`: 0 proximos con fixture API-Football.
+- Supabase `football_fixtures`: 0 futuros.
+- Reportes locales: solo historicos finalizados 2022-2024.
+- API-Football: 1 solicitud minima para liga 239 temporada 2026; el plan actual no tiene acceso a esa temporada.
+
+No se ejecuto `--apply`, no se publicaron predicciones y no se modificaron V1/V2.

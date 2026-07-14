@@ -781,3 +781,88 @@ Pendiente de datos:
 - No se crearon datos ficticios ni se modificaron V1/V2 para forzar esta prueba.
 
 No se documentan correos, passwords, JWT, claves ni UUID reales de usuarios de prueba.
+
+## Fase 7F - Publicacion Controlada De Predicciones V1
+
+### Estado
+
+Fase 7F preparada, pendiente de fixtures reales.
+
+No se completo la publicacion porque no hay partidos reales proximos disponibles en Supabase ni en reportes locales. No se crearon partidos ficticios, no se inventaron probabilidades y no se modificaron V1/V2.
+
+### Diagnostico Del Flujo
+
+| Area | Resultado |
+| --- | --- |
+| Generacion V1 local | `scripts/generar_pronosticos.py` genera pronosticos desde datasets locales usando `PoissonEloModel` y `MODEL_VERSION = poisson-elo-v1`. |
+| Publicacion existente | `predigol_model.run` puede hacer `upsert` a `model_predictions`, pero no es suficientemente conservador para 7F porque no clasifica free/premium ni evita sobrescritura por defecto. |
+| Publicador 7F | Se agrego `scripts/publicar_predicciones_v1_mvp.py` con `--dry-run`, `--apply`, limite, fixtures explicitos, rechazo V2 y no sobrescritura por defecto. |
+| Identidad de prediccion | `model_predictions.api_football_fixture_id` es primary key y referencia `football_fixtures`; `partido_id` conserva el id interno usado por frontend. |
+| Columnas obligatorias | `api_football_fixture_id`, probabilidades 1X2, xG local/visitante, goles probables, `confidence`, `model_version`, `metadata`, `generated_at`. |
+| Free/premium | `model_predictions.access_tier` con valores `free` o `premium`. |
+| Bloqueo RPC | `predigol_prediction_visible_row()` calcula `is_locked` con `access_tier`, `predigol_es_admin()` y `predigol_usuario_tiene_premium(auth.uid())`. |
+| Detalle protegido | `obtener_prediccion_visible(fixture_id)` devuelve la misma fila filtrada por `predigol_prediction_visible_row()`. |
+| Frontend | `PronosticosPage` y `PartidoDetailPage` consumen RPC y respetan `is_locked`. |
+
+### Fuente De Fixtures
+
+Se consultaron fuentes en este orden:
+
+- Supabase `partidos`: 0 partidos proximos con `api_football_fixture_id`.
+- Supabase `football_fixtures`: 0 fixtures futuros.
+- Reportes locales `reports/*_dataset.json`: solo contienen temporadas historicas finalizadas 2022, 2023 y 2024; 0 fixtures futuros utilizables.
+- API-Football: se hizo una consulta minima en dry-run para liga 239 temporada 2026 y ventana 2026-07-14 a 2026-07-28. Resultado: el plan/API no permite temporada 2026 en la cuenta actual (`Free plans do not have access to this season, try from 2022 to 2024`).
+
+Cuota API-Football consumida: 1 solicitud.
+
+### Fuente De Entrenamiento V1
+
+Supabase contiene 226 partidos historicos reales finalizados con marcador en `partidos`. Son suficientes para entrenar V1 cuando existan fixtures proximos. Los reportes locales tambien contienen datasets reales finalizados:
+
+- `reports/api_api_football_liga-140_temporada-2022_dataset.json`
+- `reports/api_api_football_liga-39_temporada-2022_dataset.json`
+- `reports/api_api_football_liga-39_temporada-2023_dataset.json`
+- `reports/api_api_football_liga-39_temporada-2024_dataset.json`
+
+No se uso ningun partido objetivo como historico porque no habia partido objetivo futuro disponible.
+
+### Dry-Run Del Publicador
+
+Comando:
+
+```bash
+prediction-service/.venv/Scripts/python.exe scripts/publicar_predicciones_v1_mvp.py --dry-run
+```
+
+Resultado:
+
+```json
+{
+  "ok": true,
+  "status": "PENDIENTE FUENTE REAL",
+  "message": "no hay fixtures proximos disponibles para publicar predicciones V1",
+  "history_matches": 226,
+  "upcoming_matches": 0,
+  "api_football_quota_used": 0
+}
+```
+
+### Publicacion
+
+- Predicciones generadas: 0.
+- Predicciones publicadas: 0.
+- Fixtures omitidos: todos, por ausencia de fixtures reales proximos.
+- Gratis/premium: no asignado porque no hay predicciones publicables.
+- `--apply`: no ejecutado.
+
+### Resultado Por Usuario
+
+No se puede validar contenido premium bloqueado/desbloqueado hasta que exista al menos una prediccion V1 real `premium` y una `free`. Se mantiene validado lo cerrado en Fase 7E: gratis, premium y admin tienen autenticacion, plan, rol y RLS correctos.
+
+### Matriz Manual Pendiente
+
+- [ ] Usuario gratis: ver prediccion free y premium bloqueada.
+- [ ] Usuario premium: abrir la misma premium con contenido completo.
+- [ ] Usuario admin: ver predicciones V1 publicadas en panel admin.
+
+Ejecutar esta matriz solo despues de cargar fixtures reales proximos y publicar una muestra V1 real.

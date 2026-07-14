@@ -126,6 +126,20 @@ Resultado validado:
 - Usuario admin: login real, perfil admin, `predigol_es_admin()=true`, lectura administrativa permitida, escrituras directas del modelo bloqueadas.
 - Pendiente no bloqueante: contenido premium bloqueado/desbloqueado queda `PENDIENTE DATOS` porque no hay predicciones premium reales.
 
+### Fase 7F
+
+Estado: preparada, pendiente de fixtures reales. Se agrego `scripts/publicar_predicciones_v1_mvp.py` para publicar una muestra controlada de predicciones reales exclusivamente V1 cuando existan partidos proximos reales en Supabase.
+
+Resultado del diagnostico:
+
+- Supabase tiene 226 historicos reales finalizados con marcador, suficientes para entrenar V1.
+- Supabase tiene 0 partidos proximos con `api_football_fixture_id` y 0 `football_fixtures` futuros.
+- Reportes locales contienen datasets reales finalizados de 2022, 2023 y 2024, sin fixtures futuros.
+- API-Football fue consultado una vez para liga 239 temporada 2026 y el plan actual no permite esa temporada.
+- No se ejecuto `--apply`; no se publicaron predicciones.
+
+Cierre de 7F requiere cargar u obtener fixtures reales proximos, ejecutar dry-run valido, publicar al menos una prediccion V1 `free` y una `premium`, y validar gratis/premium/admin.
+
 ## Fases posteriores
 
 | Fase | Objetivo | Estado |

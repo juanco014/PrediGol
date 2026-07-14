@@ -205,6 +205,25 @@ Bloqueante: Supabase real sigue sin exponer objetos admin/freemium. Confirmar ex
 
 Fase 7E queda completada para autenticacion, roles, suscripciones y RLS. El unico pendiente no bloqueante es de datos: no habia predicciones premium reales para validar contenido bloqueado/desbloqueado.
 
+## Fase 7F - Publicacion V1 Controlada
+
+- [x] Flujo existente diagnosticado.
+- [x] Esquema `model_predictions` y RPC de visibilidad revisados.
+- [x] Frontend consumidor de predicciones revisado.
+- [x] Publicador seguro creado: `scripts/publicar_predicciones_v1_mvp.py`.
+- [x] Publicador rechaza V2 y solo usa `poisson-elo-v1`.
+- [x] Publicador soporta `--dry-run`, `--apply`, limite, fixture explicito y no sobrescritura por defecto.
+- [x] Pruebas unitarias del publicador agregadas sin Supabase real.
+- [x] Supabase tiene historicos reales suficientes para V1: 226 partidos finalizados con marcador.
+- [ ] Fixture real proximo disponible en Supabase.
+- [ ] Prediccion V1 real gratuita publicada.
+- [ ] Prediccion V1 real premium publicada.
+- [ ] Usuario gratis valida contenido premium bloqueado.
+- [ ] Usuario premium valida contenido premium completo.
+- [ ] Admin valida predicciones publicadas.
+
+Estado: Fase 7F preparada, pendiente de fixtures reales. No se ejecuto `--apply` porque Supabase y reportes locales tienen 0 fixtures proximos; API-Football rechazo temporada 2026 para el plan actual. No crear datos ficticios para cerrar esta fase.
+
 ## Pendiente Para Pagos Reales
 
 - [ ] Elegir proveedor.
