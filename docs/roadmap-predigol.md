@@ -140,6 +140,24 @@ Resultado del diagnostico:
 
 Cierre de 7F requiere cargar u obtener fixtures reales proximos, ejecutar dry-run valido, publicar al menos una prediccion V1 `free` y una `premium`, y validar gratis/premium/admin.
 
+### Fases 7G, 7H y 7I
+
+Estado: bloqueadas para publicacion real hasta resolver la fuente de fixtures actuales. En 7G se preparo `scripts/importar_fixtures_proximos_mvp.py` para importar fixtures proximos reales desde una fuente explicita y verificable, pero no se ejecuto `--apply` porque no habia fixtures compatibles. API-Football Free rechazo temporada 2026 con el mensaje de plan que indica acceso solo a 2022-2024.
+
+En 7H se verifico que el contrato actual de predicciones requiere `model_predictions.api_football_fixture_id`: es `bigint`, primary key y foreign key a `football_fixtures`. `partido_id` es nullable y auxiliar; `obtener_prediccion_visible()` recibe exclusivamente `api_football_fixture_id`; el frontend tambien identifica predicciones por fixture API. Por eso no se habilito publicacion V1 solo por `partido_id`.
+
+Alternativas evaluadas para 7I:
+
+| Alternativa | Estado | Riesgo | Nota |
+| --- | --- | --- | --- |
+| Mantener API-Football y habilitar temporada actual | Recomendada para MVP | Bajo/medio | El proyecto ya tiene tablas, Edge Function, cron, monitor, importadores, publicador V1, RPC y frontend alineados al identificador API-Football. Requiere revisar manualmente plan, precios y limites en la cuenta del proveedor. |
+| Incorporar otro proveedor de fixtures | Secundaria futura | Alto | Requiere modelo multi-proveedor: `provider`, `external_fixture_id`, compatibilidad, migracion o tabla de correspondencias, y ajustes en Supabase/frontend/scripts. No integrar sin diseno formal. |
+| Redisenar contrato para `partido_id` manual | Respaldo arquitectonico | Medio/alto | Puede servir como contingencia operativa, pero necesita migracion explicita con FK a `partidos`, restricciones unicas por fixture externo y partido interno, RPC por partido y adaptacion frontend. No usar `partido_id` sin FK ni unique. |
+
+Recomendacion de 7I: para cerrar el MVP, mantener API-Football y habilitar acceso a temporada actual. Como alternativa secundaria, disenar soporte manual por `partido_id` con migracion formal solo si el propietario decide operar fixtures manuales reales como respaldo. No marcar ninguna alternativa como implementada hasta tomar esa decision.
+
+Limpieza pendiente: existe un partido manual con estado `proximo`, sin fixture externo y fecha pasada. No se debe borrar ni modificar automaticamente; debe corregirse desde el panel admin o mediante accion administrativa controlada, marcandolo `finalizado` con resultado real, `cancelado`, o actualizando fecha solo si hay fuente verificable.
+
 ## Fases posteriores
 
 | Fase | Objetivo | Estado |

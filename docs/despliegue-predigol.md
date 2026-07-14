@@ -397,3 +397,96 @@ Fuente de fixtures revisada:
 - API-Football: 1 solicitud minima para liga 239 temporada 2026; el plan actual no tiene acceso a esa temporada.
 
 No se ejecuto `--apply`, no se publicaron predicciones y no se modificaron V1/V2.
+
+## 18. Fase 7I - Decision De Fuente De Fixtures Actuales
+
+La publicacion V1 real sigue bloqueada porque el contrato de `model_predictions` requiere `api_football_fixture_id` real y no hay `football_fixtures` futuros compatibles en Supabase. La Fase 7H confirmo que `partido_id` no identifica por si solo una prediccion del modelo en el esquema actual.
+
+### Alternativa A: Mantener API-Football
+
+Dependencias actuales ya adaptadas:
+
+- Endpoint Python `/fixtures` mediante `ApiFootballClient.fixtures()` para temporada, rango y ventana de sincronizacion.
+- Edge Function `sync-live-fixtures` con modos `live`, `upcoming`, `results`, `range` y `all`.
+- Tablas `football_competitions`, `football_teams`, `football_fixtures`, `football_live_snapshots`, `partidos` y `model_predictions` alineadas a IDs API-Football.
+- Cron configurado, desactivado por defecto, para live cada 5 minutos, proximos cada hora y resultados cada hora.
+- Monitor `api_football_sync_runs` con conteo de requests, fixtures, equipos, partidos, errores y headers de cuota cuando el proveedor los devuelve.
+- Publicador V1 lee historicos reales y proximos con `api_football_fixture_id`; frontend y RPC consumen predicciones por ese identificador.
+
+Consultas estimadas por ejecucion segun el codigo actual:
+
+| Operacion | Patron actual | Impacto de cuota |
+| --- | --- | --- |
+| Proximos | `upcoming`: 1 request por liga habilitada con `next=limit`. Hay 14 ligas habilitadas. | Medio si se ejecuta para todas las ligas; ajustar `enabled`, `limit` y frecuencia. |
+| En vivo | `live`: 1 request global `live=all`, luego filtro por ligas habilitadas. | Bajo por llamada, alto si el cron queda muy frecuente. |
+| Resultados | `results`: 1 request por liga habilitada, con `last=limit` o rango por temporada. | Medio; puede alcanzar rate limit por minuto si se ejecutan muchas ligas seguidas. |
+| Generacion V1 | No consulta API-Football; lee Supabase y escribe `model_predictions`. | No consume cuota del proveedor. |
+
+No hay informacion local verificable de precios ni limites comerciales actuales. Antes de activar temporada vigente, el propietario debe revisar plan, precio, cuota diaria, rate limit por minuto y acceso a ligas/temporadas directamente en la cuenta de API-Football/API-Sports.
+
+Al habilitar temporada actual se desbloquearian: carga de fixtures futuros reales, generacion V1 con IDs compatibles, detalle por `obtener_prediccion_visible`, feed premium/free y validacion de usuario gratis/premium/admin sin cambiar contrato.
+
+### Alternativa B: Otro Proveedor
+
+Requisitos minimos: fixtures futuros, IDs estables, liga, temporada, equipos, fecha con zona horaria, estados, resultados, uso permitido para el producto, documentacion estable y trazabilidad de fuente.
+
+Impacto tecnico: el esquema actual codifica nombres API-Football (`api_football_fixture_id`, `api_football_league_id`, `football_*`). Usar otro proveedor sin rediseñar generaria ambiguedad y riesgo de colision. Un diseno correcto deberia introducir `provider`, `external_fixture_id`, restricciones unicas por proveedor, posible tabla de correspondencias, migracion de datos, adaptacion RPC/frontend/scripts y compatibilidad con datos historicos API-Football.
+
+No integrar proveedores nuevos ni hacer llamadas externas hasta aprobar un diseno multi-proveedor.
+
+### Alternativa C: Predicciones Manuales Por `partido_id`
+
+Diseno preliminar seguro, no aplicado:
+
+1. Cambiar la identidad logica de `model_predictions` para admitir `api_football_fixture_id` o `partido_id`, sin filas huerfanas.
+2. Mantener `api_football_fixture_id` nullable pero unico cuando exista, con FK a `football_fixtures`.
+3. Hacer `partido_id` nullable pero unico cuando exista, con FK a `partidos(id)`.
+4. Agregar check: al menos uno de `api_football_fixture_id` o `partido_id` debe existir.
+5. Mantener RPC actual `obtener_prediccion_visible(bigint)` para fixtures API.
+6. Agregar RPC nueva por identificador interno, por ejemplo `obtener_prediccion_visible_por_partido(p_partido_id text)`.
+7. Ajustar `obtener_predicciones_visibles()` para devolver ambos identificadores y permitir join por fixture o partido.
+8. Adaptar frontend: listados, detalle `/partidos/:partidoId`, admin y mappers deben buscar por `partido_id` cuando no exista fixture API.
+9. Adaptar `scripts/publicar_predicciones_v1_mvp.py` con `--partido-id` explicito, validacion de fecha futura, equipos, historico suficiente, duplicado por partido y no sobrescritura por defecto.
+10. Incluir rollback con migracion inversa solo si no existen filas manuales o migrandolas a fixture externo real.
+11. Mantener RLS/RPC de premium como fuente de seguridad; no exponer service role al frontend.
+12. Agregar pruebas unitarias y de RPC para free, premium, admin, duplicados, V1, payload invalido y secretos no impresos.
+
+No usar `partido_id` sin FK ni restriccion unica.
+
+### Comparacion Cualitativa
+
+| Criterio | API-Football actual | Otro proveedor | `partido_id` manual |
+| --- | --- | --- | --- |
+| Coste tecnico | Bajo | Alto | Medio/alto |
+| Riesgo | Bajo/medio | Alto | Medio/alto |
+| Tiempo relativo | Bajo si el plan da acceso | Alto | Medio |
+| Mantenimiento | Bajo/medio | Alto | Medio |
+| Dependencia externa | Alta | Alta | Baja/media |
+| Compatibilidad actual | Alta | Baja/media | Media |
+| Operar sin pago | Baja para temporada actual | Desconocida | Media |
+| Trazabilidad | Alta | Depende del proveedor | Media si se exige fuente verificable |
+| Seguridad | Alta con contrato actual | Depende de rediseño | Alta si se migra con FK/RLS/RPC |
+| Impacto frontend | Bajo | Alto | Medio/alto |
+| Impacto Supabase | Bajo | Alto | Alto |
+| Impacto scripts V1 | Bajo | Alto | Medio |
+
+Recomendacion principal: mantener API-Football y habilitar acceso a temporada actual para el MVP. Alternativa secundaria: disenar e implementar soporte manual por `partido_id` como respaldo controlado, solo con migracion explicita y pruebas. Otro proveedor queda como evaluacion futura si API-Football no es viable comercial u operativamente.
+
+### Partidos Vencidos Con Estado Proximo
+
+Consulta segura para detectar inconsistencias sin modificar datos:
+
+```sql
+select id, torneo, fecha_orden, local_nombre, visitante_nombre, estado, api_football_fixture_id, origen_datos, fuente_detalle
+from public.partidos
+where estado = 'proximo'
+  and fecha_orden < now()
+  and api_football_fixture_id is null
+  and goles_local_final is null
+  and goles_visitante_final is null
+order by fecha_orden asc;
+```
+
+Correccion recomendada: revisar la fuente real desde `/admin/partidos` o SQL administrativo controlado. Si el partido se jugo, registrar resultado real y cerrarlo; si fue cancelado, marcar `cancelado`; si la fecha era incorrecta, actualizarla solo con fuente verificable. No borrar registros ni inventar resultados.
+
+Decision pendiente del propietario: confirmar si se habilita plan/API-Football para temporada actual o si se prioriza una migracion formal para soporte manual por `partido_id`.

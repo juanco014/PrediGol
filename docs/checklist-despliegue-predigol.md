@@ -224,6 +224,32 @@ Fase 7E queda completada para autenticacion, roles, suscripciones y RLS. El unic
 
 Estado: Fase 7F preparada, pendiente de fixtures reales. No se ejecuto `--apply` porque Supabase y reportes locales tienen 0 fixtures proximos; API-Football rechazo temporada 2026 para el plan actual. No crear datos ficticios para cerrar esta fase.
 
+## Fases 7G, 7H y 7I - Decision De Fixtures Reales
+
+- [x] Importador conservador preparado: `scripts/importar_fixtures_proximos_mvp.py`.
+- [x] No se ejecuto `--apply` sin fixtures reales validados.
+- [x] Contrato confirmado: `model_predictions.api_football_fixture_id` es el identificador obligatorio actual de predicciones.
+- [x] `partido_id` confirmado como auxiliar, nullable y sin contrato unico/FK para predicciones manuales.
+- [x] `obtener_prediccion_visible()` confirmado solo por `api_football_fixture_id`.
+- [x] Frontend confirmado: listados y detalle de prediccion del modelo dependen de `api_football_fixture_id`.
+- [x] Alternativas documentadas: mantener API-Football, otro proveedor, redisenar soporte `partido_id`.
+- [x] Recomendacion documentada: mantener API-Football y habilitar temporada actual para MVP.
+- [ ] Propietario decide si revisa/contrata acceso actual de API-Football o prioriza migracion formal por `partido_id`.
+- [ ] Resolver partido manual vencido con estado `proximo` desde panel admin o accion administrativa controlada.
+
+Consulta segura para detectar partidos vencidos inconsistentes:
+
+```sql
+select id, torneo, fecha_orden, local_nombre, visitante_nombre, estado, api_football_fixture_id, origen_datos, fuente_detalle
+from public.partidos
+where estado = 'proximo'
+  and fecha_orden < now()
+  and api_football_fixture_id is null
+  and goles_local_final is null
+  and goles_visitante_final is null
+order by fecha_orden asc;
+```
+
 ## Pendiente Para Pagos Reales
 
 - [ ] Elegir proveedor.
