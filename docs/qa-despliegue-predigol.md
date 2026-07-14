@@ -121,6 +121,71 @@ npm run build
 
 `scripts/verificar_roles_supabase.py` queda como validacion manual condicionada porque intenta escrituras controladas para comprobar bloqueo RLS.
 
+## Fase 8C - Validacion Produccion Render
+
+URL validada: `https://predigol.onrender.com`.
+
+Resultado HTTP de solo lectura 2026-07-14:
+
+| Ruta | Resultado | Clasificacion |
+| --- | --- | --- |
+| `/` | `200 OK`, carga `index.html`. | OK |
+| `/auth` | `404 Not Found` de Render. | ERROR |
+| `/inicio` | `404 Not Found` de Render. | ERROR |
+| `/pronosticos` | `404 Not Found` de Render. | ERROR |
+| `/perfil` | `404 Not Found` de Render. | ERROR |
+| `/admin` | `404 Not Found` de Render. | ERROR |
+| `/explorar` | `404 Not Found` de Render. | ERROR |
+| `/ranking` | `404 Not Found` de Render. | ERROR |
+| `/ligas` | `404 Not Found` de Render. | ERROR |
+| `/equipos/demo` | `404 Not Found` de Render. | ERROR |
+| `/torneos/demo` | `404 Not Found` de Render. | ERROR |
+| `/admin/partidos` | `404 Not Found` de Render. | ERROR |
+
+Accion requerida inicial: configurar manualmente en Render una regla SPA de rewrite `/* -> /index.html`. No usar redirect.
+
+Cierre posterior a ajustes manuales 2026-07-14:
+
+| Ruta | Resultado | Clasificacion |
+| --- | --- | --- |
+| `/auth` | `200 OK`, entrega `index.html`. | OK |
+| `/inicio` | `200 OK`, entrega `index.html`. | OK |
+| `/pronosticos` | `200 OK`, entrega `index.html`. | OK |
+| `/perfil` | `200 OK`, entrega `index.html`. | OK |
+| `/admin` | `200 OK`, entrega `index.html`. | OK |
+| `/explorar` | `200 OK`, entrega `index.html`. | OK |
+| `/ranking` | `200 OK`, entrega `index.html`. | OK |
+| `/ligas` | `200 OK`, entrega `index.html`. | OK |
+| `/partidos/demo` | `200 OK`, entrega `index.html`. | OK |
+| `/ligas/demo` | `200 OK`, entrega `index.html`. | OK |
+| `/equipos/demo` | `200 OK`, entrega `index.html`. | OK |
+| `/torneos/demo` | `200 OK`, entrega `index.html`. | OK |
+| `/admin/partidos` | `200 OK`, entrega `index.html`. | OK |
+| `/admin/modelo` | `200 OK`, entrega `index.html`. | OK |
+
+Supabase Auth confirmado manualmente por el propietario:
+
+- Site URL: `https://predigol.onrender.com`.
+- Redirect URL: `https://predigol.onrender.com/**`.
+- Desarrollo conservado: `http://localhost:5173/**`.
+
+Las validaciones autenticadas de usuario gratis, premium y administrador quedan pendientes de ejecucion manual del propietario. No registrar credenciales, tokens ni capturas con datos privados.
+
+Checklist de smoke test posterior a la correccion del rewrite:
+
+- [ ] `/` carga sin pantalla en blanco.
+- [x] `/auth` recarga directo y React Router puede tomar control porque recibe `index.html`.
+- [x] `/inicio`, `/pronosticos`, `/perfil` y `/admin` recargan directo sin 404 de Render.
+- [ ] Usuario sin sesion es redirigido o bloqueado en rutas privadas.
+- [ ] Usuario gratuito ve perfil y plan correcto.
+- [ ] Usuario premium ve acceso premium permitido si existe contenido.
+- [ ] Administrador accede a panel y usuario normal queda bloqueado.
+- [ ] Cero fixtures futuros muestra estado vacio util.
+- [ ] Cero predicciones publicas o premium no se muestra como error de cuenta.
+- [ ] Consola sin service role, JWT privados, contrasenas ni API-Football key.
+- [ ] Network sin redirecciones a `localhost` ni errores CORS.
+- [ ] Sin ejecucion de importadores, sincronizadores, publicadores ni API-Football.
+
 ## Ejecucion Fase 7 - 2026-07-10
 
 ### Alcance Ejecutado

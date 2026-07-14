@@ -191,6 +191,44 @@ Supabase:
 - Auditoria de cambios de suscripcion.
 - Reconciliacion de pagos y expiraciones.
 
+## Render Produccion Fase 8C
+
+Produccion publica actual:
+
+- URL: `https://predigol.onrender.com`.
+- Proveedor: Render.
+- Tipo esperado: Static Site.
+- Rama: `main`.
+- Release candidate: `v0.8.0-rc.1`.
+- Commit: `26cc7305220a5efacc4a9cdacf61cd27cb5b7bd0`.
+
+Configuracion esperada en Render:
+
+| Item | Valor |
+| --- | --- |
+| Root Directory | `predigol-web` |
+| Build Command | `npm ci && npm run build` |
+| Publish Directory | `dist` |
+| Rama | `main` |
+| Rewrite SPA | `/* -> /index.html` como rewrite |
+
+Resultado inicial de validacion 2026-07-14:
+
+- OK: `/` responde por HTTPS con `200 OK` y sirve `index.html`.
+- OK: assets JS y CSS responden `200 OK`.
+- ERROR: rutas directas SPA devuelven `404 Not Found` de Render. Corregir rewrite manualmente en Render antes de considerar completo el smoke test.
+- PENDIENTE MANUAL: validar Auth y roles con navegador y usuarios reales sin registrar credenciales.
+
+Cierre posterior a ajustes manuales 2026-07-14:
+
+- OK: rewrite SPA configurado en Render con source `/*`, destination `/index.html`, action `Rewrite`.
+- OK: `/auth`, `/inicio`, `/pronosticos`, `/perfil`, `/admin`, `/explorar`, `/ranking`, `/ligas` y rutas de detalle probadas responden `200 OK` y entregan `index.html`.
+- OK: Supabase Auth configurado manualmente con Site URL `https://predigol.onrender.com`, Redirect URL `https://predigol.onrender.com/**` y desarrollo `http://localhost:5173/**`.
+- PENDIENTE MANUAL: login gratis, premium, admin, recuperacion de contrasena y confirmacion de correo deben validarse por el propietario en navegador.
+- BLOQUEADO: predicciones en vivo, importadores, sincronizadores, publicadores y API-Football siguen sin activarse.
+
+La operacion detallada de Render, smoke test, observabilidad y rollback queda en `docs/operacion-render-predigol.md`.
+
 ## 11. Estado QA Post-Despliegue Fase 7
 
 Ejecucion local 2026-07-10:

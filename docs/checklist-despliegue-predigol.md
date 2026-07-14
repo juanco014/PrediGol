@@ -287,6 +287,25 @@ Variables criticas:
 | `FOOTBALL_API_KEY` | Backend/scripts privados | Bloqueada temporalmente para consultas reales. |
 | `PREDIGOL_TEST_*` | Local no versionado | No incluir en ejemplos ni CI. |
 
+## Fase 8C - Render Produccion
+
+- [x] URL publica responde por HTTPS: `https://predigol.onrender.com`.
+- [x] `/` sirve `index.html` con titulo de PrediGol.
+- [x] Asset JS principal responde `200 OK`.
+- [x] Asset CSS principal responde `200 OK`.
+- [x] Rewrite SPA configurado en Render. Source `/*`, destination `/index.html`, action `Rewrite`.
+- [ ] Confirmar en Render Dashboard Root Directory `predigol-web`.
+- [ ] Confirmar Build Command `npm ci && npm run build`.
+- [ ] Confirmar Publish Directory `dist`.
+- [ ] Confirmar rama `main` y ultimo deploy del commit `26cc7305220a5efacc4a9cdacf61cd27cb5b7bd0`.
+- [ ] Confirmar Node compatible con Vite 8.
+- [ ] Confirmar variables publicas `VITE_SUPABASE_URL` y publishable/anon key.
+- [ ] Confirmar que no existen service role, API-Football key ni secretos backend en variables frontend.
+- [x] Confirmar Supabase Auth Site URL `https://predigol.onrender.com`.
+- [x] Confirmar Redirect URL `https://predigol.onrender.com/**`.
+- [ ] Ejecutar smoke test manual publico y autenticado despues de corregir rewrite.
+- [ ] Mantener API-Football, importadores, sincronizadores y publicadores bloqueados.
+
 ## Pendiente Para Pagos Reales
 
 - [ ] Elegir proveedor.

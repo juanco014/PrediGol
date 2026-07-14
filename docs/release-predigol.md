@@ -269,6 +269,32 @@ Checklist Auth:
 - Se detecta consumo no autorizado de API-Football.
 - Se requiere modificar Supabase, V1 o V2 para que cargue el frontend.
 
+## Fase 8C - Validacion Post-Despliegue Render
+
+Release candidate desplegado:
+
+| Campo | Valor |
+| --- | --- |
+| Version | `v0.8.0-rc.1` |
+| Commit | `26cc7305220a5efacc4a9cdacf61cd27cb5b7bd0` |
+| Proveedor | Render |
+| URL | `https://predigol.onrender.com` |
+| Fecha validacion | 2026-07-14 |
+
+Resultado:
+
+- OK: HTTPS activo y `/` responde `200 OK`.
+- OK: `index.html` y assets JS/CSS cargan.
+- OK corregido: rutas directas SPA ya responden `200 OK` y entregan `index.html` despues de configurar rewrite `/* -> /index.html` en Render.
+- OK: `dist` local no contiene archivos `.map` ni `.env`.
+- OK: no se detectaron nombres de secretos backend en `dist` local.
+- ADVERTENCIA: Render no entrega los headers `Referrer-Policy`, `X-Frame-Options`, `Content-Security-Policy` ni `Permissions-Policy` definidos para Vercel en `predigol-web/vercel.json`.
+- OK manual confirmado: Supabase Auth tiene Site URL `https://predigol.onrender.com`, Redirect URL `https://predigol.onrender.com/**` y conserva `http://localhost:5173/**` para desarrollo.
+- PENDIENTE MANUAL: validar login/logout, usuarios gratis/premium/admin, recuperacion de contrasena y confirmacion de correo en navegador real.
+- BLOQUEADO: predicciones en vivo, importadores, sincronizadores, publicadores y API-Football siguen sin activarse.
+
+No se ejecutaron importadores, sincronizadores, publicadores, API-Football, cambios Supabase, cambios V1/V2, despliegues adicionales, commits ni push durante el diagnostico.
+
 ## Auditoria De Dependencias Npm - 2026-07-14
 
 Estado final: `APROBADO CON CORRECCION MENOR`.
