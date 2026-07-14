@@ -1,7 +1,7 @@
 {
   "name": "predigol-web",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.8.0-rc.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
-    "git": "^0.1.5",
     "lucide-react": "^1.21.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
