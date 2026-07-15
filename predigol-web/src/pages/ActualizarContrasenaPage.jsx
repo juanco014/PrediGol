@@ -25,6 +25,32 @@ function ActualizarContrasenaPage({ session, recuperacionActiva }) {
     setConfirmacion("");
   };
 
+  const volverAlLogin = async () => {
+    if (cargando) return;
+
+    if (tieneSesionRecuperacion && !actualizacionCompleta) {
+      setMensaje("");
+      setTipoMensaje("");
+      setCargando(true);
+
+      try {
+        await cerrarSesionRecuperacion();
+      } catch (error) {
+        setMensaje(
+          obtenerMensajeErrorAuth(
+            error,
+            "No pudimos cerrar la sesión de recuperación. Inténtalo de nuevo."
+          )
+        );
+        setTipoMensaje("error");
+        setCargando(false);
+        return;
+      }
+    }
+
+    navigate("/auth");
+  };
+
   const manejarEnvio = async (event) => {
     event.preventDefault();
 
@@ -72,7 +98,8 @@ function ActualizarContrasenaPage({ session, recuperacionActiva }) {
           <button
             className="auth-back-button"
             type="button"
-            onClick={() => navigate("/auth")}
+            onClick={volverAlLogin}
+            disabled={cargando}
           >
             <ArrowLeft size={18} />
             Volver al login
@@ -197,7 +224,7 @@ function ActualizarContrasenaPage({ session, recuperacionActiva }) {
                 <button
                   className="auth-secondary-button"
                   type="button"
-                  onClick={() => navigate("/auth")}
+                  onClick={volverAlLogin}
                 >
                   Volver al login
                 </button>

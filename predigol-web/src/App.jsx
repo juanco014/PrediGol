@@ -32,9 +32,13 @@ function RouteLoading() {
   );
 }
 
-function ProtectedRoute({ session, children }) {
+function ProtectedRoute({ session, recuperacionActiva = false, children }) {
   if (!session) {
     return <Navigate to="/auth" replace />;
+  }
+
+  if (recuperacionActiva) {
+    return <Navigate to="/actualizar-contrasena" replace />;
   }
 
   return children;
@@ -110,14 +114,28 @@ function App() {
       <Route
         path="/"
         element={
-          session ? <Navigate to="/inicio" replace /> : <LandingPage />
+          session ? (
+            <Navigate
+              to={recuperacionActiva ? "/actualizar-contrasena" : "/inicio"}
+              replace
+            />
+          ) : (
+            <LandingPage />
+          )
         }
       />
 
       <Route
         path="/auth"
         element={
-          session ? <Navigate to="/inicio" replace /> : <AuthPage />
+          session ? (
+            <Navigate
+              to={recuperacionActiva ? "/actualizar-contrasena" : "/inicio"}
+              replace
+            />
+          ) : (
+            <AuthPage />
+          )
         }
       />
 
@@ -136,7 +154,7 @@ function App() {
       <Route
         path="/inicio"
         element={
-          <ProtectedRoute session={session}>
+          <ProtectedRoute session={session} recuperacionActiva={recuperacionActiva}>
             <HomePage session={session} />
           </ProtectedRoute>
         }
@@ -145,7 +163,7 @@ function App() {
       <Route
         path="/explorar"
         element={
-          <ProtectedRoute session={session}>
+          <ProtectedRoute session={session} recuperacionActiva={recuperacionActiva}>
             <ExplorarPage session={session} />
           </ProtectedRoute>
         }
@@ -154,7 +172,7 @@ function App() {
       <Route
         path="/equipos/:entityName"
         element={
-          <ProtectedRoute session={session}>
+          <ProtectedRoute session={session} recuperacionActiva={recuperacionActiva}>
             <FootballEntityPage session={session} type="equipo" />
           </ProtectedRoute>
         }
@@ -163,7 +181,7 @@ function App() {
       <Route
         path="/torneos/:entityName"
         element={
-          <ProtectedRoute session={session}>
+          <ProtectedRoute session={session} recuperacionActiva={recuperacionActiva}>
             <FootballEntityPage session={session} type="torneo" />
           </ProtectedRoute>
         }
@@ -172,7 +190,7 @@ function App() {
       <Route
         path="/ranking"
         element={
-          <ProtectedRoute session={session}>
+          <ProtectedRoute session={session} recuperacionActiva={recuperacionActiva}>
             <RankingPage session={session} />
           </ProtectedRoute>
         }
@@ -181,7 +199,7 @@ function App() {
       <Route
         path="/pronosticos"
         element={
-          <ProtectedRoute session={session}>
+          <ProtectedRoute session={session} recuperacionActiva={recuperacionActiva}>
             <PronosticosPage session={session} />
           </ProtectedRoute>
         }
@@ -190,7 +208,7 @@ function App() {
       <Route
         path="/ligas"
         element={
-          <ProtectedRoute session={session}>
+          <ProtectedRoute session={session} recuperacionActiva={recuperacionActiva}>
             <LigasPage session={session} />
           </ProtectedRoute>
         }
@@ -199,7 +217,7 @@ function App() {
       <Route
         path="/ligas/:ligaId"
         element={
-          <ProtectedRoute session={session}>
+          <ProtectedRoute session={session} recuperacionActiva={recuperacionActiva}>
             <LigaDetailPage session={session} />
           </ProtectedRoute>
         }
@@ -208,7 +226,7 @@ function App() {
       <Route
         path="/partidos/:partidoId"
         element={
-          <ProtectedRoute session={session}>
+          <ProtectedRoute session={session} recuperacionActiva={recuperacionActiva}>
             <PartidoDetailPage session={session} />
           </ProtectedRoute>
         }
@@ -217,7 +235,7 @@ function App() {
       <Route
         path="/notificaciones"
         element={
-          <ProtectedRoute session={session}>
+          <ProtectedRoute session={session} recuperacionActiva={recuperacionActiva}>
             <NotificacionesPage session={session} />
           </ProtectedRoute>
         }
@@ -226,7 +244,7 @@ function App() {
       <Route
         path="/estadisticas"
         element={
-          <ProtectedRoute session={session}>
+          <ProtectedRoute session={session} recuperacionActiva={recuperacionActiva}>
             <EstadisticasPage session={session} />
           </ProtectedRoute>
         }
@@ -235,7 +253,7 @@ function App() {
       <Route
         path="/perfil"
         element={
-          <ProtectedRoute session={session}>
+          <ProtectedRoute session={session} recuperacionActiva={recuperacionActiva}>
             <ProfilePage session={session} />
           </ProtectedRoute>
         }
@@ -244,7 +262,7 @@ function App() {
       <Route
         path="/admin"
         element={
-          <ProtectedRoute session={session}>
+          <ProtectedRoute session={session} recuperacionActiva={recuperacionActiva}>
             <AdminDashboardPage session={session} />
           </ProtectedRoute>
         }
@@ -253,7 +271,7 @@ function App() {
       <Route
         path="/admin/partidos"
         element={
-          <ProtectedRoute session={session}>
+          <ProtectedRoute session={session} recuperacionActiva={recuperacionActiva}>
             <AdminPartidosPage session={session} />
           </ProtectedRoute>
         }
@@ -262,7 +280,7 @@ function App() {
       <Route
         path="/admin/modelo"
         element={
-          <ProtectedRoute session={session}>
+          <ProtectedRoute session={session} recuperacionActiva={recuperacionActiva}>
             <ModelAdminPage session={session} />
           </ProtectedRoute>
         }

@@ -11,10 +11,18 @@ test("rutas de recuperacion son publicas y rutas privadas conservan proteccion",
 
   assert.match(app, /path="\/recuperar-contrasena"/);
   assert.match(app, /path="\/actualizar-contrasena"/);
-  assert.match(app, /<ProtectedRoute session=\{session\}>\s*<HomePage/s);
-  assert.match(app, /<ProtectedRoute session=\{session\}>\s*<ProfilePage/s);
+  assert.match(app, /<ProtectedRoute session=\{session\} recuperacionActiva=\{recuperacionActiva\}>\s*<HomePage/s);
+  assert.match(app, /<ProtectedRoute session=\{session\} recuperacionActiva=\{recuperacionActiva\}>\s*<ProfilePage/s);
   assert.match(app, /path="\/recuperar-contrasena" element=\{<RecuperarContrasenaPage \/>\}/);
   assert.match(app, /<ActualizarContrasenaPage\s+session=\{session\}\s+recuperacionActiva=\{recuperacionActiva\}/);
+});
+
+test("sesion de recuperacion no habilita rutas privadas ni home normal", () => {
+  const app = leer("./App.jsx");
+
+  assert.match(app, /function ProtectedRoute\(\{ session, recuperacionActiva = false, children \}\)/);
+  assert.match(app, /if \(recuperacionActiva\) \{\s*return <Navigate to="\/actualizar-contrasena" replace \/>;\s*\}/s);
+  assert.match(app, /to=\{recuperacionActiva \? "\/actualizar-contrasena" : "\/inicio"\}/);
 });
 
 test("listener global maneja PASSWORD_RECOVERY sin duplicar suscripciones", () => {
@@ -55,6 +63,15 @@ test("formulario de actualizacion requiere recuperacion valida y limpia campos",
   assert.match(page, /limpiarCampos\(\)/);
   assert.match(page, /cerrarSesionRecuperacion\(\)/);
   assert.match(page, /aria-label=/);
+});
+
+test("salida manual desde recuperacion cierra la sesion antes de volver al login", () => {
+  const page = leer("./pages/ActualizarContrasenaPage.jsx");
+
+  assert.match(page, /const volverAlLogin = async \(\) =>/);
+  assert.match(page, /tieneSesionRecuperacion && !actualizacionCompleta/);
+  assert.match(page, /await cerrarSesionRecuperacion\(\)/);
+  assert.match(page, /navigate\("\/auth"\)/);
 });
 
 test("cambios de recuperacion no agregan logs sensibles", () => {
