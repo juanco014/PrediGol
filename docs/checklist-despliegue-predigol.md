@@ -1,5 +1,25 @@
 # Checklist despliegue PrediGol
 
+## Fase 8J - Cierre Tecnico Etapa 8
+
+- [x] `git fetch origin` ejecutado.
+- [x] `main` sincronizada con `origin/main` al iniciar 8J.
+- [x] `docs/operacion-render-predigol.md` revisado sin descartar cambios.
+- [x] `docs/auditoria-fase8f-predigol.md` revisado sin agregar a Git.
+- [x] Validacion publica sin autenticacion ejecutada para `/`, `/auth`, `/pronosticos`, `/admin`, JS y CSS.
+- [x] Headers publicos confirmados en rutas y assets.
+- [x] Suite Python segura ejecutada: 172 tests OK.
+- [x] Busqueda conservadora de secretos ejecutada sin imprimir valores.
+- [x] `npm ci` frontend pasa en clon limpio fuera de OneDrive.
+- [x] `npm test` frontend pasa en clon limpio: 90 tests OK.
+- [x] `npm run lint` frontend pasa en clon limpio.
+- [x] `npm run build` frontend pasa en clon limpio.
+- [x] Decisiones tomadas sobre pendientes locales.
+
+Estado 8J: `COMPLETADA — DESPLIEGUE, SEGURIDAD Y ROLES VALIDADOS`.
+
+El bloqueo `EPERM` del worktree original fue aislado mediante clon limpio en `C:\PrediGol-validacion-8J`; las validaciones tecnicas completas pasaron sobre `9d3272f`.
+
 ## Fase 8I - Smoke Autenticado Por Roles
 
 - [x] Usuario gratuito: login correcto.
@@ -79,9 +99,9 @@ Validacion local 8G:
 - [x] Preview local arranca.
 - [x] Rutas SPA principales devuelven `200 OK` en preview.
 - [x] No se encontraron `service_role`, `SUPABASE_SERVICE_ROLE_KEY`, `FOOTBALL_API_KEY`, `API_FOOTBALL_KEY`, `sb_secret` ni RapidAPI keys en frontend/dist.
-- [ ] Validacion autenticada de usuario gratuito.
-- [ ] Validacion autenticada de usuario premium.
-- [ ] Validacion autenticada de administrador.
+- [x] Validacion autenticada de usuario gratuito resuelta en 8I.
+- [x] Validacion autenticada de usuario premium resuelta en 8I.
+- [x] Validacion autenticada de administrador resuelta en 8I.
 
 ## Frontend
 

@@ -213,6 +213,30 @@ prediction-service/.venv/Scripts/python.exe scripts/verificar_salud_produccion_p
 
 El workflow `Production Health` ejecuta el verificador una vez al dia sin secrets, sin Supabase real y sin API-Football. La guia completa de monitoreo esta en `docs/monitoreo-predigol.md` y la plantilla de incidentes en `docs/incidentes-predigol.md`.
 
+Smoke test autenticado Etapa 8:
+
+```text
+docs/auditoria-fase8f-predigol.md
+docs/auditoria-fase8i-predigol.md
+```
+
+En Fase 8F la validacion autenticada quedo pendiente y se documento como evidencia historica parcial. La validacion de usuario gratuito, usuario premium y administrador fue resuelta posteriormente en Fase 8I mediante prueba manual del propietario en navegador real.
+
+Reglas operativas para cualquier repeticion del smoke autenticado:
+
+- No registrar credenciales, JWT, cookies, IDs reales ni encabezados `Authorization`.
+- No copiar valores completos de storage.
+- No pulsar acciones admin de escritura, importacion, sincronizacion, API-Football, activacion premium ni cierre de resultados.
+- Registrar solo rol, ruta, estado y descripcion segura.
+
+Headers Render Etapa 8:
+
+- Los headers publicos se aplicaron manualmente desde Render Dashboard sobre el Static Site existente.
+- El `Request Path` usado para los headers fue `/*`.
+- `render.yaml` permanece versionado como referencia declarativa.
+- No esta confirmada la adopcion del servicio mediante Blueprint.
+- Mientras no exista Blueprint confirmado, la configuracion del Dashboard y `render.yaml` deben mantenerse sincronizadas manualmente.
+
 ## Rollback Manual En Render
 
 No ejecutar rollback durante Fase 8C salvo decision operativa explicita.

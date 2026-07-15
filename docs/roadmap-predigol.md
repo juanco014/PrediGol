@@ -171,6 +171,12 @@ Siguiente accion: el propietario debe habilitar en API-Football un plan con acce
 
 ## Fases posteriores
 
+### Fase 8J
+
+Estado: `COMPLETADA — DESPLIEGUE, SEGURIDAD Y ROLES VALIDADOS`.
+
+El cierre tecnico de Etapa 8 audito Git, documentos pendientes, consistencia 8F-8I, rutas publicas, headers, assets, secretos y pruebas seguras. La validacion frontend se ejecuto desde clon limpio fuera de OneDrive sobre `9d3272f`: `npm ci`, `npm test`, `npm run lint` y `npm run build` pasaron; Python paso con 172 tests. El incidente `EPERM` del worktree original queda clasificado como bloqueo de entorno local, no regresion del producto. No se modifico Supabase y no se ejecuto API-Football.
+
 ### Fase 8I
 
 Estado: `COMPLETADA — ROLES AUTENTICADOS VALIDADOS`.
@@ -181,7 +187,7 @@ La fase de smoke test autenticado por roles fue ejecutada manualmente por el pro
 
 Estado: `COMPLETADA — HEADERS Y DESPLIEGUE PÚBLICO VALIDADOS`.
 
-Los headers se aplicaron manualmente en el Static Site existente desde Render Dashboard. La URL publica original `https://predigol.onrender.com` se conserva, no se creo un servicio duplicado y las rutas publicas principales responden con CSP, Referrer Policy, X-Frame-Options, Permissions Policy, HSTS y `nosniff`. `render.yaml` permanece como configuracion versionada, pero no se confirmo todavia administracion mediante Blueprint. La validacion autenticada de usuario gratuito, premium y administrador queda para la siguiente etapa.
+Los headers se aplicaron manualmente en el Static Site existente desde Render Dashboard. La URL publica original `https://predigol.onrender.com` se conserva, no se creo un servicio duplicado y las rutas publicas principales responden con CSP, Referrer Policy, X-Frame-Options, Permissions Policy, HSTS y `nosniff`. `render.yaml` permanece como configuracion versionada, pero no se confirmo todavia administracion mediante Blueprint. La validacion autenticada de usuario gratuito, premium y administrador fue resuelta posteriormente en Fase 8I.
 
 ### Fase 8G
 
@@ -189,7 +195,7 @@ Estado: `IMPLEMENTACIÓN COMPLETADA — VALIDACIÓN PÚBLICA PENDIENTE DE REDESP
 
 Se agrego `render.yaml` como mecanismo versionado para Render Static Site con headers de seguridad y rewrite SPA. La CSP permite solo origen propio, Supabase publico real, Realtime por WebSocket y logos de `media.api-sports.io`. No se habilito `unsafe-eval`, no se habilito `unsafe-inline` y no se agregaron comodines amplios.
 
-Pruebas locales: `npm test`, `npm run lint`, `npm run build` y preview local pasaron. Queda pendiente sincronizar/aplicar el Blueprint en Render, redesplegar y confirmar headers publicos. La validacion autenticada de usuario gratuito, premium y administrador sigue pendiente manual y no debe automatizarse con credenciales reales.
+Pruebas locales 8G: `npm test`, `npm run lint`, `npm run build` y preview local pasaron. La validacion publica de headers fue resuelta en 8H mediante aplicacion manual en Render Dashboard, sin confirmar adopcion Blueprint. La validacion autenticada de usuario gratuito, premium y administrador fue resuelta posteriormente en 8I y no debe automatizarse con credenciales reales.
 
 ### Fase 8A
 

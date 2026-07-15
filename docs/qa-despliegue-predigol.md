@@ -1,5 +1,15 @@
 # QA despliegue PrediGol
 
+## Fase 8J - Cierre Tecnico Etapa 8
+
+Estado: `COMPLETADA — DESPLIEGUE, SEGURIDAD Y ROLES VALIDADOS`.
+
+La validacion publica de solo lectura sigue OK en `https://predigol.onrender.com` para `/`, `/auth`, `/pronosticos`, `/admin`, JS y CSS, con headers de seguridad presentes. La suite Python segura paso con 172 tests.
+
+La validacion frontend se recupero desde clon limpio fuera de OneDrive en `C:\PrediGol-validacion-8J`: `npm ci` OK, `npm test` OK con 90 tests, `npm run lint` OK y `npm run build` OK. El incidente `EPERM` del worktree original queda clasificado como bloqueo de entorno local, no como regresion del producto.
+
+No se modifico Supabase, no se ejecuto API-Football, no se limpiaron archivos funcionales y no se almacenaron secretos.
+
 ## Fase 8I - Smoke Autenticado Por Roles
 
 Estado: `COMPLETADA — ROLES AUTENTICADOS VALIDADOS`.
@@ -42,11 +52,11 @@ Los headers se aplicaron manualmente en el Static Site existente desde Render Da
 | CSS principal | OK, `200`. |
 | Errores criticos CSP Console/Network | No observados en validacion manual del propietario. |
 
-Pendientes no bloqueantes:
+Pendientes no bloqueantes al cierre 8H, resueltos posteriormente por Fase 8I salvo recuperacion de contrasena:
 
-- Usuario gratuito: PENDIENTE VALIDACION MANUAL.
-- Usuario premium: PENDIENTE VALIDACION MANUAL.
-- Administrador: PENDIENTE VALIDACION MANUAL.
+- Usuario gratuito: RESUELTO EN 8I.
+- Usuario premium: RESUELTO EN 8I.
+- Administrador: RESUELTO EN 8I.
 - Recuperacion de contraseña: PENDIENTE PRODUCTO.
 
 ## Fase 8G - Headers Seguridad Y Smoke Autenticado Pendiente
