@@ -173,9 +173,9 @@ Siguiente accion: el propietario debe habilitar en API-Football un plan con acce
 
 ### Fase 8I
 
-Estado: `BLOQUEADA — FALTAN CREDENCIALES DE PRUEBA`.
+Estado: `COMPLETADA — ROLES AUTENTICADOS VALIDADOS`.
 
-La fase de smoke test autenticado por roles queda preparada y documentada, pero no ejecutada. El reporte manual mantiene login de usuario gratuito, usuario premium y administrador como `BLOQUEADO POR CONFIGURACION DE CUENTA`; las rutas, persistencia, aislamiento, Console, Network y Storage quedan `NO VERIFICADO`. No se guardaron credenciales, no se modifico Supabase y no se ejecuto API-Football. Recuperacion de contrasena sigue pendiente de producto.
+La fase de smoke test autenticado por roles fue ejecutada manualmente por el propietario del proyecto. Usuario gratuito, usuario premium y administrador validaron login, persistencia, logout, aislamiento entre cuentas, rutas por rol, Console y Network. La cuenta gratuita no accede a contenido premium ni administracion; la cuenta premium accede a premium sin administracion; la cuenta administradora accede a `/admin`, `/admin/modelo` y `/admin/partidos`. No se guardaron credenciales, no se modifico Supabase y no se ejecuto API-Football. Recuperacion de contrasena sigue pendiente de producto.
 
 ### Fase 8H
 

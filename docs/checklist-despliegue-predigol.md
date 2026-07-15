@@ -2,28 +2,28 @@
 
 ## Fase 8I - Smoke Autenticado Por Roles
 
-- [ ] Usuario gratuito: login correcto.
-- [ ] Usuario gratuito: perfil visible y sesion persistente al recargar.
-- [ ] Usuario gratuito: contenido gratuito accesible.
-- [ ] Usuario gratuito: contenido premium bloqueado.
-- [ ] Usuario gratuito: `/admin`, `/admin/modelo` y `/admin/partidos` bloqueadas.
-- [ ] Usuario gratuito: logout y rutas privadas bloqueadas despues del logout.
-- [ ] Usuario premium: login correcto.
-- [ ] Usuario premium: plan premium reconocido.
-- [ ] Usuario premium: contenido premium desbloqueado.
-- [ ] Usuario premium: rutas administrativas bloqueadas.
-- [ ] Usuario premium: logout y rutas privadas bloqueadas despues del logout.
-- [ ] Administrador: login correcto.
-- [ ] Administrador: acceso a `/admin`, `/admin/modelo` y `/admin/partidos`.
-- [ ] Administrador: no ejecutar importacion, sincronizacion, generacion ni API-Football.
-- [ ] Administrador: logout y rutas administrativas bloqueadas despues del logout.
-- [ ] Cambio entre cuentas: sin herencia de datos o permisos.
-- [ ] Console y Network sin errores CSP ni errores `401/403` inesperados.
-- [ ] Storage sin datos sensibles reutilizables despues del logout, sin copiar valores.
+- [x] Usuario gratuito: login correcto.
+- [x] Usuario gratuito: perfil visible y sesion persistente al recargar.
+- [x] Usuario gratuito: contenido gratuito accesible.
+- [x] Usuario gratuito: contenido premium bloqueado.
+- [x] Usuario gratuito: `/admin`, `/admin/modelo` y `/admin/partidos` bloqueadas.
+- [x] Usuario gratuito: logout y rutas privadas bloqueadas despues del logout.
+- [x] Usuario premium: login correcto.
+- [x] Usuario premium: plan premium reconocido.
+- [x] Usuario premium: contenido premium desbloqueado.
+- [x] Usuario premium: rutas administrativas bloqueadas.
+- [x] Usuario premium: logout y rutas privadas bloqueadas despues del logout.
+- [x] Administrador: login correcto.
+- [x] Administrador: acceso a `/admin`, `/admin/modelo` y `/admin/partidos`.
+- [x] Administrador: no ejecutar importacion, sincronizacion, generacion ni API-Football.
+- [x] Administrador: logout y rutas administrativas bloqueadas despues del logout.
+- [x] Cambio entre cuentas: sin herencia de datos o permisos.
+- [x] Console y Network sin errores CSP ni errores `401/403` inesperados.
+- [x] Storage sin datos sensibles reutilizables despues del logout, sin copiar valores.
 
-Estado 8I: `BLOQUEADA — FALTAN CREDENCIALES DE PRUEBA`.
+Estado 8I: `COMPLETADA — ROLES AUTENTICADOS VALIDADOS`.
 
-Resultado manual recibido: login de usuario gratuito, premium y administrador queda `BLOQUEADO POR CONFIGURACION DE CUENTA`; el resto de pruebas autenticadas queda `NO VERIFICADO`, salvo no ejecucion de API-Football reportada como `OK`.
+Resultado manual recibido: usuario gratuito, premium y administrador validados en navegador real por el propietario del proyecto. No se almacenaron credenciales, tokens, cookies, IDs reales ni valores de storage.
 
 ## Fase 8H - Headers Publicos Render
 
@@ -40,9 +40,9 @@ Resultado manual recibido: login de usuario gratuito, premium y administrador qu
 - [x] `Permissions-Policy: camera=(), microphone=(), geolocation=()` recibido.
 - [x] `Strict-Transport-Security` recibido.
 - [x] `X-Content-Type-Options: nosniff` recibido.
-- [ ] Usuario gratuito validado manualmente.
-- [ ] Usuario premium validado manualmente.
-- [ ] Administrador validado manualmente.
+- [x] Usuario gratuito validado manualmente.
+- [x] Usuario premium validado manualmente.
+- [x] Administrador validado manualmente.
 - [ ] Recuperacion de contraseña implementada.
 
 Estado 8H: `COMPLETADA — HEADERS Y DESPLIEGUE PÚBLICO VALIDADOS`.

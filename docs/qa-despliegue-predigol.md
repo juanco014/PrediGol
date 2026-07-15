@@ -2,19 +2,19 @@
 
 ## Fase 8I - Smoke Autenticado Por Roles
 
-Estado: `BLOQUEADA — FALTAN CREDENCIALES DE PRUEBA`.
+Estado: `COMPLETADA — ROLES AUTENTICADOS VALIDADOS`.
 
-No se ejecuto ningun smoke test autenticado. El propietario reporto que las cuentas o credenciales de prueba todavia no estan disponibles para completar login manual en navegador. No se usaron credenciales, tokens, cookies ni valores de almacenamiento.
+Smoke test autenticado ejecutado manualmente por el propietario del proyecto en navegador real. No se usaron ni almacenaron correos, contrasenas, IDs reales, tokens, cookies, cabeceras sensibles ni valores de almacenamiento.
 
 | Perfil | Estado |
 | --- | --- |
-| Usuario gratuito | BLOQUEADO POR CONFIGURACION DE CUENTA |
-| Usuario premium | BLOQUEADO POR CONFIGURACION DE CUENTA |
-| Administrador | BLOQUEADO POR CONFIGURACION DE CUENTA |
+| Usuario gratuito | OK |
+| Usuario premium | OK |
+| Administrador | OK |
 
-Pendiente para cerrar 8I: ejecutar manualmente login, perfil, persistencia, contenido por plan, rutas admin, logout, aislamiento entre cuentas, Console, Network y Storage sin registrar credenciales, tokens, cookies ni cabeceras sensibles.
+Resultados principales: usuario gratuito sin premium y sin admin; usuario premium con contenido premium y sin admin; administrador con acceso a `/admin`, `/admin/modelo` y `/admin/partidos`; logout, persistencia y aislamiento entre cuentas validados.
 
-Resultado actual de controles transversales: `NO VERIFICADO` para Console, Network, rutas privadas, aislamiento y storage. `OK` para no ejecutar API-Football segun reporte manual.
+Console, Network y storage: OK segun validacion manual, sin copiar valores sensibles. No se ejecutaron acciones de generacion, importacion ni sincronizacion. No se ejecuto API-Football.
 
 Durante 8I no se debe ejecutar API-Football, importaciones, sincronizaciones, generacion de partidos, cambios de roles, cambios de suscripciones ni recuperacion de contrasena.
 

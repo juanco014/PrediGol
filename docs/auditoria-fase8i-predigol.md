@@ -2,9 +2,11 @@
 
 ## Estado De La Fase
 
-**BLOQUEADA — FALTAN CREDENCIALES DE PRUEBA**
+**COMPLETADA — ROLES AUTENTICADOS VALIDADOS**
 
-No se ejecuto ningun smoke test autenticado porque las cuentas o credenciales de prueba todavia no estan disponibles para la prueba en navegador. No se inventan resultados.
+El smoke test autenticado por roles fue ejecutado manualmente por el propietario del proyecto en `https://predigol.onrender.com` con tres cuentas de prueba independientes: usuario gratuito, usuario premium y administrador.
+
+No se almacenaron correos, contrasenas, IDs reales, tokens, cookies, cabeceras `Authorization`, capturas sensibles ni valores de storage.
 
 ## Contexto
 
@@ -14,104 +16,132 @@ No se ejecuto ningun smoke test autenticado porque las cuentas o credenciales de
 | URL probada | `https://predigol.onrender.com` |
 | Commit desplegado documentado | `295faa6` |
 | Fase previa | Fase 8H completada: headers y despliegue publico validados. |
-| Navegador utilizado | NO VERIFICADO |
+| Validacion | Manual del propietario del proyecto en navegador real. |
 
 ## Roles Probados
 
 | Rol | Estado |
 | --- | --- |
-| Usuario gratuito | BLOQUEADO POR CONFIGURACION DE CUENTA |
-| Usuario premium | BLOQUEADO POR CONFIGURACION DE CUENTA |
-| Administrador | BLOQUEADO POR CONFIGURACION DE CUENTA |
-
-No se registran nombres, correos, contrasenas, tokens, cookies, cabeceras `Authorization`, IDs reales ni valores de storage.
+| Usuario gratuito | OK |
+| Usuario premium | OK |
+| Administrador | OK |
 
 ## Usuario Gratuito
 
 | Prueba | Estado |
 | --- | --- |
-| Abrir `/auth` | NO VERIFICADO |
-| Inicio de sesion | BLOQUEADO POR CONFIGURACION DE CUENTA |
-| Redireccion posterior al login | NO VERIFICADO |
-| Perfil visible | NO VERIFICADO |
-| Cuenta no figura como premium | NO VERIFICADO |
-| Sesion conservada despues de recargar | NO VERIFICADO |
-| Contenido gratuito accesible | NO VERIFICADO |
-| Contenido premium bloqueado | NO VERIFICADO |
-| `/admin` bloqueada | NO VERIFICADO |
-| `/admin/modelo` bloqueada | NO VERIFICADO |
-| `/admin/partidos` bloqueada | NO VERIFICADO |
-| Cierre de sesion correcto | NO VERIFICADO |
-| Rutas privadas bloqueadas despues del logout | NO VERIFICADO |
-| Console/Network | NO VERIFICADO |
+| Abrir `/auth` | OK |
+| Inicio de sesion | OK |
+| Redireccion posterior al login | OK |
+| Perfil visible | OK |
+| Cuenta no figura como premium | OK |
+| Sesion conservada despues de recargar | OK |
+| Contenido gratuito accesible | OK |
+| Contenido premium bloqueado | OK |
+| `/admin` bloqueada | OK |
+| `/admin/modelo` bloqueada | OK |
+| `/admin/partidos` bloqueada | OK |
+| Cierre de sesion correcto | OK |
+| Rutas privadas bloqueadas despues del logout | OK |
+| Console/Network | OK |
+
+Conclusiones del rol gratuito:
+
+- La cuenta gratuita no accede a contenido premium.
+- La cuenta gratuita no accede a administracion.
+- La sesion persiste al recargar y queda cerrada correctamente tras logout.
 
 ## Usuario Premium
 
 | Prueba | Estado |
 | --- | --- |
-| Sesion anterior cerrada | NO APLICA |
-| Inicio de sesion | BLOQUEADO POR CONFIGURACION DE CUENTA |
-| Plan premium reconocido | NO VERIFICADO |
-| Sesion conservada despues de recargar | NO VERIFICADO |
-| Contenido gratuito accesible | NO VERIFICADO |
-| Contenido premium accesible | NO VERIFICADO |
-| Premium no bloqueado incorrectamente | NO VERIFICADO |
-| `/admin` bloqueada | NO VERIFICADO |
-| `/admin/modelo` bloqueada | NO VERIFICADO |
-| `/admin/partidos` bloqueada | NO VERIFICADO |
-| Cierre de sesion correcto | NO VERIFICADO |
-| Sesion anterior no persiste | NO VERIFICADO |
-| Console/Network | NO VERIFICADO |
+| Sesion anterior cerrada | OK |
+| Inicio de sesion | OK |
+| Plan premium reconocido | OK |
+| Sesion conservada despues de recargar | OK |
+| Contenido gratuito accesible | OK |
+| Contenido premium accesible | OK |
+| Premium no bloqueado incorrectamente | OK |
+| `/admin` bloqueada | OK |
+| `/admin/modelo` bloqueada | OK |
+| `/admin/partidos` bloqueada | OK |
+| Cierre de sesion correcto | OK |
+| Sesion anterior no persiste | OK |
+| Console/Network | OK |
+
+Conclusiones del rol premium:
+
+- La cuenta premium accede correctamente al contenido premium.
+- La cuenta premium no accede a administracion.
+- La sesion previa no persiste despues del cierre de sesion.
 
 ## Administrador
 
 | Prueba | Estado |
 | --- | --- |
-| Sesion anterior cerrada | NO APLICA |
-| Inicio de sesion | BLOQUEADO POR CONFIGURACION DE CUENTA |
-| Acceso a `/admin` | NO VERIFICADO |
-| Acceso a `/admin/modelo` | NO VERIFICADO |
-| Acceso a `/admin/partidos` | NO VERIFICADO |
-| Recarga de `/admin` conserva autorizacion | NO VERIFICADO |
-| Recarga de `/admin/modelo` conserva autorizacion | NO VERIFICADO |
-| Recarga de `/admin/partidos` conserva autorizacion | NO VERIFICADO |
-| No ejecutar generacion, importacion o sincronizacion | NO VERIFICADO |
+| Sesion anterior cerrada | OK |
+| Inicio de sesion | OK |
+| Acceso a `/admin` | OK |
+| Acceso a `/admin/modelo` | OK |
+| Acceso a `/admin/partidos` | OK |
+| Recarga de `/admin` conserva autorizacion | OK |
+| Recarga de `/admin/modelo` conserva autorizacion | OK |
+| Recarga de `/admin/partidos` conserva autorizacion | OK |
+| No ejecutar generacion, importacion o sincronizacion | OK |
 | No consumir API-Football | OK |
-| Cierre de sesion correcto | NO VERIFICADO |
-| Rutas administrativas bloqueadas despues del logout | NO VERIFICADO |
-| Console/Network | NO VERIFICADO |
+| Cierre de sesion correcto | OK |
+| Rutas administrativas bloqueadas despues del logout | OK |
+| Console/Network | OK |
+
+Conclusiones del rol administrador:
+
+- La cuenta administradora accede a las rutas administrativas establecidas.
+- Las rutas administrativas conservan autorizacion despues de recargar mientras la sesion esta activa.
+- Las rutas administrativas quedan bloqueadas despues del logout.
+- No se pulsaron acciones de generacion, importacion ni sincronizacion.
+- No se consumio API-Football.
 
 ## Aislamiento Entre Cuentas
 
 | Prueba | Estado |
 | --- | --- |
-| Cerrar sesion completamente entre cuentas | NO VERIFICADO |
-| Sin herencia de nombre | NO VERIFICADO |
-| Sin herencia de plan | NO VERIFICADO |
-| Sin herencia de permisos | NO VERIFICADO |
-| Storage revisado sin copiar valores | NO VERIFICADO |
+| Cerrar sesion completamente entre cuentas | OK |
+| Sin herencia de nombre | OK |
+| Sin herencia de plan | OK |
+| Sin herencia de permisos | OK |
+| Storage revisado sin copiar valores | OK |
+
+Conclusiones de aislamiento:
+
+- Las cuentas respetan correctamente sus permisos.
+- No hubo herencia de nombre, plan ni permisos entre sesiones.
+- El logout elimino la sesion activa antes de cambiar de cuenta.
+- No se copiaron ni registraron valores de almacenamiento.
 
 ## Console, Network Y Storage
 
 | Control | Estado |
 | --- | --- |
-| Console sin errores JavaScript criticos | NO VERIFICADO |
-| Console sin errores CSP | NO VERIFICADO |
-| Network sin errores CSP | NO VERIFICADO |
-| Ausencia de errores `401/403` inesperados | NO VERIFICADO |
+| Console sin errores JavaScript criticos | OK |
+| Console sin errores CSP | OK |
+| Network sin errores CSP | OK |
+| Ausencia de errores `401/403` inesperados | OK |
 | No registrar tokens ni cabeceras `Authorization` | OK |
 | No copiar valores completos de storage | OK |
 
 ## Evidencia No Sensible
 
-- El propietario reporto que no se ejecuto ningun smoke test autenticado.
-- No se utilizaron credenciales, tokens, cookies ni valores de almacenamiento.
+- Resultados proporcionados mediante validacion manual del propietario del proyecto.
+- No se compartieron ni almacenaron credenciales.
+- No se compartieron ni almacenaron tokens, cookies, cabeceras sensibles, IDs reales ni valores de storage.
+- No se guardaron capturas con datos sensibles.
 - No se modifico Supabase.
+- No se ejecutaron acciones administrativas de generacion, importacion o sincronizacion.
 - No se ejecuto API-Football.
 
 ## Errores Encontrados
 
-No se detectaron errores funcionales autenticados porque la prueba no llego a ejecutarse. El bloqueo operativo sigue siendo la disponibilidad/configuracion efectiva de cuentas o credenciales de prueba para navegador.
+No se reportaron errores funcionales autenticados durante la validacion manual.
 
 ## Confirmaciones
 
@@ -127,14 +157,6 @@ No se detectaron errores funcionales autenticados porque la prueba no llego a ej
 - `docs/operacion-render-predigol.md` no fue tocado por esta fase.
 - `docs/auditoria-fase8f-predigol.md` no fue incluido ni modificado por esta fase.
 
-## Pendientes
-
-- Habilitar disponibilidad efectiva de las tres cuentas de prueba en navegador.
-- Repetir login de usuario gratuito.
-- Repetir login de usuario premium.
-- Repetir login de administrador.
-- Validar persistencia, logout, aislamiento, rutas privadas, rutas admin, Console, Network y Storage.
-
 ## Estado Final
 
-**BLOQUEADA — FALTAN CREDENCIALES DE PRUEBA**
+**COMPLETADA — ROLES AUTENTICADOS VALIDADOS**
