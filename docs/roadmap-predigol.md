@@ -171,6 +171,12 @@ Siguiente accion: el propietario debe habilitar en API-Football un plan con acce
 
 ## Fases posteriores
 
+### Fase 8H
+
+Estado: `BLOQUEADO — VALIDACIÓN DEL BLUEPRINT REQUIERE ACCESO A RENDER`.
+
+Se valido localmente `render.yaml` con PyYAML y se corrigio la CSP para que sea YAML valido usando bloque `>-`. El Blueprint representa un unico Static Site llamado `predigol`, sin secretos ni recursos adicionales. La URL publica original sigue activa, pero los headers nuevos aun no aparecen en produccion. La adopcion segura requiere que el propietario confirme en Render Dashboard que el Blueprint modifica el servicio existente y no crea un sitio duplicado.
+
 ### Fase 8G
 
 Estado: `IMPLEMENTACIÓN COMPLETADA — VALIDACIÓN PÚBLICA PENDIENTE DE REDESPLIEGUE`.

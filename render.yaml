@@ -8,7 +8,8 @@ services:
     headers:
       - path: /*
         name: Content-Security-Policy
-        value: default-src 'self'; base-uri 'self'; connect-src 'self' https://aadkcyoyjxglrbiwfdgw.supabase.co wss://aadkcyoyjxglrbiwfdgw.supabase.co; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: https://aadkcyoyjxglrbiwfdgw.supabase.co https://media.api-sports.io; manifest-src 'self'; object-src 'none'; script-src 'self'; style-src 'self'; worker-src 'self'
+        value: >-
+          default-src 'self'; base-uri 'self'; connect-src 'self' https://aadkcyoyjxglrbiwfdgw.supabase.co wss://aadkcyoyjxglrbiwfdgw.supabase.co; font-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: https://aadkcyoyjxglrbiwfdgw.supabase.co https://media.api-sports.io; manifest-src 'self'; object-src 'none'; script-src 'self'; style-src 'self'; worker-src 'self'
       - path: /*
         name: Referrer-Policy
         value: strict-origin-when-cross-origin
