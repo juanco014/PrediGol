@@ -19,6 +19,7 @@ Este roadmap prioriza el cierre del MVP freemium como producto. V1 queda como mo
 | Auditar rutas admin y permisos. | Hecho parcial | `AdminDashboardPage.jsx`, `AdminPartidosPage.jsx`, `ModelAdminPage.jsx`, `predigol_es_admin`, RLS | `/admin` centraliza operacion; usuario no admin ve acceso denegado y datos sensibles dependen de RLS/RPC. |
 | Consolidar runbook operativo. | Hecho parcial | `docs/admin-predigol.md`, `docs/importing-seasons.md`, `docs/validacion-modelos-reales.md` | Pasos claros para importar, predecir, backtestear y revisar premium; automatizacion backend queda pendiente. |
 | Revisar QA de rutas principales. | Documentado para entrega | `predigol-web/src/App.jsx`, `docs/entrega-mvp-predigol.md` | Checklist manual cubre visitante, usuario gratis, admin y seguridad. |
+| Endurecer headers HTTP en Render. | Implementacion 8G completada, pendiente redespliegue | `render.yaml`, `docs/auditoria-fase8g-predigol.md` | CSP conservadora, framing bloqueado, Referrer/Permissions Policy configuradas; validacion publica requiere redeploy. |
 
 ## Prioridad media
 
@@ -169,6 +170,14 @@ Resultado del acceso: API-Football devolvio `season_not_in_plan` / `temporada no
 Siguiente accion: el propietario debe habilitar en API-Football un plan con acceso a temporada actual o indicar otra temporada/liga vigente permitida. No intentar eludir restricciones del proveedor ni usar temporadas historicas como si fueran actuales.
 
 ## Fases posteriores
+
+### Fase 8G
+
+Estado: `IMPLEMENTACIÓN COMPLETADA — VALIDACIÓN PÚBLICA PENDIENTE DE REDESPLIEGUE`.
+
+Se agrego `render.yaml` como mecanismo versionado para Render Static Site con headers de seguridad y rewrite SPA. La CSP permite solo origen propio, Supabase publico real, Realtime por WebSocket y logos de `media.api-sports.io`. No se habilito `unsafe-eval`, no se habilito `unsafe-inline` y no se agregaron comodines amplios.
+
+Pruebas locales: `npm test`, `npm run lint`, `npm run build` y preview local pasaron. Queda pendiente sincronizar/aplicar el Blueprint en Render, redesplegar y confirmar headers publicos. La validacion autenticada de usuario gratuito, premium y administrador sigue pendiente manual y no debe automatizarse con credenciales reales.
 
 ### Fase 8A
 

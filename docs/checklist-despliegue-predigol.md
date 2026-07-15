@@ -1,5 +1,41 @@
 # Checklist despliegue PrediGol
 
+## Fase 8G - Endurecimiento HTTP Render
+
+Estado: `IMPLEMENTACIÓN COMPLETADA — VALIDACIÓN PÚBLICA PENDIENTE DE REDESPLIEGUE`.
+
+Configuracion versionada:
+
+- [x] `render.yaml` agregado para Static Site `predigol`.
+- [x] `runtime: static` configurado.
+- [x] `rootDir: predigol-web` configurado.
+- [x] `buildCommand: npm ci && npm run build` configurado.
+- [x] `staticPublishPath: dist` configurado.
+- [x] Rewrite SPA `/* -> /index.html` configurado.
+- [x] `Content-Security-Policy` configurado sin `unsafe-eval` ni `*`.
+- [x] `Referrer-Policy` configurado.
+- [x] `X-Frame-Options` configurado.
+- [x] `Permissions-Policy` configurado.
+- [x] `Strict-Transport-Security` preservado.
+- [x] `X-Content-Type-Options: nosniff` preservado.
+- [ ] Sincronizar/aplicar Blueprint en Render.
+- [ ] Confirmar en Render Dashboard que el servicio existente se llama `predigol`.
+- [ ] Redesp desplegar desde `main` cuando el propietario autorice.
+- [ ] Confirmar headers publicos con `curl -D - https://predigol.onrender.com`.
+- [ ] Confirmar que rutas SPA siguen respondiendo `200 OK` tras deploy.
+
+Validacion local 8G:
+
+- [x] `npm test` pasa.
+- [x] `npm run lint` pasa.
+- [x] `npm run build` pasa.
+- [x] Preview local arranca.
+- [x] Rutas SPA principales devuelven `200 OK` en preview.
+- [x] No se encontraron `service_role`, `SUPABASE_SERVICE_ROLE_KEY`, `FOOTBALL_API_KEY`, `API_FOOTBALL_KEY`, `sb_secret` ni RapidAPI keys en frontend/dist.
+- [ ] Validacion autenticada de usuario gratuito.
+- [ ] Validacion autenticada de usuario premium.
+- [ ] Validacion autenticada de administrador.
+
 ## Frontend
 
 - [ ] `VITE_SUPABASE_URL` apunta al proyecto correcto.

@@ -1,5 +1,64 @@
 # QA despliegue PrediGol
 
+## Fase 8G - Headers Seguridad Y Smoke Autenticado Pendiente
+
+Estado: `IMPLEMENTACIÓN COMPLETADA — VALIDACIÓN PÚBLICA PENDIENTE DE REDESPLIEGUE`.
+
+URL objetivo: `https://predigol.onrender.com`.
+
+Validacion tecnica local 8G:
+
+| Control | Estado |
+| --- | --- |
+| `npm test` | OK, 90 tests. |
+| `npm run lint` | OK. |
+| `npm run build` | OK. |
+| Preview local `/` | OK. |
+| Preview local `/auth` | OK. |
+| Preview local `/inicio` | OK. |
+| Preview local `/pronosticos` | OK. |
+| Preview local `/perfil` | OK. |
+| Preview local `/admin` | OK. |
+| Preview local `/admin/partidos` | OK. |
+| Preview local `/admin/modelo` | OK. |
+| Headers nuevos en Render publico | PENDIENTE REDESPLIEGUE. |
+
+Checklist publico post-redespliegue:
+
+| Control | Estado |
+| --- | --- |
+| `Content-Security-Policy` presente | PENDIENTE REDESPLIEGUE |
+| `Referrer-Policy` presente | PENDIENTE REDESPLIEGUE |
+| `X-Frame-Options` presente | PENDIENTE REDESPLIEGUE |
+| `Permissions-Policy` presente | PENDIENTE REDESPLIEGUE |
+| `Strict-Transport-Security` preservado | PENDIENTE REDESPLIEGUE |
+| `X-Content-Type-Options: nosniff` preservado | PENDIENTE REDESPLIEGUE |
+| `/`, `/auth`, `/inicio`, `/pronosticos`, `/perfil`, `/admin`, `/admin/partidos`, `/admin/modelo` sin 404 | PENDIENTE REDESPLIEGUE |
+
+Checklist autenticado preparado, no ejecutado:
+
+| Perfil | Control | Estado |
+| --- | --- | --- |
+| Usuario gratuito | Registro o login | BLOQUEADO POR FALTA DE CREDENCIALES |
+| Usuario gratuito | Acceso a perfil | BLOQUEADO POR FALTA DE CREDENCIALES |
+| Usuario gratuito | Cierre de sesion | BLOQUEADO POR FALTA DE CREDENCIALES |
+| Usuario gratuito | Contenido gratuito | BLOQUEADO POR FALTA DE CREDENCIALES |
+| Usuario gratuito | Premium bloqueado | BLOQUEADO POR FALTA DE CREDENCIALES |
+| Usuario gratuito | Rutas admin bloqueadas | BLOQUEADO POR FALTA DE CREDENCIALES |
+| Usuario premium | Login | BLOQUEADO POR FALTA DE CREDENCIALES |
+| Usuario premium | Suscripcion reconocida | BLOQUEADO POR FALTA DE CREDENCIALES |
+| Usuario premium | Contenido premium autorizado | BLOQUEADO POR FALTA DE CREDENCIALES |
+| Usuario premium | Sin acceso admin | BLOQUEADO POR FALTA DE CREDENCIALES |
+| Usuario premium | Cierre de sesion | BLOQUEADO POR FALTA DE CREDENCIALES |
+| Administrador | Login | BLOQUEADO POR FALTA DE CREDENCIALES |
+| Administrador | `/admin` | BLOQUEADO POR FALTA DE CREDENCIALES |
+| Administrador | `/admin/modelo` | BLOQUEADO POR FALTA DE CREDENCIALES |
+| Administrador | `/admin/partidos` | BLOQUEADO POR FALTA DE CREDENCIALES |
+| Administrador | No ejecutar API-Football | NO VERIFICADO |
+| Administrador | Cierre de sesion | BLOQUEADO POR FALTA DE CREDENCIALES |
+
+Durante el smoke manual no pulsar importacion, sincronizacion, cron, API-Football, publicacion, activacion premium ni cierre/edicion de resultados reales.
+
 ## Preparacion
 
 - [ ] Usar build de produccion o preview local.
