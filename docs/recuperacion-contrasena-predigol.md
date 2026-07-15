@@ -1,6 +1,19 @@
 # Recuperacion de contraseña PrediGol
 
-Estado: recuperacion real de contraseña validada en Fase 9C.
+Estado: recuperacion real de contraseña validada, endurecida y cerrada en Etapa 9.
+
+## Fase 9D
+
+- Fecha: 2026-07-15.
+- Resultado: `COMPLETADA — RECUPERACIÓN ENDURECIDA Y ETAPA 9 CERRADA`.
+- Se corrigio el guard de rutas privadas para que una sesion de recuperacion activa no habilite navegacion autenticada normal.
+- Se corrigio la salida manual desde `/actualizar-contrasena` para cerrar la sesion de recuperacion antes de volver al login.
+- Enlace reutilizado: OK seguro por prueba manual del propietario, sin registrar enlace ni parametros.
+- URL: navegacion con `replace` a `/actualizar-contrasena` despues de `PASSWORD_RECOVERY`; no se agrego limpieza redundante.
+- Rate limits, correo, URLs y logs de Supabase revisados manualmente sin cambios automaticos.
+- SMTP: `SMTP PERSONALIZADO CONFIGURADO` por confirmacion manual.
+- Validaciones: `npm ci`, `npm test`, `npm run lint`, `npm run build`, `python -m pytest prediction-service/tests`, rutas publicas y revision de secretos OK.
+- Cierre: `docs/cierre-etapa9-predigol.md`.
 
 ## Fase 9C
 
@@ -113,6 +126,7 @@ Si el enlace expira:
 - No se modifica backend, RLS, migraciones, roles ni suscripciones.
 - No se requieren nuevos origenes en CSP.
 
-## Pendiente
+## Pendientes operativos
 
-- Reutilizacion o expiracion del enlace de recuperacion no verificada; no bloquea Fase 9C.
+- Monitorear entregabilidad SMTP y rate limits durante uso publico.
+- Revalidar smoke real post-deploy de 9D si Render no despliega automaticamente desde `main`.

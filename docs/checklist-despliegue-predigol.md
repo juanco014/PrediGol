@@ -1,5 +1,34 @@
 # Checklist despliegue PrediGol
 
+## Fase 9D - Endurecimiento Recuperacion Y Cierre Etapa 9
+
+- [x] Rama `main` y HEAD inicial `948db72` confirmados.
+- [x] Worktree inicial limpio.
+- [x] `PASSWORD_RECOVERY` auditado en listener global unico.
+- [x] Rutas privadas bloquean sesion de recuperacion activa.
+- [x] Salida manual desde recuperacion cierra sesion antes de volver al login.
+- [x] Acceso directo sin recuperacion muestra estado seguro.
+- [x] Sesion normal sin recuperacion no habilita formulario funcional.
+- [x] Enlace reutilizado validado manualmente como seguro.
+- [x] URL se reemplaza a `/actualizar-contrasena` despues de procesar recuperacion.
+- [x] Mensaje generico conserva proteccion contra enumeracion.
+- [x] Doble submit bloqueado durante cargas.
+- [x] Rate limits revisados manualmente en Supabase.
+- [x] SMTP personalizado confirmado manualmente.
+- [x] Politica minima de 8 caracteres conservada.
+- [x] Accesibilidad basica revisada.
+- [x] `npm ci` OK, 0 vulnerabilidades.
+- [x] `npm test` OK, 105 tests.
+- [x] `npm run lint` OK.
+- [x] `npm run build` OK.
+- [x] `python -m pytest prediction-service/tests` OK, 172 tests.
+- [x] Validacion publica rutas/assets/headers OK.
+- [x] Revision de secretos OK para el flujo nuevo.
+- [x] No se modifico Supabase automaticamente.
+- [x] No se ejecuto API-Football.
+
+Estado 9D: `COMPLETADA — RECUPERACIÓN ENDURECIDA Y ETAPA 9 CERRADA`.
+
 ## Fase 9C - Smoke Real Recuperacion De Contraseña
 
 - [x] Matriz manual recibida sin credenciales, tokens, cookies, IDs ni enlaces completos.
@@ -17,7 +46,7 @@
 - [x] Perfil y permisos conservados.
 - [x] Persistencia, logout y rutas privadas post-logout comprobadas.
 - [x] Console, Network y Storage revisados durante el flujo real.
-- [ ] Reutilizacion o expiracion del enlace verificada; no bloqueante.
+- [x] Reutilizacion o expiracion del enlace verificada en Fase 9D.
 - [x] Sin tokens copiados.
 - [x] Sin enlace sensible registrado.
 - [x] Sin credenciales almacenadas.

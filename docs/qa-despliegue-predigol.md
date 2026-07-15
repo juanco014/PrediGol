@@ -1,5 +1,21 @@
 # QA despliegue PrediGol
 
+## Fase 9D - Endurecimiento Recuperacion Y Cierre Etapa 9
+
+Estado: `COMPLETADA — RECUPERACIÓN ENDURECIDA Y ETAPA 9 CERRADA`.
+
+Fecha: 2026-07-15.
+
+Correccion funcional minima: las rutas privadas ahora rechazan una sesion de recuperacion activa y redirigen a `/actualizar-contrasena`; la salida manual desde la pantalla de actualizacion cierra la sesion de recuperacion antes de volver al login.
+
+Validaciones tecnicas: `npm ci` OK con 152 paquetes y 0 vulnerabilidades, `npm test` OK con 105 tests, `npm run lint` OK, `npm run build` OK y `python -m pytest prediction-service/tests` OK con 172 tests.
+
+Validacion publica de solo lectura: `/`, `/auth`, `/recuperar-contrasena`, `/actualizar-contrasena`, JS principal, CSS principal y chunks de recuperacion respondieron 200. Headers CSP, Referrer Policy, X-Frame-Options, Permissions Policy, HSTS y `nosniff` presentes.
+
+Supabase fue revisado manualmente sin cambios automaticos: rate limits, correo, SMTP personalizado, URL Configuration y logs/audit logs. No se copiaron usuarios, IPs, tokens ni IDs.
+
+No se ejecuto API-Football, no se modifico backend, no se tocaron V1/V2, RLS, RPCs, tablas, migraciones, perfiles, roles, planes ni suscripciones.
+
 ## Fase 9C - Smoke Real Recuperacion De Contraseña
 
 Estado: `COMPLETADA — RECUPERACIÓN REAL DE CONTRASEÑA VALIDADA`.

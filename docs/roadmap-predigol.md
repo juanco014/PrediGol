@@ -20,7 +20,7 @@ Este roadmap prioriza el cierre del MVP freemium como producto. V1 queda como mo
 | Consolidar runbook operativo. | Hecho parcial | `docs/admin-predigol.md`, `docs/importing-seasons.md`, `docs/validacion-modelos-reales.md` | Pasos claros para importar, predecir, backtestear y revisar premium; automatizacion backend queda pendiente. |
 | Revisar QA de rutas principales. | Documentado para entrega | `predigol-web/src/App.jsx`, `docs/entrega-mvp-predigol.md` | Checklist manual cubre visitante, usuario gratis, admin y seguridad. |
 | Endurecer headers HTTP en Render. | Implementacion 8G completada, pendiente redespliegue | `render.yaml`, `docs/auditoria-fase8g-predigol.md` | CSP conservadora, framing bloqueado, Referrer/Permissions Policy configuradas; validacion publica requiere redeploy. |
-| Recuperacion de contraseña con Supabase Auth. | Fase 9C completada | `AuthPage.jsx`, `RecuperarContrasenaPage.jsx`, `ActualizarContrasenaPage.jsx`, `userAccountApi.js` | Solicitud, correo, enlace, `PASSWORD_RECOVERY`, cambio real de contraseña, login posterior, perfil/permisos, persistencia y logout validados sin almacenar datos sensibles. |
+| Recuperacion de contraseña con Supabase Auth. | Etapa 9 cerrada | `App.jsx`, `AuthPage.jsx`, `RecuperarContrasenaPage.jsx`, `ActualizarContrasenaPage.jsx`, `userAccountApi.js` | Solicitud, correo, enlace, `PASSWORD_RECOVERY`, cambio real, login posterior, permisos, persistencia, logout, enlaces reutilizados y guardas de sesion de recuperacion validados sin almacenar datos sensibles. |
 
 ## Prioridad media
 
@@ -171,6 +171,14 @@ Resultado del acceso: API-Football devolvio `season_not_in_plan` / `temporada no
 Siguiente accion: el propietario debe habilitar en API-Football un plan con acceso a temporada actual o indicar otra temporada/liga vigente permitida. No intentar eludir restricciones del proveedor ni usar temporadas historicas como si fueran actuales.
 
 ## Fases posteriores
+
+### Fase 9D y cierre Etapa 9
+
+Estado: `COMPLETADA — RECUPERACIÓN ENDURECIDA Y ETAPA 9 CERRADA`.
+
+Se endurecio el ciclo de vida de recuperacion: las rutas privadas ya no aceptan una sesion de recuperacion activa como sesion normal y la salida manual desde `/actualizar-contrasena` cierra la sesion de recuperacion antes de volver al login. Se valido enlace reutilizado como seguro por prueba manual, se revisaron rate limits, correo, URL Configuration, logs y SMTP personalizado sin cambios automaticos en Supabase.
+
+Validaciones: `npm ci`, `npm test` con 105 tests, `npm run lint`, `npm run build`, `python -m pytest prediction-service/tests` con 172 tests, rutas publicas/assets/headers y revision de secretos OK. No se ejecuto API-Football.
 
 ### Fase 9C
 
