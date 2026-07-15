@@ -171,6 +171,12 @@ Siguiente accion: el propietario debe habilitar en API-Football un plan con acce
 
 ## Fases posteriores
 
+### Fase 8I
+
+Estado: `BLOQUEADA — FALTAN CREDENCIALES DE PRUEBA`.
+
+La fase de smoke test autenticado por roles queda preparada y documentada, pero no ejecutada. Faltan credenciales de prueba y navegador real autenticado para validar usuario gratuito, usuario premium y administrador. No se guardaron credenciales, no se modifico Supabase y no se ejecuto API-Football. Recuperacion de contraseña sigue pendiente de producto.
+
 ### Fase 8H
 
 Estado: `COMPLETADA — HEADERS Y DESPLIEGUE PÚBLICO VALIDADOS`.

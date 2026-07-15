@@ -1,5 +1,21 @@
 # QA despliegue PrediGol
 
+## Fase 8I - Smoke Autenticado Por Roles
+
+Estado: `BLOQUEADA — FALTAN CREDENCIALES DE PRUEBA`.
+
+No se ejecuto validacion autenticada porque esta sesion no recibio credenciales de usuario gratuito, premium ni administrador, y no hubo navegador real autenticado disponible.
+
+| Perfil | Estado |
+| --- | --- |
+| Usuario gratuito | BLOQUEADO POR FALTA DE CREDENCIALES |
+| Usuario premium | BLOQUEADO POR FALTA DE CREDENCIALES |
+| Administrador | BLOQUEADO POR FALTA DE CREDENCIALES |
+
+Pendiente para cerrar 8I: ejecutar manualmente login, perfil, persistencia, contenido por plan, rutas admin, logout, aislamiento entre cuentas, Console, Network y Storage sin registrar credenciales, tokens, cookies ni cabeceras sensibles.
+
+Durante 8I no se debe ejecutar API-Football, importaciones, sincronizaciones, generacion de partidos, cambios de roles, cambios de suscripciones ni recuperacion de contraseña.
+
 ## Fase 8H - Headers Publicos Validados
 
 Estado: `COMPLETADA — HEADERS Y DESPLIEGUE PÚBLICO VALIDADOS`.

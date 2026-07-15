@@ -1,5 +1,28 @@
 # Checklist despliegue PrediGol
 
+## Fase 8I - Smoke Autenticado Por Roles
+
+- [ ] Usuario gratuito: login correcto.
+- [ ] Usuario gratuito: perfil visible y sesion persistente al recargar.
+- [ ] Usuario gratuito: contenido gratuito accesible.
+- [ ] Usuario gratuito: contenido premium bloqueado.
+- [ ] Usuario gratuito: `/admin`, `/admin/modelo` y `/admin/partidos` bloqueadas.
+- [ ] Usuario gratuito: logout y rutas privadas bloqueadas despues del logout.
+- [ ] Usuario premium: login correcto.
+- [ ] Usuario premium: plan premium reconocido.
+- [ ] Usuario premium: contenido premium desbloqueado.
+- [ ] Usuario premium: rutas administrativas bloqueadas.
+- [ ] Usuario premium: logout y rutas privadas bloqueadas despues del logout.
+- [ ] Administrador: login correcto.
+- [ ] Administrador: acceso a `/admin`, `/admin/modelo` y `/admin/partidos`.
+- [ ] Administrador: no ejecutar importacion, sincronizacion, generacion ni API-Football.
+- [ ] Administrador: logout y rutas administrativas bloqueadas despues del logout.
+- [ ] Cambio entre cuentas: sin herencia de datos o permisos.
+- [ ] Console y Network sin errores CSP ni errores `401/403` inesperados.
+- [ ] Storage sin datos sensibles reutilizables despues del logout, sin copiar valores.
+
+Estado 8I: `BLOQUEADA — FALTAN CREDENCIALES DE PRUEBA`.
+
 ## Fase 8H - Headers Publicos Render
 
 - [x] Headers aplicados manualmente en el Static Site existente desde Render Dashboard.
