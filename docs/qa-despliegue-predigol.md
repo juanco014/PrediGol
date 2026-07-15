@@ -1,5 +1,28 @@
 # QA despliegue PrediGol
 
+## Fase 9B - Integracion Y Despliegue Recuperacion
+
+Estado: `COMPLETADA — FLUJO DESPLEGADO Y CONFIGURADO, SMOKE REAL PENDIENTE`.
+
+Commit funcional: `5d605b0 feat(auth): add secure password recovery flow`.
+
+Supabase Dashboard fue confirmado manualmente por el propietario: Site URL `https://predigol.onrender.com`, Redirect URL produccion `https://predigol.onrender.com/actualizar-contrasena`, Redirect URL local `http://localhost:5173/actualizar-contrasena` y plantilla Reset Password revisada. No se modifico Supabase automaticamente.
+
+Validacion local en `predigol-web`: `npm ci` OK con 0 vulnerabilidades reportadas, `npm test` OK con 103 tests, `npm run lint` OK y `npm run build` OK.
+
+Validacion publica sin credenciales:
+
+| Ruta | Resultado |
+| --- | --- |
+| `/` | 200 OK |
+| `/auth` | 200 OK |
+| `/recuperar-contrasena` | 200 OK |
+| `/actualizar-contrasena` | 200 OK |
+
+Assets verificados: `index-UxUJGxQ1.js`, `index-DgKyHo0p.css`, `RecuperarContrasenaPage-Dqv65TFN.js` y `ActualizarContrasenaPage-DUCulnI4.js` responden 200. Headers de seguridad siguen presentes, incluyendo CSP, Referrer Policy, X-Frame-Options, Permissions Policy, HSTS y `nosniff`.
+
+Prueba real de correo y cambio de contraseña: pendiente para Fase 9C. No se almacenaron credenciales, no se imprimieron tokens ni enlaces de recuperacion, no se ejecuto API-Football.
+
 ## Fase 9A - Recuperacion De Contraseña
 
 Estado: `IMPLEMENTACIÓN COMPLETADA — CONFIGURACIÓN Y SMOKE REAL PENDIENTES`.

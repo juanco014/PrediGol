@@ -1,6 +1,15 @@
 # Recuperacion de contraseña PrediGol
 
-Estado: implementacion frontend lista, configuracion manual y smoke real pendientes.
+Estado: flujo desplegado y configurado, smoke real pendiente.
+
+## Fase 9B
+
+- Commit funcional desplegado: `5d605b0 feat(auth): add secure password recovery flow`.
+- Supabase Dashboard confirmado manualmente con Site URL y Redirect URLs requeridas.
+- Produccion verificada: `https://predigol.onrender.com` conserva rutas SPA y headers de seguridad.
+- Rutas publicas verificadas por HTTP: `/`, `/auth`, `/recuperar-contrasena`, `/actualizar-contrasena`.
+- Assets nuevos verificados: chunks de solicitud y actualizacion de contraseña responden 200.
+- Pendiente: smoke real de correo y cambio de contraseña con intervencion manual del usuario.
 
 ## Flujo del usuario
 

@@ -1,5 +1,29 @@
 # Checklist despliegue PrediGol
 
+## Fase 9B - Integracion Y Despliegue Recuperacion
+
+- [x] Diff 9A auditado.
+- [x] `PASSWORD_RECOVERY` revisado sin listeners duplicados.
+- [x] Login, registro, logout, perfiles y roles conservan proteccion existente.
+- [x] `npm ci` pasa con 0 vulnerabilidades reportadas.
+- [x] `npm test` pasa: 103 tests.
+- [x] `npm run lint` pasa.
+- [x] `npm run build` pasa.
+- [x] Commit funcional creado: `5d605b0 feat(auth): add secure password recovery flow`.
+- [x] Push a `origin/main` realizado sin force push.
+- [x] Site URL Supabase confirmada: `https://predigol.onrender.com`.
+- [x] Redirect produccion Supabase confirmada: `https://predigol.onrender.com/actualizar-contrasena`.
+- [x] Redirect local Supabase confirmada: `http://localhost:5173/actualizar-contrasena`.
+- [x] Plantilla Reset Password revisada manualmente.
+- [x] `/`, `/auth`, `/recuperar-contrasena`, `/actualizar-contrasena` responden 200 en produccion.
+- [x] Assets nuevos responden 200.
+- [x] Headers de seguridad siguen presentes.
+- [x] No se modifico Supabase automaticamente.
+- [x] No se ejecuto API-Football.
+- [ ] Ejecutar smoke real de correo y cambio de contraseña en Fase 9C.
+
+Estado 9B: `COMPLETADA — FLUJO DESPLEGADO Y CONFIGURADO, SMOKE REAL PENDIENTE`.
+
 ## Fase 9A - Recuperacion De Contraseña
 
 - [x] Servicio centralizado extendido sin service role.

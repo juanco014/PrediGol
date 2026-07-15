@@ -20,7 +20,7 @@ Este roadmap prioriza el cierre del MVP freemium como producto. V1 queda como mo
 | Consolidar runbook operativo. | Hecho parcial | `docs/admin-predigol.md`, `docs/importing-seasons.md`, `docs/validacion-modelos-reales.md` | Pasos claros para importar, predecir, backtestear y revisar premium; automatizacion backend queda pendiente. |
 | Revisar QA de rutas principales. | Documentado para entrega | `predigol-web/src/App.jsx`, `docs/entrega-mvp-predigol.md` | Checklist manual cubre visitante, usuario gratis, admin y seguridad. |
 | Endurecer headers HTTP en Render. | Implementacion 8G completada, pendiente redespliegue | `render.yaml`, `docs/auditoria-fase8g-predigol.md` | CSP conservadora, framing bloqueado, Referrer/Permissions Policy configuradas; validacion publica requiere redeploy. |
-| Recuperacion de contraseña con Supabase Auth. | Implementacion 9A completada, configuracion manual pendiente | `AuthPage.jsx`, `RecuperarContrasenaPage.jsx`, `ActualizarContrasenaPage.jsx`, `userAccountApi.js` | Solicitud y actualizacion implementadas sin enumerar cuentas; falta configurar Redirect URLs y probar correo real. |
+| Recuperacion de contraseña con Supabase Auth. | Fase 9B desplegada y configurada | `AuthPage.jsx`, `RecuperarContrasenaPage.jsx`, `ActualizarContrasenaPage.jsx`, `userAccountApi.js` | Solicitud y actualizacion desplegadas sin enumerar cuentas; falta smoke real de correo y cambio de contraseña en 9C. |
 
 ## Prioridad media
 
@@ -171,6 +171,14 @@ Resultado del acceso: API-Football devolvio `season_not_in_plan` / `temporada no
 Siguiente accion: el propietario debe habilitar en API-Football un plan con acceso a temporada actual o indicar otra temporada/liga vigente permitida. No intentar eludir restricciones del proveedor ni usar temporadas historicas como si fueran actuales.
 
 ## Fases posteriores
+
+### Fase 9B
+
+Estado: `COMPLETADA — FLUJO DESPLEGADO Y CONFIGURADO, SMOKE REAL PENDIENTE`.
+
+El flujo de recuperacion de contraseña quedo commiteado en `5d605b0`, pusheado a `origin/main`, desplegado publicamente en `https://predigol.onrender.com` y configurado manualmente en Supabase Dashboard con Site URL y Redirect URLs requeridas. Las rutas `/recuperar-contrasena` y `/actualizar-contrasena` responden 200 por rewrite SPA, los assets nuevos estan disponibles y los headers de seguridad se conservan.
+
+Siguiente paso: Fase 9C debe ejecutar el smoke real de correo y cambio de contraseña con intervencion manual del propietario, sin registrar credenciales, tokens, cookies ni enlaces completos.
 
 ### Fase 9A
 
