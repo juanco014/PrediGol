@@ -4,17 +4,19 @@
 
 Estado: `BLOQUEADA — FALTAN CREDENCIALES DE PRUEBA`.
 
-No se ejecuto validacion autenticada porque esta sesion no recibio credenciales de usuario gratuito, premium ni administrador, y no hubo navegador real autenticado disponible.
+No se ejecuto ningun smoke test autenticado. El propietario reporto que las cuentas o credenciales de prueba todavia no estan disponibles para completar login manual en navegador. No se usaron credenciales, tokens, cookies ni valores de almacenamiento.
 
 | Perfil | Estado |
 | --- | --- |
-| Usuario gratuito | BLOQUEADO POR FALTA DE CREDENCIALES |
-| Usuario premium | BLOQUEADO POR FALTA DE CREDENCIALES |
-| Administrador | BLOQUEADO POR FALTA DE CREDENCIALES |
+| Usuario gratuito | BLOQUEADO POR CONFIGURACION DE CUENTA |
+| Usuario premium | BLOQUEADO POR CONFIGURACION DE CUENTA |
+| Administrador | BLOQUEADO POR CONFIGURACION DE CUENTA |
 
 Pendiente para cerrar 8I: ejecutar manualmente login, perfil, persistencia, contenido por plan, rutas admin, logout, aislamiento entre cuentas, Console, Network y Storage sin registrar credenciales, tokens, cookies ni cabeceras sensibles.
 
-Durante 8I no se debe ejecutar API-Football, importaciones, sincronizaciones, generacion de partidos, cambios de roles, cambios de suscripciones ni recuperacion de contraseña.
+Resultado actual de controles transversales: `NO VERIFICADO` para Console, Network, rutas privadas, aislamiento y storage. `OK` para no ejecutar API-Football segun reporte manual.
+
+Durante 8I no se debe ejecutar API-Football, importaciones, sincronizaciones, generacion de partidos, cambios de roles, cambios de suscripciones ni recuperacion de contrasena.
 
 ## Fase 8H - Headers Publicos Validados
 

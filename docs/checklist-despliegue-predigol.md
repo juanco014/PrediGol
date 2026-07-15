@@ -23,6 +23,8 @@
 
 Estado 8I: `BLOQUEADA — FALTAN CREDENCIALES DE PRUEBA`.
 
+Resultado manual recibido: login de usuario gratuito, premium y administrador queda `BLOQUEADO POR CONFIGURACION DE CUENTA`; el resto de pruebas autenticadas queda `NO VERIFICADO`, salvo no ejecucion de API-Football reportada como `OK`.
+
 ## Fase 8H - Headers Publicos Render
 
 - [x] Headers aplicados manualmente en el Static Site existente desde Render Dashboard.
