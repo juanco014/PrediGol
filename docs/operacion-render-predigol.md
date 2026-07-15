@@ -205,6 +205,14 @@ Rutina recomendada sin servicios externos de pago:
 7. Registrar incidentes con fecha, ruta, usuario anonimo/rol y commit.
 8. Ejecutar rollback solo si hay fallo bloqueante de produccion.
 
+Verificador de salud Fase 8E:
+
+```bash
+prediction-service/.venv/Scripts/python.exe scripts/verificar_salud_produccion_predigol.py --base-url https://predigol.onrender.com --skip-supabase
+```
+
+El workflow `Production Health` ejecuta el verificador una vez al dia sin secrets, sin Supabase real y sin API-Football. La guia completa de monitoreo esta en `docs/monitoreo-predigol.md` y la plantilla de incidentes en `docs/incidentes-predigol.md`.
+
 ## Rollback Manual En Render
 
 No ejecutar rollback durante Fase 8C salvo decision operativa explicita.

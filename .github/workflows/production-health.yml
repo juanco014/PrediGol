@@ -1,0 +1,31 @@
+name: Production Health
+
+on:
+  schedule:
+    - cron: "17 11 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    name: Public production health
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: python -m pip install -e "prediction-service"
+
+      - name: Check public production health
+        run: python scripts/verificar_salud_produccion_predigol.py --base-url https://predigol.onrender.com --skip-supabase --attempts 2 --timeout 15 --retry-delay 3
