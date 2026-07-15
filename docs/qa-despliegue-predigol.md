@@ -1,5 +1,19 @@
 # QA despliegue PrediGol
 
+## Fase 9C - Smoke Real Recuperacion De Contraseña
+
+Estado: `COMPLETADA — RECUPERACIÓN REAL DE CONTRASEÑA VALIDADA`.
+
+Fecha: 2026-07-15.
+
+URL publica objetivo: `https://predigol.onrender.com`.
+
+La matriz manual fue recibida completa despues de ejecutar el smoke real con una cuenta de prueba. Se valido login previo, rol/plan previo, sesion cerrada, ventana privada, solicitud en `/recuperar-contrasena`, mensaje generico sin enumeracion, recepcion del correo, enlace presente, dominio correcto, redireccion a `/actualizar-contrasena`, contexto `PASSWORD_RECOVERY`, actualizacion de contraseña, rechazo de la contraseña anterior, login con la contraseña nueva, conservacion de perfil/permisos, persistencia, logout y bloqueo de rutas privadas post-logout.
+
+Console/Network fueron reportados OK durante solicitud, enlace, actualizacion y login posterior. Storage fue revisado sin contraseña almacenada. Reutilizacion o expiracion del enlace quedo `NO VERIFICADO`, no bloqueante.
+
+Controles de seguridad informados: no se copiaron tokens, no se registro enlace sensible, no se almacenaron credenciales, no se modifico Supabase y no se ejecuto API-Football. No se documentaron correos, contraseñas, tokens, cookies, IDs ni enlaces completos.
+
 ## Fase 9B - Integracion Y Despliegue Recuperacion
 
 Estado: `COMPLETADA — FLUJO DESPLEGADO Y CONFIGURADO, SMOKE REAL PENDIENTE`.
@@ -21,7 +35,7 @@ Validacion publica sin credenciales:
 
 Assets verificados: `index-UxUJGxQ1.js`, `index-DgKyHo0p.css`, `RecuperarContrasenaPage-Dqv65TFN.js` y `ActualizarContrasenaPage-DUCulnI4.js` responden 200. Headers de seguridad siguen presentes, incluyendo CSP, Referrer Policy, X-Frame-Options, Permissions Policy, HSTS y `nosniff`.
 
-Prueba real de correo y cambio de contraseña: pendiente para Fase 9C. No se almacenaron credenciales, no se imprimieron tokens ni enlaces de recuperacion, no se ejecuto API-Football.
+Prueba real de correo y cambio de contraseña: completada posteriormente en Fase 9C. No se almacenaron credenciales, no se imprimieron tokens ni enlaces de recuperacion, no se ejecuto API-Football.
 
 ## Fase 9A - Recuperacion De Contraseña
 

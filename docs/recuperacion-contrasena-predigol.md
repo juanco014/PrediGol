@@ -1,6 +1,19 @@
 # Recuperacion de contraseña PrediGol
 
-Estado: flujo desplegado y configurado, smoke real pendiente.
+Estado: recuperacion real de contraseña validada en Fase 9C.
+
+## Fase 9C
+
+- Fecha: 2026-07-15.
+- URL publica objetivo: `https://predigol.onrender.com`.
+- Resultado: `COMPLETADA — RECUPERACIÓN REAL DE CONTRASEÑA VALIDADA`.
+- La evidencia fue proporcionada mediante una prueba manual del propietario con una cuenta de prueba, sin compartir datos sensibles.
+- Se valido solicitud real, recepcion del correo, apertura del enlace, redireccion a `/actualizar-contrasena`, contexto `PASSWORD_RECOVERY`, cambio de contraseña, rechazo de la contraseña anterior, login con la contraseña nueva, conservacion de perfil/permisos, persistencia y logout.
+- Reutilizacion o expiracion del enlace: `NO VERIFICADO`, no bloqueante.
+- No se almacenaron credenciales, tokens, cookies, sesiones, IDs ni enlaces completos.
+- No se modifico Supabase.
+- No se ejecuto API-Football.
+- Auditoria: `docs/auditoria-fase9c-predigol.md`.
 
 ## Fase 9B
 
@@ -9,7 +22,7 @@ Estado: flujo desplegado y configurado, smoke real pendiente.
 - Produccion verificada: `https://predigol.onrender.com` conserva rutas SPA y headers de seguridad.
 - Rutas publicas verificadas por HTTP: `/`, `/auth`, `/recuperar-contrasena`, `/actualizar-contrasena`.
 - Assets nuevos verificados: chunks de solicitud y actualizacion de contraseña responden 200.
-- Pendiente: smoke real de correo y cambio de contraseña con intervencion manual del usuario.
+- Smoke real de correo y cambio de contraseña validado posteriormente en Fase 9C.
 
 ## Flujo del usuario
 
@@ -102,7 +115,4 @@ Si el enlace expira:
 
 ## Pendiente
 
-- Configurar Redirect URLs en Supabase Dashboard.
-- Desplegar frontend.
-- Ejecutar smoke real con correo de prueba.
-- Registrar resultado sin almacenar credenciales ni tokens.
+- Reutilizacion o expiracion del enlace de recuperacion no verificada; no bloquea Fase 9C.

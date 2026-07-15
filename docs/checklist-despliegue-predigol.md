@@ -1,5 +1,31 @@
 # Checklist despliegue PrediGol
 
+## Fase 9C - Smoke Real Recuperacion De Contraseña
+
+- [x] Matriz manual recibida sin credenciales, tokens, cookies, IDs ni enlaces completos.
+- [x] Cuenta de prueba disponible.
+- [x] Login previo comprobado.
+- [x] Rol/plan previo comprobado.
+- [x] Solicitud real en `/recuperar-contrasena` ejecutada.
+- [x] Correo de recuperacion recibido.
+- [x] Enlace abierto desde el correo.
+- [x] Redireccion segura a `/actualizar-contrasena` comprobada.
+- [x] Contexto `PASSWORD_RECOVERY` reconocido.
+- [x] Contraseña actualizada.
+- [x] Contraseña anterior rechazada.
+- [x] Contraseña nueva aceptada.
+- [x] Perfil y permisos conservados.
+- [x] Persistencia, logout y rutas privadas post-logout comprobadas.
+- [x] Console, Network y Storage revisados durante el flujo real.
+- [ ] Reutilizacion o expiracion del enlace verificada; no bloqueante.
+- [x] Sin tokens copiados.
+- [x] Sin enlace sensible registrado.
+- [x] Sin credenciales almacenadas.
+- [x] Sin cambios Supabase.
+- [x] Sin API-Football.
+
+Estado 9C: `COMPLETADA — RECUPERACIÓN REAL DE CONTRASEÑA VALIDADA`.
+
 ## Fase 9B - Integracion Y Despliegue Recuperacion
 
 - [x] Diff 9A auditado.
@@ -20,7 +46,7 @@
 - [x] Headers de seguridad siguen presentes.
 - [x] No se modifico Supabase automaticamente.
 - [x] No se ejecuto API-Football.
-- [ ] Ejecutar smoke real de correo y cambio de contraseña en Fase 9C.
+- [x] Smoke real de correo y cambio de contraseña completado en Fase 9C.
 
 Estado 9B: `COMPLETADA — FLUJO DESPLEGADO Y CONFIGURADO, SMOKE REAL PENDIENTE`.
 
