@@ -1,5 +1,19 @@
 # QA despliegue PrediGol
 
+## Fase 10A - Auditoria Pagos Premium
+
+Estado: `MODELO PREMIUM APROBADO — SANDBOX WOMPI PENDIENTE`.
+
+Fecha: 2026-07-15.
+
+Se audito el modelo premium actual sin implementar pagos. La base existente protege contenido premium desde Supabase mediante RLS/RPC y `user_subscriptions`, pero no modela ordenes, pagos, webhooks, proveedor, idempotencia, monto, moneda ni conciliacion.
+
+Decision actual: Wompi Colombia queda `ACEPTADA PARA EL MVP Y SANDBOX`. Modelo aprobado: pago unico en COP, precio comercial COP $20.000, precio tecnico Wompi 2000000 centavos, producto `PrediGol Premium`, duracion 30 dias, renovacion manual y checkout alojado por Wompi. El frontend puede mostrar COP $20.000, pero el servidor debe utilizar 2000000 como `amount-in-cents`. La integracion no esta implementada y las credenciales sandbox siguen pendientes.
+
+Entregables: `docs/auditoria-fase10a-predigol.md`, `docs/arquitectura-pagos-predigol.md`, `docs/decision-proveedor-pagos-predigol.md` y `docs/producto-premium-predigol.md`.
+
+No se modifico Supabase, no se ejecutaron SQL ni migraciones, no se crearon Edge Functions, no se agregaron SDKs, no se tocaron `.env`, no se ejecuto API-Football y no se modificaron V1/V2 ni recuperacion de contrasena.
+
 ## Fase 9D - Endurecimiento Recuperacion Y Cierre Etapa 9
 
 Estado: `COMPLETADA — RECUPERACIÓN ENDURECIDA Y ETAPA 9 CERRADA`.

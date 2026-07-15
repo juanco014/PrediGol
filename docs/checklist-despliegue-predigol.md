@@ -1,5 +1,31 @@
 # Checklist despliegue PrediGol
 
+## Fase 10A - Auditoria Pagos Premium
+
+- [x] Rama `main` sincronizada al inicio de la fase.
+- [x] Worktree inicial limpio.
+- [x] Modelo premium actual auditado en migracion freemium/RLS/RPC.
+- [x] Separacion admin vs premium revisada.
+- [x] Riesgos de pago solo frontend documentados.
+- [x] Arquitectura server-side con webhook verificado documentada.
+- [x] Wompi registrado como proveedor aceptado para MVP y sandbox.
+- [x] Modelo Premium aprobado: pago unico, COP, COP $20.000, 2000000 centavos, 30 dias, renovacion manual.
+- [x] Nombre de producto Wompi documentado: `PrediGol Premium`.
+- [x] Beneficios gratuitos y Premium documentados.
+- [x] Funciones excluidas del MVP documentadas.
+- [x] Selecciones destacadas, nivel de confianza e historial verificable definidos conceptualmente.
+- [x] Mercado Pago registrado como alternativa fuerte.
+- [x] ZonaPagos registrado como alternativa futura sujeta a validacion comercial y tecnica.
+- [x] Stripe registrado como condicionado a elegibilidad comercial y pais de la entidad.
+- [x] Decision pendiente del propietario explicitada.
+- [x] Sin cambios Supabase, SQL, migraciones ni Edge Functions.
+- [x] Sin SDKs de pago ni variables de entorno nuevas.
+- [x] Sin API-Football, V1/V2 ni recuperacion de contrasena.
+
+Estado 10A: `MODELO PREMIUM APROBADO — SANDBOX WOMPI PENDIENTE`.
+
+Decision actual: Wompi Colombia `ACEPTADA PARA EL MVP Y SANDBOX`.
+
 ## Fase 9D - Endurecimiento Recuperacion Y Cierre Etapa 9
 
 - [x] Rama `main` y HEAD inicial `948db72` confirmados.

@@ -39,7 +39,7 @@ Este roadmap prioriza el cierre del MVP freemium como producto. V1 queda como mo
 
 | Tarea | Estado recomendado | Archivos/modulos relacionados | Criterios de aceptacion |
 | --- | --- | --- | --- |
-| Integrar pasarela de pagos. | Futuro | Migraciones futuras, Edge Functions, proveedor pago | Webhooks seguros actualizan suscripciones; no hay validacion solo frontend. |
+| Integrar pasarela de pagos. | Modelo Premium aprobado, sandbox Wompi pendiente | `docs/producto-premium-predigol.md`, `docs/auditoria-fase10a-predigol.md`, `docs/arquitectura-pagos-predigol.md`, `docs/decision-proveedor-pagos-predigol.md`, migraciones futuras, Edge Functions Wompi | Wompi aceptado para MVP y sandbox; pago unico COP $20.000, 2000000 centavos, por 30 dias; falta credenciales sandbox, migraciones y Edge Functions; activacion solo server-side por evento verificado. |
 | Automatizar cron de API-Football pago. | Futuro condicionado | `sync-live-fixtures`, config API sync | Activar solo con plan API confirmado y monitoreo de cuota. |
 | Promocionar una variante V2 si la evidencia mejora. | Futuro condicionado | `comparative_backtest.py`, docs validacion | V2 supera consistentemente a V1 en Brier/log-loss multi-liga y sin degradar calibracion. |
 | Personalizacion avanzada. | Futuro | Favoritos, preferencias, notificaciones | Recomendaciones por usuario sin afectar seguridad premium. |
@@ -57,7 +57,8 @@ Este roadmap prioriza el cierre del MVP freemium como producto. V1 queda como mo
 7. Congelar V1 como produccion y V2 como experimental.
 8. Hacer QA completo de rutas principales.
 9. Automatizar runbook de operacion con backend seguro cuando sea necesario.
-10. Solo despues, implementar pagos con webhooks y RLS.
+10. Elegir proveedor de pagos y modelo comercial usando Fase 10A.
+11. Solo despues, implementar pagos con webhooks, idempotencia, auditoria y RLS.
 
 ## Fase 5: estabilizacion final
 
@@ -171,6 +172,14 @@ Resultado del acceso: API-Football devolvio `season_not_in_plan` / `temporada no
 Siguiente accion: el propietario debe habilitar en API-Football un plan con acceso a temporada actual o indicar otra temporada/liga vigente permitida. No intentar eludir restricciones del proveedor ni usar temporadas historicas como si fueran actuales.
 
 ## Fases posteriores
+
+### Fase 10A - Auditoria pagos premium
+
+Estado: `MODELO PREMIUM APROBADO — SANDBOX WOMPI PENDIENTE`.
+
+Se audito la base premium actual y se confirmo que sirve para entitlement seguro mediante RLS/RPC, pero no para pagos reales. Faltan ordenes, transacciones, eventos webhook, proveedor, ambiente, idempotencia, monto, moneda y reconciliacion. Se documento una arquitectura server-side en la que el frontend nunca decide precio, moneda, duracion, aprobacion, comprador, vencimiento ni activacion premium.
+
+Decision actual: Wompi Colombia queda `ACEPTADA PARA EL MVP Y SANDBOX`. El modelo Premium aprobado es pago unico en COP, precio comercial COP $20.000, precio tecnico Wompi 2000000 centavos, nombre `PrediGol Premium`, duracion 30 dias, renovacion manual y checkout alojado por Wompi. El frontend puede mostrar COP $20.000, pero el servidor debe utilizar 2000000 como `amount-in-cents`. La integracion todavia no esta implementada: faltan credenciales sandbox, migraciones de pagos, Edge Functions, checkout funcional, webhook desplegado, cobros reales y activacion premium mediante pagos.
 
 ### Fase 9D y cierre Etapa 9
 
