@@ -1,5 +1,24 @@
 # QA despliegue PrediGol
 
+## Fase 9A - Recuperacion De Contraseña
+
+Estado: `IMPLEMENTACIÓN COMPLETADA — CONFIGURACIÓN Y SMOKE REAL PENDIENTES`.
+
+Validacion tecnica local en `predigol-web`:
+
+| Control | Resultado |
+| --- | --- |
+| `npm ci` | OK, 0 vulnerabilidades reportadas. |
+| `npm test` | OK, 103 tests. |
+| `npm run lint` | OK. |
+| `npm run build` | OK. |
+
+Rutas agregadas: `/recuperar-contrasena` y `/actualizar-contrasena`. Ambas son publicas y compatibles con el rewrite SPA existente `/* -> /index.html`.
+
+Pendiente manual antes de smoke real: configurar en Supabase Dashboard `Authentication -> URL Configuration -> Redirect URLs` con `https://predigol.onrender.com/actualizar-contrasena` y, para desarrollo, `http://localhost:5173/actualizar-contrasena`.
+
+No se probo recepcion real del correo, no se modifico Supabase, no se ejecuto API-Football y no se almacenaron credenciales.
+
 ## Fase 8J - Cierre Tecnico Etapa 8
 
 Estado: `COMPLETADA — DESPLIEGUE, SEGURIDAD Y ROLES VALIDADOS`.

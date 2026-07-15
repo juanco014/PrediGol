@@ -233,6 +233,16 @@ function AuthPage() {
           </form>
 
           <p className="auth-switch-text">
+            {modo === "ingresar" && (
+              <button
+                className="auth-forgot-button"
+                type="button"
+                onClick={() => navigate("/recuperar-contrasena")}
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            )}
+
             {modo === "registro"
               ? "¿Ya tienes una cuenta?"
               : "¿Aún no tienes una cuenta?"}

@@ -1,5 +1,26 @@
 # Checklist despliegue PrediGol
 
+## Fase 9A - Recuperacion De Contraseña
+
+- [x] Servicio centralizado extendido sin service role.
+- [x] Ruta publica `/recuperar-contrasena` agregada.
+- [x] Ruta publica `/actualizar-contrasena` agregada.
+- [x] `PASSWORD_RECOVERY` integrado en el listener global existente.
+- [x] Mensaje generico evita enumeracion de cuentas.
+- [x] Politica de contraseña consistente con registro: minimo 8 caracteres.
+- [x] Campos de contraseña se limpian despues de actualizacion o error.
+- [x] `npm ci` pasa.
+- [x] `npm test` pasa: 103 tests.
+- [x] `npm run lint` pasa.
+- [x] `npm run build` pasa.
+- [ ] Configurar Redirect URL produccion en Supabase: `https://predigol.onrender.com/actualizar-contrasena`.
+- [ ] Configurar Redirect URL local en Supabase: `http://localhost:5173/actualizar-contrasena`.
+- [ ] Revisar plantilla de correo de recuperacion en Supabase Dashboard.
+- [ ] Desplegar frontend.
+- [ ] Ejecutar smoke real con correo de prueba sin almacenar credenciales.
+
+Estado 9A: `IMPLEMENTACIÓN COMPLETADA — CONFIGURACIÓN Y SMOKE REAL PENDIENTES`.
+
 ## Fase 8J - Cierre Tecnico Etapa 8
 
 - [x] `git fetch origin` ejecutado.

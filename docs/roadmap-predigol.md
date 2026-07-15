@@ -20,6 +20,7 @@ Este roadmap prioriza el cierre del MVP freemium como producto. V1 queda como mo
 | Consolidar runbook operativo. | Hecho parcial | `docs/admin-predigol.md`, `docs/importing-seasons.md`, `docs/validacion-modelos-reales.md` | Pasos claros para importar, predecir, backtestear y revisar premium; automatizacion backend queda pendiente. |
 | Revisar QA de rutas principales. | Documentado para entrega | `predigol-web/src/App.jsx`, `docs/entrega-mvp-predigol.md` | Checklist manual cubre visitante, usuario gratis, admin y seguridad. |
 | Endurecer headers HTTP en Render. | Implementacion 8G completada, pendiente redespliegue | `render.yaml`, `docs/auditoria-fase8g-predigol.md` | CSP conservadora, framing bloqueado, Referrer/Permissions Policy configuradas; validacion publica requiere redeploy. |
+| Recuperacion de contraseña con Supabase Auth. | Implementacion 9A completada, configuracion manual pendiente | `AuthPage.jsx`, `RecuperarContrasenaPage.jsx`, `ActualizarContrasenaPage.jsx`, `userAccountApi.js` | Solicitud y actualizacion implementadas sin enumerar cuentas; falta configurar Redirect URLs y probar correo real. |
 
 ## Prioridad media
 
@@ -170,6 +171,14 @@ Resultado del acceso: API-Football devolvio `season_not_in_plan` / `temporada no
 Siguiente accion: el propietario debe habilitar en API-Football un plan con acceso a temporada actual o indicar otra temporada/liga vigente permitida. No intentar eludir restricciones del proveedor ni usar temporadas historicas como si fueran actuales.
 
 ## Fases posteriores
+
+### Fase 9A
+
+Estado: `IMPLEMENTACIÓN COMPLETADA — CONFIGURACIÓN Y SMOKE REAL PENDIENTES`.
+
+Se implemento el flujo conservador de recuperacion de contraseña con Supabase Auth. La UI permite solicitar instrucciones desde `/recuperar-contrasena`, recibir la sesion de recuperacion en `/actualizar-contrasena`, validar nueva contraseña y confirmacion, actualizar mediante `updateUser`, limpiar campos y cerrar la sesion de recuperacion. El listener global existente maneja `PASSWORD_RECOVERY` sin duplicarse.
+
+Pendiente para validar producto completo: configurar Redirect URLs en Supabase Dashboard, desplegar y ejecutar smoke real con correo de prueba. No se modifico backend, modelos, RLS, roles, suscripciones, pagos ni CSP. No se ejecuto API-Football.
 
 ### Fase 8J
 

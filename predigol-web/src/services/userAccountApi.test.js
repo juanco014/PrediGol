@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  actualizarContrasena,
   cerrarSesion,
+  cerrarSesionRecuperacion,
+  correoTieneFormatoValido,
   iniciarSesion,
   obtenerMensajeErrorAuth,
   obtenerPlanUsuario,
@@ -9,9 +12,18 @@ import {
   obtenerSesionActual,
   reclamarPrimerAdmin,
   registrarUsuario,
+  solicitarRecuperacionContrasena,
+  validarNuevaContrasena,
 } from "./userAccountApi.js";
 
-function crearClienteAuthFake({ session = null, authError = null, signUpData = {}, signInData = {} } = {}) {
+function crearClienteAuthFake({
+  session = null,
+  authError = null,
+  signUpData = {},
+  signInData = {},
+  resetData = {},
+  updateData = {},
+} = {}) {
   const calls = [];
 
   return {
@@ -32,6 +44,14 @@ function crearClienteAuthFake({ session = null, authError = null, signUpData = {
       signOut() {
         calls.push(["signOut"]);
         return Promise.resolve({ error: authError });
+      },
+      resetPasswordForEmail(email, options) {
+        calls.push(["resetPasswordForEmail", email, options]);
+        return Promise.resolve({ data: resetData, error: authError });
+      },
+      updateUser(payload) {
+        calls.push(["updateUser", payload]);
+        return Promise.resolve({ data: updateData, error: authError });
       },
     },
   };
@@ -79,6 +99,46 @@ test("obtenerMensajeErrorAuth traduce errores comunes", () => {
     obtenerMensajeErrorAuth(null, "Mensaje fallback"),
     "Mensaje fallback"
   );
+  assert.equal(
+    obtenerMensajeErrorAuth(new Error("rate limit exceeded")),
+    "Hay demasiados intentos por ahora. Espera unos minutos e inténtalo de nuevo."
+  );
+  assert.equal(
+    obtenerMensajeErrorAuth(new Error("token has expired")),
+    "El enlace expiró. Solicita un nuevo correo de recuperación."
+  );
+  assert.equal(
+    obtenerMensajeErrorAuth(new Error("invalid token")),
+    "El enlace no es válido o ya fue usado. Solicita un nuevo correo de recuperación."
+  );
+});
+
+test("validaciones de recuperacion no revelan existencia de cuenta", () => {
+  assert.equal(correoTieneFormatoValido("usuario@predigol.test"), true);
+  assert.equal(correoTieneFormatoValido("usuario"), false);
+  assert.equal(
+    obtenerMensajeErrorAuth(
+      new Error("User not found"),
+      "Si existe una cuenta asociada a ese correo, recibirás instrucciones para restablecer tu contraseña."
+    ),
+    "Si existe una cuenta asociada a ese correo, recibirás instrucciones para restablecer tu contraseña."
+  );
+});
+
+test("validarNuevaContrasena aplica politica minima consistente", () => {
+  assert.equal(
+    validarNuevaContrasena("", ""),
+    "Completa la nueva contraseña y su confirmación."
+  );
+  assert.equal(
+    validarNuevaContrasena("short", "short"),
+    "La contraseña debe tener al menos 8 caracteres."
+  );
+  assert.equal(
+    validarNuevaContrasena("password123", "password456"),
+    "Las contraseñas no coinciden."
+  );
+  assert.equal(validarNuevaContrasena("password123", "password123"), "");
 });
 
 test("obtenerSesionActual devuelve null sin sesion", async () => {
@@ -165,6 +225,64 @@ test("reclamarPrimerAdmin usa RPC existente", async () => {
 
   assert.deepEqual(result, { ok: true });
   assert.deepEqual(client.calls[0], ["rpc", "reclamar_primer_admin"]);
+});
+
+test("solicitarRecuperacionContrasena usa redirectTo seguro y correo normalizado", async () => {
+  const client = crearClienteAuthFake({ resetData: { ok: true } });
+  const windowOriginal = globalThis.window;
+
+  globalThis.window = { location: { origin: "https://predigol.test" } };
+
+  try {
+    const result = await solicitarRecuperacionContrasena({ correo: " USER@MAIL.COM " }, client);
+
+    assert.deepEqual(result, { ok: true });
+    assert.deepEqual(client.calls[0], [
+      "resetPasswordForEmail",
+      "user@mail.com",
+      { redirectTo: "https://predigol.test/actualizar-contrasena" },
+    ]);
+  } finally {
+    globalThis.window = windowOriginal;
+  }
+});
+
+test("solicitarRecuperacionContrasena valida correo antes de llamar Supabase", async () => {
+  const client = crearClienteAuthFake();
+
+  await assert.rejects(
+    () => solicitarRecuperacionContrasena({ correo: "correo-invalido" }, client),
+    /correo electrónico válido/
+  );
+
+  assert.equal(client.calls.length, 0);
+});
+
+test("actualizarContrasena usa updateUser sin persistir contraseña", async () => {
+  const client = crearClienteAuthFake({ updateData: { user: { id: "u1" } } });
+
+  const result = await actualizarContrasena({ contrasena: "password123" }, client);
+
+  assert.equal(result.user.id, "u1");
+  assert.deepEqual(client.calls[0], ["updateUser", { password: "password123" }]);
+});
+
+test("actualizarContrasena valida longitud antes de llamar Supabase", async () => {
+  const client = crearClienteAuthFake();
+
+  await assert.rejects(
+    () => actualizarContrasena({ contrasena: "short" }, client),
+    /al menos 8 caracteres/
+  );
+
+  assert.equal(client.calls.length, 0);
+});
+
+test("cerrarSesionRecuperacion finaliza sesion de auth", async () => {
+  const client = crearClienteAuthFake();
+
+  assert.equal(await cerrarSesionRecuperacion(client), true);
+  assert.deepEqual(client.calls[0], ["signOut"]);
 });
 
 test("obtenerPlanUsuario normaliza plan gratuito y premium", async () => {

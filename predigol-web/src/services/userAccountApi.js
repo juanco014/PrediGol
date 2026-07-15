@@ -17,6 +17,39 @@ export function obtenerMensajeErrorAuth(error, fallback = "No fue posible contin
     return "Confirma tu correo antes de iniciar sesión.";
   }
 
+  if (mensaje.includes("invalid email") || mensaje.includes("email address is invalid")) {
+    return "Escribe un correo electrónico válido.";
+  }
+
+  if (
+    mensaje.includes("rate limit") ||
+    mensaje.includes("too many") ||
+    mensaje.includes("over_email_send_rate_limit")
+  ) {
+    return "Hay demasiados intentos por ahora. Espera unos minutos e inténtalo de nuevo.";
+  }
+
+  if (
+    mensaje.includes("expired") ||
+    mensaje.includes("otp_expired") ||
+    mensaje.includes("token has expired")
+  ) {
+    return "El enlace expiró. Solicita un nuevo correo de recuperación.";
+  }
+
+  if (
+    mensaje.includes("invalid token") ||
+    mensaje.includes("invalid otp") ||
+    mensaje.includes("invalid recovery") ||
+    mensaje.includes("token not found")
+  ) {
+    return "El enlace no es válido o ya fue usado. Solicita un nuevo correo de recuperación.";
+  }
+
+  if (mensaje.includes("password") && mensaje.includes("short")) {
+    return "La contraseña debe tener al menos 8 caracteres.";
+  }
+
   if (mensaje.includes("already registered") || mensaje.includes("already exists")) {
     return "Ya existe una cuenta con este correo.";
   }
@@ -38,6 +71,40 @@ export function obtenerMensajeErrorAuth(error, fallback = "No fue posible contin
   return fallback;
 }
 
+export function normalizarCorreo(correo) {
+  return String(correo || "").trim().toLowerCase();
+}
+
+export function correoTieneFormatoValido(correo) {
+  const correoLimpio = normalizarCorreo(correo);
+
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoLimpio);
+}
+
+export function validarNuevaContrasena(contrasena, confirmacion) {
+  if (!contrasena || !confirmacion) {
+    return "Completa la nueva contraseña y su confirmación.";
+  }
+
+  if (String(contrasena).length < 8) {
+    return "La contraseña debe tener al menos 8 caracteres.";
+  }
+
+  if (contrasena !== confirmacion) {
+    return "Las contraseñas no coinciden.";
+  }
+
+  return "";
+}
+
+function construirRedirectRecuperacion() {
+  if (typeof window === "undefined" || !window.location?.origin) {
+    return undefined;
+  }
+
+  return `${window.location.origin}/actualizar-contrasena`;
+}
+
 export async function obtenerSesionActual(client = null) {
   const db = await obtenerClienteSupabase(client);
   const { data, error } = await db.auth.getSession();
@@ -48,7 +115,7 @@ export async function obtenerSesionActual(client = null) {
 }
 
 export async function registrarUsuario({ correo, contrasena, nombre, redirectTo }, client = null) {
-  const correoLimpio = String(correo || "").trim().toLowerCase();
+  const correoLimpio = normalizarCorreo(correo);
   const nombreLimpio = String(nombre || "").trim();
 
   if (!correoLimpio || !contrasena) {
@@ -81,7 +148,7 @@ export async function registrarUsuario({ correo, contrasena, nombre, redirectTo 
 }
 
 export async function iniciarSesion({ correo, contrasena }, client = null) {
-  const correoLimpio = String(correo || "").trim().toLowerCase();
+  const correoLimpio = normalizarCorreo(correo);
 
   if (!correoLimpio || !contrasena) {
     throw new Error("Completa tu correo y contraseña.");
@@ -120,6 +187,48 @@ export async function obtenerPerfilUsuario(usuarioId, client = null) {
   if (error) throw error;
 
   return data || null;
+}
+
+export async function solicitarRecuperacionContrasena({ correo } = {}, client = null) {
+  const correoLimpio = normalizarCorreo(correo);
+
+  if (!correoLimpio) {
+    throw new Error("Escribe tu correo electrónico.");
+  }
+
+  if (!correoTieneFormatoValido(correoLimpio)) {
+    throw new Error("Escribe un correo electrónico válido.");
+  }
+
+  const db = await obtenerClienteSupabase(client);
+  const { data, error } = await db.auth.resetPasswordForEmail(correoLimpio, {
+    redirectTo: construirRedirectRecuperacion(),
+  });
+
+  if (error) throw error;
+
+  return data;
+}
+
+export async function actualizarContrasena({ contrasena }, client = null) {
+  if (!contrasena) {
+    throw new Error("Escribe tu nueva contraseña.");
+  }
+
+  if (String(contrasena).length < 8) {
+    throw new Error("La contraseña debe tener al menos 8 caracteres.");
+  }
+
+  const db = await obtenerClienteSupabase(client);
+  const { data, error } = await db.auth.updateUser({ password: contrasena });
+
+  if (error) throw error;
+
+  return data;
+}
+
+export async function cerrarSesionRecuperacion(client = null) {
+  return cerrarSesion(client);
 }
 
 export async function obtenerPlanUsuario(client = null) {

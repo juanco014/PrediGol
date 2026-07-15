@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import LandingPage from "./pages/LandingPage";
 import AuthPage from "./pages/AuthPage";
@@ -19,6 +19,8 @@ const NotificacionesPage = lazy(() => import("./pages/NotificacionesPage"));
 const ExplorarPage = lazy(() => import("./pages/ExplorarPage"));
 const FootballEntityPage = lazy(() => import("./pages/FootballEntityPage"));
 const EstadisticasPage = lazy(() => import("./pages/EstadisticasPage"));
+const RecuperarContrasenaPage = lazy(() => import("./pages/RecuperarContrasenaPage"));
+const ActualizarContrasenaPage = lazy(() => import("./pages/ActualizarContrasenaPage"));
 
 function RouteLoading() {
   return (
@@ -49,8 +51,10 @@ function ScrollToTop() {
 }
 
 function App() {
+  const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [cargandoSesion, setCargandoSesion] = useState(true);
+  const [recuperacionActiva, setRecuperacionActiva] = useState(false);
 
   useEffect(() => {
     let componenteActivo = true;
@@ -70,7 +74,16 @@ function App() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_evento, sesionActual) => {
+    } = supabase.auth.onAuthStateChange((evento, sesionActual) => {
+      if (evento === "PASSWORD_RECOVERY") {
+        setRecuperacionActiva(true);
+        navigate("/actualizar-contrasena", { replace: true });
+      }
+
+      if (evento === "SIGNED_OUT") {
+        setRecuperacionActiva(false);
+      }
+
       setSession(sesionActual);
       setCargandoSesion(false);
     });
@@ -79,7 +92,7 @@ function App() {
       componenteActivo = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 
   if (cargandoSesion) {
     return (
@@ -105,6 +118,18 @@ function App() {
         path="/auth"
         element={
           session ? <Navigate to="/inicio" replace /> : <AuthPage />
+        }
+      />
+
+      <Route path="/recuperar-contrasena" element={<RecuperarContrasenaPage />} />
+
+      <Route
+        path="/actualizar-contrasena"
+        element={
+          <ActualizarContrasenaPage
+            session={session}
+            recuperacionActiva={recuperacionActiva}
+          />
         }
       />
 
