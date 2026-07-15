@@ -1,38 +1,35 @@
 # QA despliegue PrediGol
 
-## Fase 8H - Adopcion Render Blueprint
+## Fase 8H - Headers Publicos Validados
 
-Estado: `BLOQUEADO — VALIDACIÓN DEL BLUEPRINT REQUIERE ACCESO A RENDER`.
+Estado: `COMPLETADA — HEADERS Y DESPLIEGUE PÚBLICO VALIDADOS`.
+
+Los headers se aplicaron manualmente en el Static Site existente desde Render Dashboard. `render.yaml` permanece como configuracion versionada, pero no se confirmo todavia administracion mediante Blueprint.
 
 | Control | Estado |
 | --- | --- |
-| `render.yaml` parsea con PyYAML | OK tras corregir CSP como bloque YAML. |
-| Servicio unico `predigol` | OK. |
-| `runtime: static` | OK. |
-| `rootDir: predigol-web` | OK. |
-| `buildCommand` | OK. |
-| `staticPublishPath` | OK. |
-| Headers configurados | OK local. |
-| Rewrite SPA configurado | OK local. |
-| Dashboard Render | BLOQUEADO POR FALTA DE ACCESO. |
-| Vista previa Blueprint | BLOQUEADO POR FALTA DE ACCESO. |
+| URL publica original `https://predigol.onrender.com` | OK, conservada. |
+| Servicio duplicado en Render | No creado. |
+| `Content-Security-Policy` | OK, recibido y coincide con lo previsto. |
+| `Referrer-Policy` | OK, `strict-origin-when-cross-origin`. |
+| `X-Frame-Options` | OK, `DENY`. |
+| `Permissions-Policy` | OK, `camera=(), microphone=(), geolocation=()`. |
+| `Strict-Transport-Security` | OK. |
+| `X-Content-Type-Options` | OK, `nosniff`. |
+| `/` | OK, `200`. |
+| `/auth` | OK, `200`. |
+| `/pronosticos` | OK, `200`. |
+| `/admin` | OK, `200`. |
+| JS principal | OK, `200`. |
+| CSS principal | OK, `200`. |
+| Errores criticos CSP Console/Network | No observados en validacion manual del propietario. |
 
-Validacion publica antes de adopcion:
+Pendientes no bloqueantes:
 
-| Ruta | Estado |
-| --- | --- |
-| `/` | OK, `200`. Headers nuevos ausentes. |
-| `/auth` | OK, `200`. Headers nuevos ausentes. |
-| `/pronosticos` | OK, `200`. Headers nuevos ausentes. |
-| `/admin` | OK, `200`. Headers nuevos ausentes. |
-
-Procedimiento manual obligatorio en Render:
-
-1. Confirmar si `predigol` ya esta administrado por Blueprint.
-2. Si existe Blueprint, sincronizar solo el Blueprint asociado y revisar preview.
-3. Si no existe Blueprint, adoptar el recurso existente o aplicar headers manualmente como alternativa conservadora.
-4. No aplicar si Render intenta crear otro Static Site, otro `onrender.com`, un nombre con sufijo o eliminar/reemplazar el recurso actual.
-5. Tras aplicar, validar headers publicos y rutas SPA antes de marcar 8H como completada.
+- Usuario gratuito: PENDIENTE VALIDACION MANUAL.
+- Usuario premium: PENDIENTE VALIDACION MANUAL.
+- Administrador: PENDIENTE VALIDACION MANUAL.
+- Recuperacion de contraseña: PENDIENTE PRODUCTO.
 
 ## Fase 8G - Headers Seguridad Y Smoke Autenticado Pendiente
 

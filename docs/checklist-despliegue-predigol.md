@@ -1,25 +1,26 @@
 # Checklist despliegue PrediGol
 
-## Fase 8H - Adopcion Segura De Render
+## Fase 8H - Headers Publicos Render
 
-- [x] `render.yaml` validado localmente con PyYAML.
-- [x] Correccion YAML aplicada: CSP usa bloque `>-`.
-- [x] Servicio unico `predigol` confirmado localmente.
-- [x] Sin bases de datos, workers, cron jobs ni servicios extra en Blueprint.
-- [x] Sin secretos en `render.yaml`.
-- [x] URL publica original sigue activa.
-- [x] `/`, `/auth`, `/pronosticos` y `/admin` responden `200 OK` antes de adopcion.
-- [ ] Confirmar modo de administracion en Render Dashboard.
-- [ ] Confirmar vista previa del Blueprint.
-- [ ] Confirmar que Render modificara el servicio existente, no uno nuevo.
-- [ ] Aplicar/sincronizar Blueprint o headers manuales segun modo confirmado.
-- [ ] Confirmar build remoto exitoso.
-- [ ] Confirmar que no se creo otro sitio.
-- [ ] Confirmar headers publicos nuevos.
-- [ ] Confirmar CSP publica exacta.
-- [ ] Confirmar framing bloqueado publicamente.
+- [x] Headers aplicados manualmente en el Static Site existente desde Render Dashboard.
+- [x] `render.yaml` conservado como configuracion versionada pendiente de adopcion Blueprint confirmada.
+- [x] Servicio duplicado no creado.
+- [x] URL publica original conservada: `https://predigol.onrender.com`.
+- [x] `/`, `/auth`, `/pronosticos` y `/admin` responden `200 OK`.
+- [x] JS principal responde `200 OK`.
+- [x] CSS principal responde `200 OK`.
+- [x] `Content-Security-Policy` recibido y coincide con lo previsto.
+- [x] `Referrer-Policy: strict-origin-when-cross-origin` recibido.
+- [x] `X-Frame-Options: DENY` recibido.
+- [x] `Permissions-Policy: camera=(), microphone=(), geolocation=()` recibido.
+- [x] `Strict-Transport-Security` recibido.
+- [x] `X-Content-Type-Options: nosniff` recibido.
+- [ ] Usuario gratuito validado manualmente.
+- [ ] Usuario premium validado manualmente.
+- [ ] Administrador validado manualmente.
+- [ ] Recuperacion de contraseña implementada.
 
-Estado 8H: `BLOQUEADO — VALIDACIÓN DEL BLUEPRINT REQUIERE ACCESO A RENDER`.
+Estado 8H: `COMPLETADA — HEADERS Y DESPLIEGUE PÚBLICO VALIDADOS`.
 
 ## Fase 8G - Endurecimiento HTTP Render
 
