@@ -1,8 +1,10 @@
 begin;
 
+set local search_path = pg_catalog, public, extensions;
+
 create extension if not exists pgtap with schema extensions;
 
-select plan(20);
+select extensions.plan(20);
 
 create or replace function pg_temp.try_sql(p_sql text)
 returns boolean
@@ -87,36 +89,36 @@ update public.profiles
 set rol = 'admin', es_admin = true
 where id = '10000000-0000-0000-0000-000000000004';
 
-select ok(
+select extensions.ok(
   exists (select 1 from public.profiles where id = '10000000-0000-0000-0000-000000000001'),
   'insertar en auth.users genera una fila en profiles'
 );
 
-select is(
+select extensions.is(
   (select id from public.profiles where id = '10000000-0000-0000-0000-000000000001'),
   '10000000-0000-0000-0000-000000000001'::uuid,
   'profiles.id coincide con auth.users.id'
 );
 
-select is(
+select extensions.is(
   (select nombre from public.profiles where id = '10000000-0000-0000-0000-000000000001'),
   'Usuario Uno',
   'profiles.nombre se toma de raw_user_meta_data.nombre'
 );
 
-select is(
+select extensions.is(
   (select rol from public.profiles where id = '10000000-0000-0000-0000-000000000003'),
   'usuario',
   'raw_user_meta_data.rol no concede privilegios administrativos'
 );
 
-select is(
+select extensions.is(
   (select es_admin from public.profiles where id = '10000000-0000-0000-0000-000000000003'),
   false,
   'raw_user_meta_data.es_admin no concede privilegios administrativos'
 );
 
-select is(
+select extensions.is(
   (select rol from public.profiles where id = '10000000-0000-0000-0000-000000000001'),
   'usuario',
   'el rol inicial seguro es usuario'
@@ -126,19 +128,19 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
-select is(
+select extensions.is(
   (select count(*)::integer from public.profiles where id = '10000000-0000-0000-0000-000000000001'),
   1,
   'usuario autenticado puede leer su propio perfil'
 );
 
-select is(
+select extensions.is(
   (select count(*)::integer from public.profiles where id = '10000000-0000-0000-0000-000000000002'),
   1,
   'politica actual permite lectura autenticada de perfiles ajenos'
 );
 
-select ok(
+select extensions.ok(
   pg_temp.try_sql($sql$
     update public.profiles
     set nombre = 'Usuario Uno Editado', username = 'usuario_uno', avatar_url = 'avatar-local.png'
@@ -147,7 +149,7 @@ select ok(
   'usuario normal puede actualizar campos personales manteniendo rol normal'
 );
 
-select results_eq(
+select extensions.results_eq(
   $sql$
     select nombre, username, avatar_url
     from public.profiles
@@ -157,7 +159,7 @@ select results_eq(
   'la actualizacion de nombre, username y avatar_url queda visible'
 );
 
-select ok(
+select extensions.ok(
   not pg_temp.try_sql($sql$
     update public.profiles
     set rol = 'admin'
@@ -166,7 +168,7 @@ select ok(
   'usuario normal no puede cambiar rol'
 );
 
-select ok(
+select extensions.ok(
   not pg_temp.try_sql($sql$
     update public.profiles
     set es_admin = true
@@ -175,7 +177,7 @@ select ok(
   'usuario normal no puede cambiar es_admin'
 );
 
-select ok(
+select extensions.ok(
   not pg_temp.try_sql($sql$
     update public.profiles
     set id = '10000000-0000-0000-0000-000000000099'
@@ -192,7 +194,7 @@ $sql$);
 
 reset role;
 
-select is(
+select extensions.is(
   (select nombre from public.profiles where id = '10000000-0000-0000-0000-000000000002'),
   'Usuario Dos',
   'usuario normal no puede actualizar el perfil de otro usuario'
@@ -202,7 +204,7 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
-select ok(
+select extensions.ok(
   not pg_temp.try_sql($sql$
     insert into public.profiles (id, nombre, rol, es_admin)
     values ('10000000-0000-0000-0000-000000000002', 'Perfil ajeno', 'usuario', false)
@@ -210,7 +212,7 @@ select ok(
   'usuario normal no puede insertar perfil para otro usuario'
 );
 
-select is(
+select extensions.is(
   (
     select count(*)::integer
     from information_schema.role_table_grants
@@ -228,13 +230,13 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000004', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
-select is(
+select extensions.is(
   public.predigol_es_admin(),
   true,
   'usuario preparado como admin es reconocido por predigol_es_admin()'
 );
 
-select ok(
+select extensions.ok(
   pg_temp.try_sql($sql$
     update public.profiles
     set nombre = 'Admin Local Editado', username = 'admin_local', avatar_url = 'admin-avatar.png'
@@ -243,7 +245,7 @@ select ok(
   'admin autenticado deberia poder editar campos personales sin perder privilegios'
 );
 
-select ok(
+select extensions.ok(
   not pg_temp.try_sql($sql$
     update public.profiles
     set rol = 'usuario', es_admin = false
@@ -252,7 +254,7 @@ select ok(
   'admin autenticado no puede modificar rol ni es_admin por cliente'
 );
 
-select results_eq(
+select extensions.results_eq(
   $sql$
     select rol, es_admin
     from public.profiles
@@ -262,5 +264,5 @@ select results_eq(
   'admin conserva rol y es_admin despues de actualizar campos personales'
 );
 
-select * from finish();
+select * from extensions.finish();
 rollback;

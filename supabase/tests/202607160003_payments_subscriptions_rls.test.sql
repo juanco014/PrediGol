@@ -1,8 +1,10 @@
 begin;
 
+set local search_path = pg_catalog, public, extensions;
+
 create extension if not exists pgtap with schema extensions;
 
-select plan(32);
+select extensions.plan(32);
 
 create or replace function pg_temp.try_sql(p_sql text)
 returns boolean
@@ -313,63 +315,63 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000001', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
-select is((select count(*)::integer from public.payment_orders where id = '30000000-2000-4000-8000-000000000001'), 1, 'usuario 1 puede leer su propia orden');
-select is((select count(*)::integer from public.payment_orders where id = '30000000-2000-4000-8000-000000000002'), 0, 'usuario 1 no puede leer la orden de usuario 2');
-select is((select count(*)::integer from public.payment_transactions where id = '30000000-3000-4000-8000-000000000001'), 1, 'usuario 1 puede leer transaccion de su orden');
-select is((select count(*)::integer from public.payment_transactions where id = '30000000-3000-4000-8000-000000000002'), 0, 'usuario 1 no puede leer transaccion de usuario 2');
-select is((select count(*)::integer from public.subscription_events where user_id = '30000000-0000-0000-0000-000000000001'), 1, 'usuario 1 puede leer su propio subscription_event');
-select is((select count(*)::integer from public.subscription_events where user_id = '30000000-0000-0000-0000-000000000002'), 0, 'usuario 1 no puede leer subscription_events de usuario 2');
-select is((select count(*)::integer from public.payment_webhook_events), 0, 'usuario normal no puede leer payment_webhook_events');
+select extensions.is((select count(*)::integer from public.payment_orders where id = '30000000-2000-4000-8000-000000000001'), 1, 'usuario 1 puede leer su propia orden');
+select extensions.is((select count(*)::integer from public.payment_orders where id = '30000000-2000-4000-8000-000000000002'), 0, 'usuario 1 no puede leer la orden de usuario 2');
+select extensions.is((select count(*)::integer from public.payment_transactions where id = '30000000-3000-4000-8000-000000000001'), 1, 'usuario 1 puede leer transaccion de su orden');
+select extensions.is((select count(*)::integer from public.payment_transactions where id = '30000000-3000-4000-8000-000000000002'), 0, 'usuario 1 no puede leer transaccion de usuario 2');
+select extensions.is((select count(*)::integer from public.subscription_events where user_id = '30000000-0000-0000-0000-000000000001'), 1, 'usuario 1 puede leer su propio subscription_event');
+select extensions.is((select count(*)::integer from public.subscription_events where user_id = '30000000-0000-0000-0000-000000000002'), 0, 'usuario 1 no puede leer subscription_events de usuario 2');
+select extensions.is((select count(*)::integer from public.payment_webhook_events), 0, 'usuario normal no puede leer payment_webhook_events');
 
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000003', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
-select is((select count(*)::integer from public.payment_webhook_events), 1, 'administrador puede leer payment_webhook_events');
-select is((select count(*)::integer from public.payment_orders), 2, 'administrador puede leer ordenes de otros usuarios');
+select extensions.is((select count(*)::integer from public.payment_webhook_events), 1, 'administrador puede leer payment_webhook_events');
+select extensions.is((select count(*)::integer from public.payment_orders), 2, 'administrador puede leer ordenes de otros usuarios');
 
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000001', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
-select ok(not pg_temp.try_sql($sql$insert into public.payment_orders (user_id, product_id, provider, environment, reference, amount_in_cents, currency) values ('30000000-0000-0000-0000-000000000001', '30000000-1000-4000-8000-000000000001', 'wompi', 'sandbox', 'fase10b-direct-order', 2000000, 'COP')$sql$), 'usuario normal no puede insertar directamente payment_orders');
-select ok(not pg_temp.try_sql($sql$update public.payment_orders set status = 'approved' where id = '30000000-2000-4000-8000-000000000001'$sql$), 'usuario normal no puede actualizar payment_orders');
-select ok(not pg_temp.try_sql($sql$delete from public.payment_orders where id = '30000000-2000-4000-8000-000000000001'$sql$), 'usuario normal no puede eliminar payment_orders');
-select ok(not pg_temp.try_sql($sql$insert into public.payment_transactions (order_id, provider, environment, provider_payment_id, status, amount_in_cents, currency) values ('30000000-2000-4000-8000-000000000001', 'wompi', 'sandbox', 'fase10b-direct-payment', 'approved', 2000000, 'COP')$sql$), 'usuario normal no puede escribir directamente payment_transactions');
-select ok(not pg_temp.try_sql($sql$update public.user_subscriptions set status = 'canceled' where user_id = '30000000-0000-0000-0000-000000000002'$sql$), 'usuario normal no puede modificar user_subscriptions');
+select extensions.ok(not pg_temp.try_sql($sql$insert into public.payment_orders (user_id, product_id, provider, environment, reference, amount_in_cents, currency) values ('30000000-0000-0000-0000-000000000001', '30000000-1000-4000-8000-000000000001', 'wompi', 'sandbox', 'fase10b-direct-order', 2000000, 'COP')$sql$), 'usuario normal no puede insertar directamente payment_orders');
+select extensions.ok(not pg_temp.try_sql($sql$update public.payment_orders set status = 'approved' where id = '30000000-2000-4000-8000-000000000001'$sql$), 'usuario normal no puede actualizar payment_orders');
+select extensions.ok(not pg_temp.try_sql($sql$delete from public.payment_orders where id = '30000000-2000-4000-8000-000000000001'$sql$), 'usuario normal no puede eliminar payment_orders');
+select extensions.ok(not pg_temp.try_sql($sql$insert into public.payment_transactions (order_id, provider, environment, provider_payment_id, status, amount_in_cents, currency) values ('30000000-2000-4000-8000-000000000001', 'wompi', 'sandbox', 'fase10b-direct-payment', 'approved', 2000000, 'COP')$sql$), 'usuario normal no puede escribir directamente payment_transactions');
+select extensions.ok(not pg_temp.try_sql($sql$update public.user_subscriptions set status = 'canceled' where user_id = '30000000-0000-0000-0000-000000000002'$sql$), 'usuario normal no puede modificar user_subscriptions');
 
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000003', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
-select ok(not pg_temp.try_sql($sql$update public.user_subscriptions set metadata = metadata || jsonb_build_object('admin_attempt', true) where user_id = '30000000-0000-0000-0000-000000000002'$sql$), 'administrador no puede modificar user_subscriptions porque falta grant SQL de escritura');
-select ok(true, 'RLS define politica admin de escritura en user_subscriptions, pero el grant SQL mantiene la operacion bloqueada para authenticated');
+select extensions.ok(not pg_temp.try_sql($sql$update public.user_subscriptions set metadata = metadata || jsonb_build_object('admin_attempt', true) where user_id = '30000000-0000-0000-0000-000000000002'$sql$), 'administrador no puede modificar user_subscriptions porque falta grant SQL de escritura');
+select extensions.ok(true, 'RLS define politica admin de escritura en user_subscriptions, pero el grant SQL mantiene la operacion bloqueada para authenticated');
 
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000001', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
-select is((public.obtener_plan_usuario()->>'plan_code'), 'free', 'obtener_plan_usuario() devuelve free para usuario sin suscripcion activa');
-select is(public.predigol_usuario_tiene_premium('30000000-0000-0000-0000-000000000001'), false, 'predigol_usuario_tiene_premium(uuid) devuelve false sin suscripcion activa');
-select is(public.predigol_usuario_tiene_premium('30000000-0000-0000-0000-000000000002'), true, 'predigol_usuario_tiene_premium(uuid) devuelve true con suscripcion premium activa');
-select is((select count(*)::integer from public.payment_products where code = 'fase10b-active-product'), 1, 'payment_products activos son visibles para authenticated');
-select is((select count(*)::integer from public.payment_products where code = 'fase10b-inactive-product'), 0, 'productos inactivos no son visibles para usuario normal');
-select ok((select count(*) from public.subscription_plans where active = true) >= 2, 'subscription_plans activos son visibles para authenticated');
-select is((select count(*)::integer from public.subscription_plans where code = 'fase10b_inactive'), 0, 'planes inactivos no son visibles para usuario normal');
+select extensions.is((public.obtener_plan_usuario()->>'plan_code'), 'free', 'obtener_plan_usuario() devuelve free para usuario sin suscripcion activa');
+select extensions.is(public.predigol_usuario_tiene_premium('30000000-0000-0000-0000-000000000001'), false, 'predigol_usuario_tiene_premium(uuid) devuelve false sin suscripcion activa');
+select extensions.is(public.predigol_usuario_tiene_premium('30000000-0000-0000-0000-000000000002'), true, 'predigol_usuario_tiene_premium(uuid) devuelve true con suscripcion premium activa');
+select extensions.is((select count(*)::integer from public.payment_products where code = 'fase10b-active-product'), 1, 'payment_products activos son visibles para authenticated');
+select extensions.is((select count(*)::integer from public.payment_products where code = 'fase10b-inactive-product'), 0, 'productos inactivos no son visibles para usuario normal');
+select extensions.ok((select count(*) from public.subscription_plans where active = true) >= 2, 'subscription_plans activos son visibles para authenticated');
+select extensions.is((select count(*)::integer from public.subscription_plans where code = 'fase10b_inactive'), 0, 'planes inactivos no son visibles para usuario normal');
 
-select is((select count(*)::integer from information_schema.role_table_grants where table_schema = 'public' and grantee = 'authenticated' and privilege_type in ('TRUNCATE', 'REFERENCES', 'TRIGGER')), 0, 'authenticated no tiene TRUNCATE, REFERENCES ni TRIGGER en tablas public');
-select is((select count(*)::integer from information_schema.role_table_grants where table_schema = 'public' and grantee = 'anon' and privilege_type in ('TRUNCATE', 'REFERENCES', 'TRIGGER')), 0, 'anon no tiene TRUNCATE, REFERENCES ni TRIGGER en tablas public');
-select is((select count(*)::integer from pg_namespace n cross join lateral aclexplode(n.nspacl) x left join pg_roles r on r.oid = x.grantee where n.nspname = 'public' and coalesce(r.rolname, 'PUBLIC') in ('PUBLIC', 'anon', 'authenticated') and x.privilege_type = 'CREATE'), 0, 'PUBLIC, anon y authenticated no tienen CREATE en schema public');
-select ok((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'predigol_es_admin') = 1, 'RPC predigol_es_admin existe');
-select ok((select p.prosecdef from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'predigol_es_admin' limit 1), 'predigol_es_admin es SECURITY DEFINER');
-select is((select count(*)::integer from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.prosecdef and not exists (select 1 from unnest(coalesce(p.proconfig, array[]::text[])) cfg where cfg like 'search_path=%')), 0, 'todas las SECURITY DEFINER public tienen search_path explicito');
-select ok(not pg_temp.try_sql($sql$select public.reclamar_primer_admin()$sql$), 'reclamar_primer_admin() no otorga admin cuando ya existe administrador');
-select is((public.obtener_prediccion_visible(300001)->>'is_locked')::boolean, true, 'usuario gratis recibe prediccion premium bloqueada');
-select is(public.obtener_prediccion_visible(300001)->>'home_win_probability', null, 'usuario gratis no recibe probabilidad premium');
+select extensions.is((select count(*)::integer from information_schema.role_table_grants where table_schema = 'public' and grantee = 'authenticated' and privilege_type in ('TRUNCATE', 'REFERENCES', 'TRIGGER')), 0, 'authenticated no tiene TRUNCATE, REFERENCES ni TRIGGER en tablas public');
+select extensions.is((select count(*)::integer from information_schema.role_table_grants where table_schema = 'public' and grantee = 'anon' and privilege_type in ('TRUNCATE', 'REFERENCES', 'TRIGGER')), 0, 'anon no tiene TRUNCATE, REFERENCES ni TRIGGER en tablas public');
+select extensions.is((select count(*)::integer from pg_namespace n cross join lateral aclexplode(n.nspacl) x left join pg_roles r on r.oid = x.grantee where n.nspname = 'public' and coalesce(r.rolname, 'PUBLIC') in ('PUBLIC', 'anon', 'authenticated') and x.privilege_type = 'CREATE'), 0, 'PUBLIC, anon y authenticated no tienen CREATE en schema public');
+select extensions.ok((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'predigol_es_admin') = 1, 'RPC predigol_es_admin existe');
+select extensions.ok((select p.prosecdef from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'predigol_es_admin' limit 1), 'predigol_es_admin es SECURITY DEFINER');
+select extensions.is((select count(*)::integer from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.prosecdef and not exists (select 1 from unnest(coalesce(p.proconfig, array[]::text[])) cfg where cfg like 'search_path=%')), 0, 'todas las SECURITY DEFINER public tienen search_path explicito');
+select extensions.ok(not pg_temp.try_sql($sql$select public.reclamar_primer_admin()$sql$), 'reclamar_primer_admin() no otorga admin cuando ya existe administrador');
+select extensions.is((public.obtener_prediccion_visible(300001)->>'is_locked')::boolean, true, 'usuario gratis recibe prediccion premium bloqueada');
+select extensions.is(public.obtener_prediccion_visible(300001)->>'home_win_probability', null, 'usuario gratis no recibe probabilidad premium');
 
-select * from finish();
+select * from extensions.finish();
 rollback;
