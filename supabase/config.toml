@@ -385,6 +385,15 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+[functions.wompi-create-checkout]
+verify_jwt = true
+
+[functions.wompi-payment-status]
+verify_jwt = true
+
+[functions.wompi-webhook]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
