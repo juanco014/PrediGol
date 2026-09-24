@@ -37,6 +37,23 @@ class ComparativeBacktestTests(unittest.TestCase):
             self.assertGreaterEqual(row["data_quality"]["training_matches_before_match"], 30)
             self.assertGreaterEqual(row["brier_score"], 0)
             self.assertGreaterEqual(row["log_loss"], 0)
+            self.assertIn("betting_analysis", row)
+
+    def test_betting_summary_is_reported_when_matches_have_odds(self) -> None:
+        history = build_history(50)
+        for match in history:
+            match["odds_home"] = 2.2
+            match["odds_draw"] = 3.1
+            match["odds_away"] = 3.4
+
+        result = compare_v1_v2(history, min_training_matches=30)
+        v1_summary = result["summaries"][result["models"][0]]
+        v2_summary = result["summaries"][result["models"][1]]
+
+        self.assertEqual(v1_summary["betting"]["matches_with_odds"], 20)
+        self.assertEqual(v2_summary["betting"]["matches_with_odds"], 20)
+        self.assertIn("value_signals", v1_summary["betting"])
+        self.assertIn("flat_stake_roi", v2_summary["betting"])
 
     def test_small_backtest_is_marked_preliminary(self) -> None:
         result = compare_v1_v2(build_history(35), min_training_matches=30)

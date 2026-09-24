@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .betting import aggregate_value_analysis, build_value_analysis, odds_from_match
 from .data_quality import DataQualityThresholds, build_data_quality_report
 from .evaluation import OUTCOMES, match_outcome
 from .poisson_elo import MODEL_VERSION, PoissonEloModel, parse_date
@@ -39,6 +40,11 @@ def _score_prediction(model_version: str, prediction: Any, match: dict[str, Any]
     if predicted_outcome not in OUTCOMES:
         predicted_outcome = max(OUTCOMES, key=probabilities.get)
     brier = sum((probabilities[outcome] - (1.0 if outcome == actual_outcome else 0.0)) ** 2 for outcome in OUTCOMES)
+    betting_analysis = build_value_analysis(
+        probabilities,
+        odds_from_match(match),
+        actual_outcome=actual_outcome,
+    )
     return {
         "match_id": match.get("id"),
         "fecha_orden": match.get("fecha_orden"),
@@ -68,6 +74,7 @@ def _score_prediction(model_version: str, prediction: Any, match: dict[str, Any]
             "away_samples": prediction.metadata.get("away_samples"),
             "league_matches": prediction.metadata.get("league_matches"),
         },
+        "betting_analysis": betting_analysis,
         "warnings": prediction.metadata.get("warnings", []),
         "elapsed_ms": round(elapsed_ms, 3),
     }
@@ -77,6 +84,7 @@ def _aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
     if not rows:
         return {"matches": 0}
     dates = sorted(row["fecha_orden"] for row in rows if row.get("fecha_orden"))
+    betting = aggregate_value_analysis(rows)
     return {
         "matches": len(rows),
         "brier_score": round(sum(row["brier_score"] for row in rows) / len(rows), 6),
@@ -92,6 +100,7 @@ def _aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "evaluation_date_from": dates[0] if dates else None,
         "evaluation_date_to": dates[-1] if dates else None,
         "calibration": _calibration_bins(rows),
+        "betting": betting,
     }
 
 
@@ -1311,6 +1320,7 @@ def write_comparison_reports(result: dict[str, Any], reports_dir: Path, prefix: 
         "probabilities",
         "probabilities_uncalibrated",
         "probabilities_calibrated",
+        "betting_analysis",
         "outcome_hit",
         "exact_score_hit",
         "brier_score",
