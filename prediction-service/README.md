@@ -66,6 +66,27 @@ La evaluacion se compara con una linea base calculada solo con el bloque de
 entrenamiento. `--dry-run` imprime las metricas; sin ese flag las guarda en
 `model_evaluations`.
 
+## Analisis de valor esperado
+
+El backtest comparativo V1 vs V2 tambien puede incluir analisis personal de
+cuotas si el dataset trae cuotas decimales por partido. No se consumen cuotas
+externas ni se ejecutan apuestas: solo se simula si la probabilidad del modelo
+superaba la probabilidad implicita de la cuota antes del resultado.
+
+Claves aceptadas:
+
+- Local: `odds_home`, `home_odds`, `cuota_local`, `local_odds`.
+- Empate: `odds_draw`, `draw_odds`, `cuota_empate`, `empate_odds`.
+- Visitante: `odds_away`, `away_odds`, `cuota_visitante`, `visitante_odds`.
+
+Cada fila del reporte incluye `betting_analysis`. Los resumenes por modelo
+incluyen `betting.matches_with_odds`, `betting.value_signals`,
+`betting.flat_stake_profit` y `betting.flat_stake_roi`.
+
+Estas metricas solo son utiles si las cuotas fueron capturadas antes del
+partido. Si se cargan despues, el backtest queda contaminado para decisiones de
+apuesta.
+
 Variables utiles:
 
 - `PREDIGOL_HISTORY_LIMIT`: maximo de partidos finalizados para entrenar.
