@@ -66,6 +66,47 @@ class ImporterTests(unittest.TestCase):
         self.assertEqual(len(result.valid), 1)
         self.assertEqual(result.valid[0]["local_nombre"], "América de Cali")
 
+    def test_preserves_optional_decimal_odds_for_backtests(self) -> None:
+        result = validate_and_normalize_rows([
+            {
+                "fecha": "2024-01-01 20:00",
+                "torneo": "Liga",
+                "temporada": "2024",
+                "local": "A",
+                "visitante": "B",
+                "estado": "finalizado",
+                "goles_local": "2",
+                "goles_visitante": "1",
+                "odds_home": "2.10",
+                "odds_draw": "3.20",
+                "odds_away": "3.40",
+            }
+        ], "test.csv")
+
+        self.assertEqual(len(result.valid), 1)
+        self.assertEqual(result.valid[0]["odds"], {"home": 2.1, "draw": 3.2, "away": 3.4})
+        self.assertEqual(result.valid[0]["odds_home"], 2.1)
+        self.assertEqual(result.valid[0]["payload_api"]["odds"]["captured_before_match"], True)
+
+    def test_rejects_invalid_optional_odds(self) -> None:
+        result = validate_and_normalize_rows([
+            {
+                "fecha": "2024-01-01 20:00",
+                "torneo": "Liga",
+                "temporada": "2024",
+                "local": "A",
+                "visitante": "B",
+                "estado": "finalizado",
+                "goles_local": "2",
+                "goles_visitante": "1",
+                "odds_home": "0.90",
+            }
+        ], "test.csv")
+
+        self.assertEqual(len(result.valid), 0)
+        self.assertEqual(len(result.discarded), 1)
+        self.assertIn("cuota invalida", result.discarded[0].reason)
+
     def test_rejects_invalid_date_and_same_team(self) -> None:
         result = validate_and_normalize_rows([
             {"fecha": "mal", "torneo": "Liga", "temporada": "2024", "local": "A", "visitante": "B", "estado": "finalizado", "goles_local": "1", "goles_visitante": "0"},
@@ -139,6 +180,34 @@ class ImporterTests(unittest.TestCase):
         self.assertEqual(client.runs[-1]["metrics"]["existing_matches"], 2)
         self.assertEqual(client.runs[-1]["metrics"]["inserted_matches"], 0)
         self.assertEqual(client.partidos[result.valid[0]["api_football_fixture_id"]]["payload_api"]["raw"], rows[0])
+
+    def test_confirm_import_strips_backtest_only_odds_columns_before_supabase_write(self) -> None:
+        rows = [
+            {
+                "fecha": "2024-01-01 20:00",
+                "torneo": "Liga",
+                "temporada": "2024",
+                "local": "A",
+                "visitante": "B",
+                "estado": "finalizado",
+                "goles_local": "1",
+                "goles_visitante": "0",
+                "odds_home": "2.10",
+                "odds_draw": "3.20",
+                "odds_away": "3.40",
+            },
+        ]
+        result = validate_and_normalize_rows(rows, "manual-data/test.csv")
+        client = FakeSupabaseClient()
+
+        confirm_import(client, Path("manual-data/test.csv"), "Temporada test", result, Path("reports/test.json"))
+        stored = next(iter(client.partidos.values()))
+
+        self.assertNotIn("odds_home", stored)
+        self.assertNotIn("odds_draw", stored)
+        self.assertNotIn("odds_away", stored)
+        self.assertNotIn("odds", stored)
+        self.assertEqual(stored["payload_api"]["odds"]["decimal"], {"home": 2.1, "draw": 3.2, "away": 3.4})
 
     def test_confirm_import_omits_same_match_from_different_source_by_fallback(self) -> None:
         first = validate_and_normalize_rows([

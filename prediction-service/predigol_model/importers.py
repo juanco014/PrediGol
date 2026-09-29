@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol
 
+from .betting import parse_decimal_odds
 from .team_normalization import TeamNormalizer, normalize_team_key
 from .traceability import stable_checksum
 
@@ -22,6 +23,12 @@ REQUIRED_COLUMNS = {
 }
 
 SUPPORTED_HISTORICAL_STATES = {"finalizado"}
+
+ODDS_COLUMNS = {
+    "home": ("odds_home", "home_odds", "cuota_local", "local_odds"),
+    "draw": ("odds_draw", "draw_odds", "cuota_empate", "empate_odds"),
+    "away": ("odds_away", "away_odds", "cuota_visitante", "visitante_odds"),
+}
 
 
 @dataclass
@@ -118,6 +125,21 @@ def normalize_identity_text(value: Any) -> str:
     return " ".join(str(value or "").strip().casefold().split())
 
 
+def parse_optional_odds(lower: dict[str, Any]) -> dict[str, float]:
+    odds: dict[str, float] = {}
+    for outcome, columns in ODDS_COLUMNS.items():
+        for column in columns:
+            raw = lower.get(column)
+            if raw in (None, ""):
+                continue
+            parsed = parse_decimal_odds(raw)
+            if parsed is None:
+                raise ValueError(f"cuota invalida para {column}: {raw}")
+            odds[outcome] = parsed
+            break
+    return odds
+
+
 def build_fallback_identity(
     fecha: str,
     torneo: str,
@@ -196,6 +218,7 @@ def validate_and_normalize_rows(rows: list[dict[str, Any]], source: str, normali
             if estado != "finalizado":
                 goles_local = None
                 goles_visitante = None
+            odds = parse_optional_odds(lower)
         except Exception as error:  # noqa: BLE001
             result.discarded.append(ImportIssue(index, str(error), raw))
             continue
@@ -224,6 +247,19 @@ def validate_and_normalize_rows(rows: list[dict[str, Any]], source: str, normali
                 },
             },
         }
+        if odds:
+            normalized["odds"] = odds
+            if "home" in odds:
+                normalized["odds_home"] = odds["home"]
+            if "draw" in odds:
+                normalized["odds_draw"] = odds["draw"]
+            if "away" in odds:
+                normalized["odds_away"] = odds["away"]
+            normalized["payload_api"]["odds"] = {
+                "decimal": odds,
+                "captured_before_match": True,
+                "source": source,
+            }
         identity = build_import_identity(lower, normalized, home.canonical_key, away.canonical_key)
         fallback_identity = build_fallback_identity(fecha, torneo, temporada, home.canonical_key, away.canonical_key, normalized.get("ronda"))
         normalized["payload_api"]["import_identity"] = identity
