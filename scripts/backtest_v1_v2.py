@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / "prediction-service"))
 from predigol_model.comparative_backtest import compare_v1_v2, write_comparison_reports
 from predigol_model.config import load_settings
 from predigol_model.diagnostics import fetch_matches, finished_history
+from predigol_model.importers import load_and_validate
 from predigol_model.supabase_client import SupabaseRestClient
 from predigol_model.traceability import build_dataset_metadata, build_run_payload, insert_dataset, insert_model_run
 from predigol_model.v2 import V2Config
@@ -38,6 +39,19 @@ def count_pending_aliases(client: SupabaseRestClient) -> int:
 
 
 def load_dataset_file(path: Path) -> list[dict[str, object]]:
+    if path.suffix.casefold() == ".csv":
+        result = load_and_validate(path)
+        if result.discarded:
+            examples = "; ".join(f"fila {item.row}: {item.reason}" for item in result.discarded[:5])
+            raise ValueError(f"CSV con filas descartadas; corrige antes de backtest. {examples}")
+        if result.duplicates:
+            examples = "; ".join(f"fila {item.row}: {item.reason}" for item in result.duplicates[:5])
+            raise ValueError(f"CSV con duplicados; corrige antes de backtest. {examples}")
+        if result.pending:
+            examples = "; ".join(f"fila {item.row}: {item.reason}" for item in result.pending[:5])
+            raise ValueError(f"CSV con aliases pendientes; corrige antes de backtest. {examples}")
+        return [dict(match) for match in result.valid]
+
     data = json.loads(path.read_text(encoding="utf-8"))
     if isinstance(data, dict):
         matches = data.get("matches", [])
@@ -49,6 +63,27 @@ def load_dataset_file(path: Path) -> list[dict[str, object]]:
 
 
 def dataset_metadata(path: Path) -> dict[str, Any]:
+    if path.suffix.casefold() == ".csv":
+        result = load_and_validate(path)
+        matches = result.valid
+        dates = sorted(str(match.get("fecha_orden")) for match in matches if match.get("fecha_orden"))
+        odds_count = sum(1 for match in matches if match.get("odds"))
+        return {
+            "file": display_path(str(path)),
+            "name": path.stem,
+            "provider": "manual_csv",
+            "league_id": None,
+            "season": None,
+            "total_matches": result.rows,
+            "finished_matches": len(matches),
+            "pending_or_ignored_matches": result.rows - len(matches),
+            "date_from": dates[0] if dates else None,
+            "date_to": dates[-1] if dates else None,
+            "quality_status": "valid" if not result.discarded and not result.duplicates and not result.pending else "review",
+            "checksum": None,
+            "matches_with_odds": odds_count,
+        }
+
     data = json.loads(path.read_text(encoding="utf-8"))
     matches = data.get("matches", []) if isinstance(data, dict) else data
     if not isinstance(matches, list):

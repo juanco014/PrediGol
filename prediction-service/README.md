@@ -79,6 +79,14 @@ Claves aceptadas:
 - Empate: `odds_draw`, `draw_odds`, `cuota_empate`, `empate_odds`.
 - Visitante: `odds_away`, `away_odds`, `cuota_visitante`, `visitante_odds`.
 
+Para usar datos manuales sin API paga:
+
+```powershell
+python scripts/backtest_v1_v2.py --dataset manual-data/temporada-con-cuotas.template.csv --min-training 30
+```
+
+La plantilla `manual-data/temporada-con-cuotas.template.csv` solo documenta el formato. Para un backtest util hacen falta suficientes partidos finalizados y cuotas registradas antes del partido.
+
 Cada fila del reporte incluye `betting_analysis`. Los resumenes por modelo
 incluyen `betting.matches_with_odds`, `betting.value_signals`,
 `betting.flat_stake_profit` y `betting.flat_stake_roi`.

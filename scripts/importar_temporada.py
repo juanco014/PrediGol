@@ -17,6 +17,8 @@ from predigol_model.supabase_client import SupabaseRestClient
 from predigol_model.team_normalization import TeamNormalizer
 from predigol_model.traceability import build_dataset_metadata, build_run_payload, insert_dataset, insert_model_run
 
+TRANSIENT_BACKTEST_FIELDS = {"odds", "odds_home", "odds_draw", "odds_away"}
+
 
 def fetch_normalizer(client: SupabaseRestClient) -> TeamNormalizer:
     try:
@@ -108,7 +110,22 @@ def write_import_reports(result, report_base: Path, duplicates_against_supabase:
         summary["quality_warnings"].append("Hay partidos que ya existen en Supabase y seran omitidos en --confirm.")
     json_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    fieldnames = ["status", "row", "reason", "fecha", "torneo", "temporada", "local", "visitante", "goles_local", "goles_visitante", "fixture_id"]
+    fieldnames = [
+        "status",
+        "row",
+        "reason",
+        "fecha",
+        "torneo",
+        "temporada",
+        "local",
+        "visitante",
+        "goles_local",
+        "goles_visitante",
+        "odds_home",
+        "odds_draw",
+        "odds_away",
+        "fixture_id",
+    ]
     with csv_path.open("w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
@@ -131,6 +148,9 @@ def write_import_reports(result, report_base: Path, duplicates_against_supabase:
                 "visitante": row.get("payload_api", {}).get("raw", {}).get("visitante", row.get("visitante_nombre")),
                 "goles_local": row.get("goles_local_final"),
                 "goles_visitante": row.get("goles_visitante_final"),
+                "odds_home": row.get("odds_home"),
+                "odds_draw": row.get("odds_draw"),
+                "odds_away": row.get("odds_away"),
                 "fixture_id": fixture_id,
             })
         for label, issues in [("discarded", result.discarded), ("pending_alias", result.pending), ("duplicate_file", result.duplicates)]:
@@ -146,6 +166,9 @@ def write_import_reports(result, report_base: Path, duplicates_against_supabase:
                     "visitante": issue.data.get("visitante"),
                     "goles_local": issue.data.get("goles_local"),
                     "goles_visitante": issue.data.get("goles_visitante"),
+                    "odds_home": issue.data.get("odds_home") or issue.data.get("cuota_local"),
+                    "odds_draw": issue.data.get("odds_draw") or issue.data.get("cuota_empate"),
+                    "odds_away": issue.data.get("odds_away") or issue.data.get("cuota_visitante"),
                     "fixture_id": issue.data.get("external_id") or issue.data.get("fixture_id"),
                 })
     return {"json": json_path, "csv": csv_path}
@@ -156,6 +179,10 @@ def display_path(path: Path) -> str:
         return str(path.relative_to(ROOT))
     except ValueError:
         return str(path)
+
+
+def strip_transient_backtest_fields(row: dict[str, object]) -> dict[str, object]:
+    return {key: value for key, value in row.items() if key not in TRANSIENT_BACKTEST_FIELDS}
 
 
 def confirm_import(
@@ -182,7 +209,11 @@ def confirm_import(
         and row.get("payload_api", {}).get("fallback_identity", {}).get("key") not in existing_fallbacks
     ]
     omitted_existing = len(result.valid) - len(rows_to_write)
-    written = client.upsert("partidos", rows_to_write, on_conflict="api_football_fixture_id")
+    written = client.upsert(
+        "partidos",
+        [strip_transient_backtest_fields(row) for row in rows_to_write],
+        on_conflict="api_football_fixture_id",
+    )
     dataset = build_dataset_metadata(
         dataset_name,
         result.valid,

@@ -241,6 +241,57 @@ class DatasetScriptsTests(unittest.TestCase):
         self.assertEqual(len(next(iter(result["summaries"].values()))["calibration"]), 5)
         self.assertTrue(any("partidos no finalizados" in warning for warning in result["anti_leakage"]["warnings"]))
 
+    def test_backtest_accepts_manual_csv_with_odds(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            reports = base / "reports"
+            reports.mkdir()
+            csv_path = base / "manual_odds.csv"
+            lines = [
+                "fecha,torneo,temporada,local,visitante,goles_local,goles_visitante,estado,external_id,jornada,pais,odds_home,odds_draw,odds_away"
+            ]
+            start = datetime(2024, 8, 1, tzinfo=timezone.utc)
+            for index in range(35):
+                kickoff = start + timedelta(days=index)
+                lines.append(
+                    ",".join(
+                        [
+                            kickoff.strftime("%Y-%m-%d %H:%M"),
+                            "Liga Manual",
+                            "2024",
+                            f"Team {index % 8}",
+                            f"Team {(index + 1) % 8}",
+                            str((index * 2) % 4),
+                            str((index + 1) % 3),
+                            "finalizado",
+                            f"manual-{index}",
+                            f"Fecha {index + 1}",
+                            "Colombia",
+                            "2.20",
+                            "3.10",
+                            "3.40",
+                        ]
+                    )
+                )
+            csv_path.write_text("\n".join(lines), encoding="utf-8")
+
+            with patch.object(backtest_v1_v2, "REPORTS", reports):
+                code = backtest_v1_v2.main([
+                    "--dataset",
+                    str(csv_path),
+                    "--min-training",
+                    "30",
+                ])
+
+            report_files = sorted(reports.glob("backtest_v1_v2_*.json"))
+            result = json.loads(report_files[-1].read_text(encoding="utf-8"))
+
+        self.assertEqual(code, 0)
+        self.assertEqual(result["source_summary"]["raw_matches"], 35)
+        self.assertEqual(result["source_summary"]["finished_matches_used"], 35)
+        self.assertEqual(result["dataset_sources"][0]["matches_with_odds"], 35)
+        self.assertEqual(next(iter(result["summaries"].values()))["betting"]["matches_with_odds"], 5)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -60,6 +60,20 @@ Campos de cuotas aceptados en cada partido:
 
 Tambien se acepta un objeto `odds` con esas mismas claves.
 
+Para trabajar sin API paga, se puede usar la plantilla:
+
+```powershell
+manual-data/temporada-con-cuotas.template.csv
+```
+
+El backtest comparativo acepta CSV manual directamente:
+
+```powershell
+python scripts/backtest_v1_v2.py --dataset manual-data/temporada-con-cuotas.template.csv --min-training 30
+```
+
+Para una validacion real, el CSV debe contener bastantes partidos historicos antes de la ventana evaluada. La plantilla solo muestra el formato; con dos filas no alcanza para entrenar.
+
 El calculo usa:
 
 - Probabilidad implicita: `1 / cuota_decimal`.
